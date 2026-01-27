@@ -65,7 +65,7 @@ def backup_hook(hook_path: Path, logger: logging.Logger) -> None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = hook_path.parent / f"{hook_path.name}_{timestamp}"
         shutil.copy2(hook_path, backup_path)
-        logger.info(f"Backed up existing {hook_path.name} to {backup_path.name}")
+        logger.debug(f"Backed up existing {hook_path.name} to {backup_path.name}")
 
 
 def install_hook(source_path: Path, hooks_dir: Path, logger: logging.Logger) -> None:
@@ -225,6 +225,8 @@ def configure_git_with_command(project_path: Path, yaml_merge_path: Path, logger
                 logger.warning(f"Failed to run: {' '.join(cmd)}")
                 logger.debug(f"Error: {result.stderr}")
                 return False
+            else:
+                logger.info(' '.join(cmd))
         
         return True
     except Exception as e:
@@ -283,11 +285,10 @@ def configure_unity_yaml_merge(project_path: Path, unity_path: Path, logger: log
     
     # Try git command first, fall back to configparser
     git_available = check_git_available()
-    git_available = False  # Force fallback for testing purposes
+    # git_available = False  # Force fallback for testing purposes
 
 
     if git_available:
-        logger.info("Using git command...")
         success = configure_git_with_command(project_path, yaml_merge_path, logger)
     else:
         logger.info("Git command not found, using direct config edit...")
@@ -310,7 +311,6 @@ def main():
     logger.info("=" * 60)
     logger.info("Unity Project Setup")
     logger.info("=" * 60)
-    logger.info(f"\nProject directory: {script_dir}")
     
     # Check if this is a git repository
     if not is_git_repository(script_dir):
@@ -318,10 +318,9 @@ def main():
         logger.error(f"Expected to find .git directory in: {script_dir}")
         sys.exit(1)
     
-    logger.info("Git repository detected")
+    logger.info(f"Git repository detected: {script_dir}")
     
     # Step 1: Install Git hooks
-    logger.info("\n" + "-" * 60)
     logger.info("Step 1: Installing Git Hooks")
     logger.info("-" * 60)
     
@@ -337,7 +336,7 @@ def main():
     logger.info("Git hooks installed")
     
     # Step 2: Configure Unity
-    logger.info("\n" + "-" * 60)
+    logger.info("-" * 60)
     logger.info("Step 2: Unity Configuration")
     logger.info("-" * 60)
     
@@ -361,10 +360,7 @@ def main():
         logger.info("UnityYAMLMerge will not be configured.")
     
     # Done
-    logger.info("\n" + "=" * 60)
     logger.info("Setup Complete!")
-    logger.info("=" * 60)
-    logger.info(f"\nLog file saved to: logs/setup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
 
 if __name__ == "__main__":
