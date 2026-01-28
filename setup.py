@@ -74,6 +74,9 @@ def install_hook(source_path: Path, hooks_dir: Path, logger: logging.Logger) -> 
         logger.warning(f"Source file {source_path.name} not found, skipping.")
         return
     
+    # Ensure hooks directory exists
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    
     dest_path = hooks_dir / source_path.name
     
     # Backup existing hook if it exists
@@ -166,33 +169,57 @@ def get_unity_yaml_merge_path(unity_install_path: Path) -> Optional[Path]:
 
 
 def select_unity_version(installations: List[Path], project_version: Optional[str], logger: logging.Logger) -> Optional[Path]:
-    """Prompt user to select a Unity version."""
+    """Automatically select matching Unity version, or prompt user if not found."""
     if not installations:
-        logger.info("\nNo Unity installations found.")
+        logger.info("\nNo Unity installations found. Skipping UnityYAMLMerge configuration.")
         return None
     
+    # Find the last installation that matches the project version (if available)
+    matching_installation = None
+    
+    if project_version:
+        matching_indices = [
+            i for i, install in enumerate(installations)
+            if project_version in install.name
+        ]
+        if matching_indices:
+            matching_index = matching_indices[-1]  # Get the last match
+            matching_installation = installations[matching_index]
+            logger.info(f"Found matching Unity installation: {matching_installation.name}")
+            return matching_installation
+    
+    # No match found, prompt user to select from list
+    logger.info(f"Project requires version {project_version}, but no matching installation found.")
     logger.info("\nAvailable Unity installations:")
+    
     for i, install in enumerate(installations, 1):
         version = install.name
-        marker = " (matches project)" if version == project_version else ""
+        marker = " (default)" if i == 1 else ""
         logger.info(f"  {i}. {version}{marker}")
     
-    if project_version and project_version not in [p.name for p in installations]:
-        logger.warning(f"\nNote: Project requires version {project_version}, but it's not installed.")
+    logger.info(f"  {len(installations) + 1}. Skip (do not configure UnityYAMLMerge)")
     
     while True:
         try:
-            choice = input(f"\nSelect Unity version (1-{len(installations)}, or 0 to skip): ").strip()
-            choice_num = int(choice)
+            prompt = f"\nSelect Unity version (1-{len(installations)}, or {len(installations) + 1} to skip) [default: 1]: "
+            choice = input(prompt).strip()
             
-            if choice_num == 0:
+            # If empty input, default to first installation
+            if choice == "":
+                choice_num = 1
+            else:
+                choice_num = int(choice)
+            
+            if choice_num == len(installations) + 1:  # Skip option
                 return None
             
             if 1 <= choice_num <= len(installations):
                 return installations[choice_num - 1]
             
-            logger.info(f"Please enter a number between 0 and {len(installations)}")
-        except (ValueError, KeyboardInterrupt):
+            logger.info(f"Please enter a number between 1 and {len(installations) + 1}")
+        except ValueError:
+            logger.info("Invalid input. Please enter a valid number.")
+        except KeyboardInterrupt:
             logger.info("\nSkipping Unity configuration.")
             return None
 
@@ -276,7 +303,7 @@ def configure_unity_yaml_merge(project_path: Path, unity_path: Path, logger: log
         logger.error(f"UnityYAMLMerge not found in {unity_path}")
         return False
     
-    logger.info(f"\nConfiguring UnityYAMLMerge: {yaml_merge_path}")
+    logger.info(f"Configuring UnityYAMLMerge: {yaml_merge_path}")
     
     git_dir = project_path / ".git"
     if not git_dir.exists():
@@ -321,6 +348,7 @@ def main():
     logger.info(f"Git repository detected: {script_dir}")
     
     # Step 1: Install Git hooks
+    logger.info("-" * 60)
     logger.info("Step 1: Installing Git Hooks")
     logger.info("-" * 60)
     
