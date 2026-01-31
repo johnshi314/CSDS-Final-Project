@@ -14,10 +14,10 @@ namespace GameData {
         public bool Ally { get; set; }
         public bool NonAlly { get; set; }
 
-        public Tunneling(bool ally = true,
-                        bool nonAlly = false) {
-            Ally = ally;
-            NonAlly = nonAlly;
+        public Tunneling(bool Ally = true,
+                        bool NonAlly = false) {
+            this.Ally = Ally;
+            this.NonAlly = NonAlly;
         }
     }
 
