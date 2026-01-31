@@ -4,7 +4,6 @@
  * Date Created  : 2026-01-31
  * Description   : Data structure representing an agent in the game.
  **********************************************************************/
-using System;
 using UnityEngine;
 using BackendData;
 
@@ -81,7 +80,7 @@ namespace GameData {
 
             // If no GameObject name is provided, create one based on timestamp
             if (gameObjectName == null) {
-                long timestamp_now = DateTime.Now.Ticks;
+                long timestamp_now = System.DateTime.Now.Ticks;
                 gameObjectName = "Agent_" + timestamp_now;
             }
 
