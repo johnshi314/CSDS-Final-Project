@@ -31,9 +31,11 @@ namespace GameData {
         // Flags for how other agents can pass through this agent
 
 
-        // Base Data
+        // Meta Information
         public BackendData.Player Player { get; private set; }  // The player controlling this agent
         public string AgentName { get; private set; }       // Agent's display name
+
+        // Agent Capabilities
         public uint MaxHP { get; private set; } = 20;       // Maximum health points
         public uint MaxRange { get; private set; } = 3;     // Maximum movement range (per turn)
         public uint[] Abilities { get; private set; }       // List of ability IDs
@@ -41,7 +43,6 @@ namespace GameData {
 
         // Current Status
         public uint HP { get; private set;}     // Current health points
-        public uint Range { get; private set;}  // Current movement range
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -101,10 +102,9 @@ namespace GameData {
             agent.AgentName = agent_name;
             agent.MaxHP = hp;
             agent.MaxRange = range;
-            agent.HP = hp;
-            agent.Range = range;
             agent.Abilities = abilities;
             agent.CanTunnel = tunneling;
+            agent.HP = hp;
             return agent;
         }    
 
@@ -131,52 +131,10 @@ namespace GameData {
         }
 
         /// <summary>
-        /// Check if the agent can move a specified distance.
-        /// </summary>
-        /// <param name="distance">Distance to check.</param>
-        /// <returns>True if the agent can move the specified distance, otherwise false.</returns>
-        public bool CanMove(uint distance) {
-            return this.Range >= distance;
-        }
-
-        /// <summary>
-        /// Move the agent a specified distance, reducing its available range.
-        /// </summary>
-        /// <param name="distance">Distance to move.</param>
-        /// <returns>True if the move was successful, otherwise false.</returns>
-        public bool Move(uint distance) {
-            if (CanMove(distance)) {
-                this.Range -= distance;
-                return true;
-            } else {
-                Debug.Log("Move distance exceeds agent's range.");
-                return false;
-            }
-        }
-
-        // ===================================================================== //
-        // ======================= Public Reset Methods ======================== //
-
-        /// <summary>
-        /// Reset the agent's range to its maximum value.
-        /// </summary>
-        public void ResetRange() {
-            this.Range = this.MaxRange;
-        }
-
-        /// <summary>
         /// Reset the agent's HP to its maximum value.
         /// </summary>
         public void ResetHP() {
             this.HP = this.MaxHP;
-        }
-
-        /// <summary>
-        /// Reset both the agent's HP and range to their maximum values.
-        /// </summary>
-        public void Reset() {
-            this.ResetHP();
-            this.ResetRange();
         }
     }
 }
