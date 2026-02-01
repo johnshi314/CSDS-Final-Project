@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-
+// Backend: networking and backend-related functionality
 namespace Backend {
 
     /// <summary>

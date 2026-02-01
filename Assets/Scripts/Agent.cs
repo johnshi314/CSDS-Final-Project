@@ -6,19 +6,12 @@
 **********************************************************************/
 using UnityEngine;
 
-namespace Game.Data {
+// GameData: Data related to the client-side game
+namespace GameData {
 
-    public struct Tunneling {
-        public bool Ally { get; set; }
-        public bool NonAlly { get; set; }
-
-        public Tunneling(bool Ally = true,
-                        bool NonAlly = false) {
-            this.Ally = Ally;
-            this.NonAlly = NonAlly;
-        }
-    }
-
+    /// <summary>
+    /// Data structure representing an agent in the game who can perform actions and take and deal damage.
+    /// </summary>
     public class Agent : MonoBehaviour {
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -27,11 +20,8 @@ namespace Game.Data {
         // Update is called once per frame
         static void Update() { }
 
-        // Flags for how other agents can pass through this agent
-
-
         // Meta Information
-        public Backend.Data.Player Player { get; private set; }  // The player controlling this agent
+        public GameData.Player Player { get; private set; }  // The player controlling this agent
         public string AgentName { get; private set; }       // Agent's display name
 
         // Agent Capabilities
@@ -48,7 +38,19 @@ namespace Game.Data {
         // uint map { public get; private set;}     // Current map ID
         // uint tile { public get; private set;}    // Current tile index
 
+        /// <summary>
+        /// Flags for how other agents can walk through this agent when pathing on the map
+        /// </summary>
+        public struct Tunneling {
+            public bool Ally { get; set; }
+            public bool NonAlly { get; set; }
 
+            public Tunneling(bool Ally = true,
+                            bool NonAlly = false) {
+                this.Ally = Ally;
+                this.NonAlly = NonAlly;
+            }
+        }
 
         // ===================================================================== //
         // ======================= Static Factory Method ======================= //
@@ -67,7 +69,7 @@ namespace Game.Data {
         /// <param name="position">2D position where the agent will be placed.</param>
         /// <returns>The newly created Agent component.</returns>
         public static Agent NewAgent(// Agent properties
-                                    Backend.Data.Player player = null,
+                                    GameData.Player player = null,
                                     string agent_name = "MissingNo.",
                                     uint hp = 20,
                                     uint range = 3,

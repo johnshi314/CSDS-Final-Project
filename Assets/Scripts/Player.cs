@@ -2,11 +2,12 @@
  * File Name     : Player.cs
  * Author        : Mikey Maldonado
  * Date Created  : 2026-01-31
- * Description   : Data structure representing a player in the backend.
+ * Description   : Data structure representing a player in the game.
  **********************************************************************/
 using UnityEngine;
 
-namespace Backend.Data {
+// GameData: Data related to the client-side game
+namespace GameData {
     public class Player {
         public string ID { get; private set; }   // Unique identifier for the player
         public string Name { get; private set; } // Display name of the player
