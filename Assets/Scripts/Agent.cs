@@ -1,13 +1,12 @@
- /***********************************************************************
- * File Name     : Agent.cs
- * Author        : Mikey Maldonado
- * Date Created  : 2026-01-31
- * Description   : Data structure representing an agent in the game.
- **********************************************************************/
+/***********************************************************************
+* File Name     : Agent.cs
+* Author        : Mikey Maldonado
+* Date Created  : 2026-01-31
+* Description   : Data structure representing an agent in the game.
+**********************************************************************/
 using UnityEngine;
-using BackendData;
 
-namespace GameData {
+namespace Game.Data {
 
     public struct Tunneling {
         public bool Ally { get; set; }
@@ -20,19 +19,19 @@ namespace GameData {
         }
     }
 
-    public class Agent: MonoBehaviour {
+    public class Agent : MonoBehaviour {
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
-        static void Start() {}
+        static void Start() { }
 
         // Update is called once per frame
-        static void Update() {}
+        static void Update() { }
 
         // Flags for how other agents can pass through this agent
 
 
         // Meta Information
-        public BackendData.Player Player { get; private set; }  // The player controlling this agent
+        public Backend.Data.Player Player { get; private set; }  // The player controlling this agent
         public string AgentName { get; private set; }       // Agent's display name
 
         // Agent Capabilities
@@ -42,7 +41,7 @@ namespace GameData {
         public Tunneling CanTunnel { get; set; }            // How other agents can pass through this agent
 
         // Current Status
-        public uint HP { get; private set;}     // Current health points
+        public uint HP { get; private set; }     // Current health points
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -68,7 +67,7 @@ namespace GameData {
         /// <param name="position">2D position where the agent will be placed.</param>
         /// <returns>The newly created Agent component.</returns>
         public static Agent NewAgent(// Agent properties
-                                    BackendData.Player player = null,
+                                    Backend.Data.Player player = null,
                                     string agent_name = "MissingNo.",
                                     uint hp = 20,
                                     uint range = 3,
@@ -106,7 +105,7 @@ namespace GameData {
             agent.CanTunnel = tunneling;
             agent.HP = hp;
             return agent;
-        }    
+        }
 
         // ===================================================================== //
         // ======================= Public Agent Methods ======================== //
@@ -117,7 +116,7 @@ namespace GameData {
         /// <param name="damage">Amount of damage to apply.</param>
         public void TakeDamage(int damage) {
             this.HP -= (uint)damage;
-            if (this.HP < 0){
+            if (this.HP < 0) {
                 this.HP = 0;
             }
         }

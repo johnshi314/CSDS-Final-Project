@@ -6,7 +6,7 @@
  **********************************************************************/
 using UnityEngine;
 
-namespace BackendData {
+namespace Backend.Data {
     public class Player {
         public string ID { get; private set; }   // Unique identifier for the player
         public string Name { get; private set; } // Display name of the player
