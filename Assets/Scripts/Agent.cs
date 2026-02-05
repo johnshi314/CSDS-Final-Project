@@ -20,17 +20,17 @@ namespace GameData {
         // Update is called once per frame
         static void Update() { }
 
-        // Meta Information
+        [Header("Identity")]
         public GameData.Player Player { get; private set; }  // The player controlling this agent
         public string AgentName { get; private set; }       // Agent's display name
 
-        // Agent Capabilities
+        [Header("Base Stats")]
         public uint MaxHP { get; private set; } = 20;       // Maximum health points
         public uint MaxRange { get; private set; } = 3;     // Maximum movement range (per turn)
         public uint[] Abilities { get; private set; }       // List of ability IDs
         public Tunneling CanTunnel { get; set; }            // How other agents can pass through this agent
 
-        // Current Status
+        [Header("Current Stats")]
         public uint HP { get; private set; }     // Current health points
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
