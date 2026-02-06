@@ -17,10 +17,10 @@ namespace GameData {
     public class Agent : MonoBehaviour {
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
-        static void Start() { }
+        public void Start() { }
 
         // Update is called once per frame
-        static void Update() { }
+        public void Update() { }
 
         [Header("Identity")]
         GameData.Player Player;  // The player controlling this agent
@@ -68,17 +68,17 @@ namespace GameData {
         /// <param name="parent">Parent GameObject under which the new agent will be placed. If null, it will be placed at the root.</param>
         /// <param name="position">2D position where the agent will be placed.</param>
         /// <returns>The newly created Agent component.</returns>
-        public static Agent NewAgent(// Agent properties
-                                    GameData.Player player = null,
-                                    string agent_name = "MissingNo.",
-                                    uint hp = 20,
-                                    uint range = 3,
-                                    IEnumerable<GameData.Ability> abilities = null,
-                                    Tunneling tunneling = default,
-                                    // How to place it in the scene
-                                    string gameObjectName = null,
-                                    GameObject parent = null,
-                                    Vector3 position = default) {
+        public static GameObject NewAgent(// Agent properties
+                                        GameData.Player player = null,
+                                        string agent_name = "MissingNo.",
+                                        uint hp = 20,
+                                        uint range = 3,
+                                        IEnumerable<GameData.Ability> abilities = null,
+                                        Tunneling tunneling = default,
+                                        // How to place it in the scene
+                                        string gameObjectName = null,
+                                        GameObject parent = null,
+                                        Vector3 position = default) {
 
             // If no GameObject name is provided, create one based on timestamp
             if (gameObjectName == null) {
@@ -108,7 +108,7 @@ namespace GameData {
             // Example check to see if ally can tunnel through
             bool canAllyTunnel = (agent.CanTunnel & Tunneling.Ally) != 0;
             agent.HP = hp;
-            return agent;
+            return agentObject;
         }
 
         // ===================================================================== //
