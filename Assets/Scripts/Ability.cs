@@ -69,7 +69,8 @@ namespace GameData {
         Cone = 2,       // Cone shape
         Circle = 3,     // Circular area
         Cross = 4,      // Cross shape
-        None = 5        // Shape determined by resolver (e.g., FFT Mathematician)
+        Square =  5,    // Square shape
+        None = 6        // Shape determined by resolver (e.g., FFT Mathematician)
     }
 
     /// <summary>

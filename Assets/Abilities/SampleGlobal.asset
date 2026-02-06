@@ -16,7 +16,7 @@ MonoBehaviour:
   DisplayName: Reply All
   TargetType: 4
   TargetingMode: 1
-  TargetShape: 5
+  TargetShape: 6
   RangeMax: 0
   RangeMin: 0
   Cost: 3
