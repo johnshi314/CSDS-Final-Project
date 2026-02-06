@@ -20,23 +20,24 @@ namespace GameData {
     /// <summary>
     /// Data structure representing an ability that agents can use in the game.
     /// </summary>
-    public class Ability {
+    [CreateAssetMenu(fileName = "Ability", menuName = "Scriptable Objects/Ability")]
+    public class Ability: ScriptableObject {
         [Header("Identity")]
         public string Id;                       // ID for referencing cross system and database
         public string DisplayName;              // Name of ability
 
         [Header("Targeting")]
+        public AbilityTargetType TargetType;    // Type of targets allowed
         public AbilityTargetMode TargetingMode; // If this is point-select or global
+        public AbilityTargetShape TargetShape;  // Shape of area affected
         public uint RangeMax;                   // Max range from caster
         public uint RangeMin;                   // Min range from caster (0 will allow self-targeting)
-        public AbilityTargetType TargetType;    // Type of targets allowed
 
         [Header("Costs")]
         public uint Cost;                       // Resource cost to use ability (e.g., mana, stamina)
 
         [Header("Effects")]
         public int Damage;                      // Base damage value
-        public List<AbilityModifier> Modifiers; // List of modifiers that can be applied to this ability
     }
 
     /// <summary>
@@ -44,29 +45,29 @@ namespace GameData {
     /// </summary>
     [Flags]
     public enum AbilityTargetType {
-        Empty        = 0,       // Able to target empty tiles
-        Ally        = 1 << 0,   // Able to target allies
-        NonAlly     = 1 << 1    // Able to target non-allies
+        Empty        = 1 << 0,       // Able to target empty tiles
+        Ally        = 1 << 1,   // Able to target allies
+        NonAlly     = 1 << 2    // Able to target non-allies
     }
 
     /// <summary>
     /// Specifies how an ability selects its targets.
     /// </summary>
     public enum AbilityTargetMode {
-        Point,      // Select a tile/unit in range
-        Global,     // Applies to all valid targets on the board
+        Point = 0,  // Select a tile/unit in range
+        Global = 1, // Applies to all valid targets on the board
     }
 
     /// <summary>
     /// Specifies the shape of the area affected by an ability.
     /// </summary>
     public enum AbilityTargetShape {
-        Single,     // Single target
-        Line,       // Line shape
-        Cone,       // Cone shape
-        Circle,     // Circular area
-        Cross,      // Cross shape
-        None        // Shape determined by resolver (e.g., FFT Mathematician)
+        Single = 0,     // Single target
+        Line = 1,       // Line shape
+        Cone = 2,       // Cone shape
+        Circle = 3,     // Circular area
+        Cross = 4,      // Cross shape
+        None = 5        // Shape determined by resolver (e.g., FFT Mathematician)
     }
 
     /// <summary>
