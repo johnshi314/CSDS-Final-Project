@@ -46,8 +46,10 @@ namespace GameData {
 
         [Flags]
         public enum Tunneling {
-            Ally = 1 << 0,      // Can be tunneled through by allies
-            NonAlly = 1 << 1    // Can be tunneled through by non-allies
+            Nothing     = 0,                // Cannot be tunneled through
+            Ally        = 1 << 0,           // Can be tunneled through by allies
+            NonAlly     = 1 << 1,           // Can be tunneled through by non-allies
+            Everything  = Ally | NonAlly,   // Can be tunneled through by everyone
         }
 
         // ===================================================================== //
@@ -103,6 +105,8 @@ namespace GameData {
             agent.MaxRange = range;
             agent.Abilities = abilities != null ? new List<GameData.Ability>(abilities) : new List<GameData.Ability>();
             agent.CanTunnel = tunneling;
+            // Example check to see if ally can tunnel through
+            bool canAllyTunnel = (agent.CanTunnel & Tunneling.Ally) != 0;
             agent.HP = hp;
             return agent;
         }

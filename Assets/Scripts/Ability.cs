@@ -45,9 +45,11 @@ namespace GameData {
     /// </summary>
     [Flags]
     public enum AbilityTargetType {
-        Empty        = 1 << 0,       // Able to target empty tiles
-        Ally        = 1 << 1,   // Able to target allies
-        NonAlly     = 1 << 2    // Able to target non-allies
+        Empty       = 1 << 0,                  // Able to target empty tiles
+        Ally        = 1 << 1,                  // Able to target allies
+        NonAlly     = 1 << 2,                  // Able to target non-allies
+        Agent       = Ally | NonAlly,          // Able to target all units
+        Everything  = Empty | Ally | NonAlly,  // Able to target all units
     }
 
     /// <summary>
