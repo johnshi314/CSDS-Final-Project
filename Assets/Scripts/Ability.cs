@@ -99,6 +99,7 @@ namespace GameData {
     public class AbilityEffect {
         public AbilityEffectType EffectType; // Type of effect (e.g., damage, heal, buff)
         public uint Amount; // Amount of effect (e.g., damage amount, heal amount)
+        public uint Duration; // Duration of effect (e.g., number of turns)
     }
 
     public enum AbilityEffectType {

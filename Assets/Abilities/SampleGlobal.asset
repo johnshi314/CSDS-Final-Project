@@ -23,3 +23,4 @@ MonoBehaviour:
   Effects:
   - EffectType: 3
     Amount: 1
+    Duration: 1
