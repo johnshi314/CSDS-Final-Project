@@ -5,6 +5,8 @@
 * Description   : Data structure representing an agent in the game.
 **********************************************************************/
 using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 // GameData: Data related to the client-side game
 namespace GameData {
@@ -21,17 +23,17 @@ namespace GameData {
         static void Update() { }
 
         [Header("Identity")]
-        public GameData.Player Player { get; private set; }  // The player controlling this agent
-        public string AgentName { get; private set; }       // Agent's display name
+        GameData.Player Player;  // The player controlling this agent
+        [SerializeField] string AgentName;       // Agent's display name
 
         [Header("Base Stats")]
-        public uint MaxHP { get; private set; } = 20;       // Maximum health points
-        public uint MaxRange { get; private set; } = 3;     // Maximum movement range (per turn)
-        public uint[] Abilities { get; private set; }       // List of ability IDs
-        public Tunneling CanTunnel { get; set; }            // How other agents can pass through this agent
+        [SerializeField] uint MaxHP = 20;       // Maximum health points
+        [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
+        [SerializeField] List<GameData.Ability> Abilities;  // List of Abilities this agent can use
+        [SerializeField] Tunneling CanTunnel;               // How other agents can pass through this agent
 
         [Header("Current Stats")]
-        public uint HP { get; private set; }     // Current health points
+        [SerializeField] uint HP;                   // Current health points
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -41,15 +43,11 @@ namespace GameData {
         /// <summary>
         /// Flags for how other agents can walk through this agent when pathing on the map
         /// </summary>
-        public struct Tunneling {
-            public bool Ally { get; set; }
-            public bool NonAlly { get; set; }
 
-            public Tunneling(bool Ally = true,
-                            bool NonAlly = false) {
-                this.Ally = Ally;
-                this.NonAlly = NonAlly;
-            }
+        [Flags]
+        public enum Tunneling {
+            Ally = 1 << 0,      // Can be tunneled through by allies
+            NonAlly = 1 << 1    // Can be tunneled through by non-allies
         }
 
         // ===================================================================== //
@@ -73,7 +71,7 @@ namespace GameData {
                                     string agent_name = "MissingNo.",
                                     uint hp = 20,
                                     uint range = 3,
-                                    uint[] abilities = null,
+                                    IEnumerable<GameData.Ability> abilities = null,
                                     Tunneling tunneling = default,
                                     // How to place it in the scene
                                     string gameObjectName = null,
@@ -103,7 +101,7 @@ namespace GameData {
             agent.AgentName = agent_name;
             agent.MaxHP = hp;
             agent.MaxRange = range;
-            agent.Abilities = abilities;
+            agent.Abilities = abilities != null ? new List<GameData.Ability>(abilities) : new List<GameData.Ability>();
             agent.CanTunnel = tunneling;
             agent.HP = hp;
             return agent;

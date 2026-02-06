@@ -22,17 +22,13 @@ namespace Backend {
     /// </summary>
     public class WebSocketClient : MonoBehaviour {
         // Configurable fields
-        [SerializeField]
-        string serverUrl = "ws://localhost:8765";
+        [SerializeField] string serverUrl = "ws://localhost:8765";
 
-        [SerializeField]
-        bool connectOnStart = true;
+        [SerializeField] bool connectOnStart = true;
 
-        [SerializeField]
-        bool sendOnMyTurn = true;
+        [SerializeField] bool sendOnMyTurn = true;
 
-        [SerializeField]
-        string messageOnTurn = "Player {0} here!";
+        [SerializeField] string messageOnTurn = "Player {0} here!";
 
         // WebSocket and related fields
         private ClientWebSocket ws;
