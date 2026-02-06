@@ -7,7 +7,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-namespace GameData {
+namespace GameMap {
     public class Map : MonoBehaviour {
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start() { }
@@ -56,7 +56,7 @@ namespace GameData {
             // Create Map GameObject
             GameObject mapObject = new GameObject(mapName);
 
-            // Add map component and nitialize data
+            // Add map component and initialize data
             Map map = mapObject.AddComponent<Map>();
             map.mapName = mapName;
             map.tiles = tiles;
