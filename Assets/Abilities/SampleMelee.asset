@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
   Id: 1
   DisplayName: Long Print Job
-  TargetType: 0
+  TargetType: 6
   TargetingMode: 0
   TargetShape: 0
   RangeMax: 1

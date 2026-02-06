@@ -27,10 +27,18 @@ using GameData;
 
 [CustomEditor(typeof(GameData.Ability))]
 public class AbilityEditor: Editor {
+    private static readonly Dictionary<int, GameData.AbilityTargetType> LastValidTargetType
+        = new Dictionary<int, GameData.AbilityTargetType>();
+
     public override void OnInspectorGUI() {
         serializedObject.Update();
 
         GameData.Ability ability = (GameData.Ability)target;
+        var targetTypeProp = serializedObject.FindProperty("TargetType");
+        var targetingModeProp = serializedObject.FindProperty("TargetingMode");
+        var targetShapeProp = serializedObject.FindProperty("TargetShape");
+        var rangeMaxProp = serializedObject.FindProperty("RangeMax");
+        var rangeMinProp = serializedObject.FindProperty("RangeMin");
 
         // Draw Identity fields
         EditorGUILayout.PropertyField(serializedObject.FindProperty("Id"));
@@ -39,11 +47,38 @@ public class AbilityEditor: Editor {
         EditorGUILayout.Space();
 
         // Draw Targeting fields
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("TargetType"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("TargetingMode"));
+        int abilityId = ability.GetInstanceID();
+        if (targetTypeProp.intValue == 0) {
+            if (LastValidTargetType.TryGetValue(abilityId, out var lastTargetType) && lastTargetType != 0) {
+                targetTypeProp.intValue = (int)lastTargetType;
+            } else {
+                targetTypeProp.intValue = (int)GameData.AbilityTargetType.Everything;
+            }
+        }
+
+        var currentTargetType = (GameData.AbilityTargetType)targetTypeProp.intValue;
+        var newTargetType = (GameData.AbilityTargetType)EditorGUILayout.EnumFlagsField(
+            "Target Type",
+            currentTargetType
+        );
+
+        // Prevent clearing all flags and restore last valid selection
+        if (newTargetType == 0) {
+            if (LastValidTargetType.TryGetValue(abilityId, out var lastTargetType) && lastTargetType != 0) {
+                newTargetType = lastTargetType;
+            } else {
+                newTargetType = GameData.AbilityTargetType.Everything;
+            }
+        } else {
+            LastValidTargetType[abilityId] = newTargetType;
+        }
+
+        targetTypeProp.intValue = (int)newTargetType;
+
+        EditorGUILayout.PropertyField(targetingModeProp);
 
         // Conditionally enable/disable TargetShape and Range fields based on TargetingMode
-        bool isGlobalMode = ability.TargetingMode == GameData.AbilityTargetMode.Global;
+        bool isGlobalMode = (GameData.AbilityTargetMode)targetingModeProp.enumValueIndex == GameData.AbilityTargetMode.Global;
         
         EditorGUI.BeginDisabledGroup(isGlobalMode);
         
@@ -58,21 +93,22 @@ public class AbilityEditor: Editor {
                 }
             }
             
-            int currentIndex = shapeList.IndexOf(ability.TargetShape);
+            var currentShape = (GameData.AbilityTargetShape)targetShapeProp.enumValueIndex;
+            int currentIndex = shapeList.IndexOf(currentShape);
             if (currentIndex < 0) currentIndex = 0; // Default to first valid option
             
             int newIndex = EditorGUILayout.Popup("Target Shape", currentIndex, 
                 Array.ConvertAll(shapeList.ToArray(), s => s.ToString()));
             
             if (newIndex >= 0 && newIndex < shapeList.Count) {
-                ability.TargetShape = shapeList[newIndex];
+                targetShapeProp.enumValueIndex = (int)shapeList[newIndex];
             }
         } else {
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("TargetShape"));
+            EditorGUILayout.PropertyField(targetShapeProp);
         }
         
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("RangeMax"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("RangeMin"));
+        EditorGUILayout.PropertyField(rangeMaxProp);
+        EditorGUILayout.PropertyField(rangeMinProp);
         EditorGUI.EndDisabledGroup();
 
         EditorGUILayout.Space();
@@ -87,16 +123,13 @@ public class AbilityEditor: Editor {
 
         // Set values to None/0 when Global mode is active
         if (isGlobalMode) {
-            ability.TargetShape = GameData.AbilityTargetShape.None;
-            ability.RangeMin = 0;
-            ability.RangeMax = 0;
-        } else if (ability.TargetingMode == GameData.AbilityTargetMode.Point) {
-            // None is not a valid shape for Point targeting, set to Single if currently None
-            if (ability.TargetShape == GameData.AbilityTargetShape.None) {
-                ability.TargetShape = GameData.AbilityTargetShape.Single;
-            }
+            targetShapeProp.enumValueIndex = (int)GameData.AbilityTargetShape.None;
+            rangeMinProp.intValue = 0;
+            rangeMaxProp.intValue = 0;
         }
 
-        serializedObject.ApplyModifiedProperties();
+        if (serializedObject.ApplyModifiedProperties()) {
+            EditorUtility.SetDirty(ability);
+        }
     }
 }
