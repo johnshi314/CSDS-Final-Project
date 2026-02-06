@@ -6,6 +6,7 @@
 **********************************************************************/
 using UnityEngine;
 using System.Collections.Generic;
+using GameData;
 
 namespace GameMap {
     public class Map : MonoBehaviour {
