@@ -15,6 +15,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using GameManager;
+using GameMap;
 
 namespace GameData {
     /// <summary>
@@ -28,7 +29,7 @@ namespace GameData {
 
         [Header("Targeting")]
         public AbilityTargetType TargetType;    // Type of targets allowed
-        public AbilityTargetMode TargetMode; // If this is point-select or global
+        public AbilityTargetMode TargetMode;    // If this is point-select or global
         public AbilityTargetShape TargetShape;  // Shape of area affected
         public uint RangeMax;                   // Max range from caster
         public uint RangeMin;                   // Min range from caster (0 will allow self-targeting)
@@ -37,7 +38,8 @@ namespace GameData {
         public uint Cost;                       // Resource cost to use ability (e.g., mana, stamina)
 
         [Header("Effects")]
-        public int Damage;                      // Base damage value
+        public List<AbilityEffect> Effects;     // List of effects this ability applies to targets
+
     }
 
     /// <summary>
@@ -77,9 +79,10 @@ namespace GameData {
     /// Context information for an ability being used for when resolving its effects.
     /// </summary>
     public class AbilityUseContext {
+        public Ability Ability;
         public Agent Caster;
-        public MapManager Board;
-        // public TurnSystem TurnSystem;
+        public Tile TargetTile;
+        public TurnOrder TurnOrder;
     }
 
     /// <summary>
@@ -90,5 +93,18 @@ namespace GameData {
         public int RangeMaxDelta;
         public int RangeMinDelta;
         public int DamageDelta;
+    }
+
+    [Serializable]
+    public class AbilityEffect {
+        public AbilityEffectType EffectType; // Type of effect (e.g., damage, heal, buff)
+        public uint Amount; // Amount of effect (e.g., damage amount, heal amount)
+    }
+
+    public enum AbilityEffectType {
+        Damage = 0,
+        Heal = 1,
+        BuffRange = 2,
+        DebuffRange = 3,
     }
 }

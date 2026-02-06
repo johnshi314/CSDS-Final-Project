@@ -20,4 +20,6 @@ MonoBehaviour:
   RangeMax: 4
   RangeMin: 2
   Cost: 2
-  Damage: 3
+  Effects:
+  - EffectType: 2
+    Amount: 1

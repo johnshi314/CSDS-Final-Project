@@ -119,7 +119,12 @@ public class AbilityEditor: Editor {
         EditorGUILayout.Space();
 
         // Draw Effects fields
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("Damage"));
+        var effectsProp = serializedObject.FindProperty("Effects");
+        if (effectsProp != null) {
+            EditorGUILayout.PropertyField(effectsProp, true);
+        } else {
+            EditorGUILayout.HelpBox("Effects property not found. Ensure Ability has a public List<AbilityEffect> Effects field.", MessageType.Error);
+        }
 
         // Set values to None/0 when Global mode is active
         if (isGlobalMode) {
