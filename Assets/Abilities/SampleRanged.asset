@@ -15,7 +15,7 @@ MonoBehaviour:
   Id: 2
   DisplayName: Passive Agressive Email
   TargetType: 6
-  TargetingMode: 0
+  TargetMode: 0
   TargetShape: 0
   RangeMax: 5
   RangeMin: 1

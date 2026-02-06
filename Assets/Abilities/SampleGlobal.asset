@@ -15,7 +15,7 @@ MonoBehaviour:
   Id: 4
   DisplayName: Reply All
   TargetType: 4
-  TargetingMode: 1
+  TargetMode: 1
   TargetShape: 6
   RangeMax: 0
   RangeMin: 0

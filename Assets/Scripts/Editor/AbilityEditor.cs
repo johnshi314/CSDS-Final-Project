@@ -35,7 +35,7 @@ public class AbilityEditor: Editor {
 
         GameData.Ability ability = (GameData.Ability)target;
         var targetTypeProp = serializedObject.FindProperty("TargetType");
-        var targetingModeProp = serializedObject.FindProperty("TargetingMode");
+        var targetModeProp = serializedObject.FindProperty("TargetMode");
         var targetShapeProp = serializedObject.FindProperty("TargetShape");
         var rangeMaxProp = serializedObject.FindProperty("RangeMax");
         var rangeMinProp = serializedObject.FindProperty("RangeMin");
@@ -75,10 +75,10 @@ public class AbilityEditor: Editor {
 
         targetTypeProp.intValue = (int)newTargetType;
 
-        EditorGUILayout.PropertyField(targetingModeProp);
+        EditorGUILayout.PropertyField(targetModeProp);
 
-        // Conditionally enable/disable TargetShape and Range fields based on TargetingMode
-        bool isGlobalMode = (GameData.AbilityTargetMode)targetingModeProp.enumValueIndex == GameData.AbilityTargetMode.Global;
+        // Conditionally enable/disable TargetShape and Range fields based on TargetMode
+        bool isGlobalMode = (GameData.AbilityTargetMode)targetModeProp.enumValueIndex == GameData.AbilityTargetMode.Global;
         
         EditorGUI.BeginDisabledGroup(isGlobalMode);
         

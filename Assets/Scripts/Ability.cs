@@ -28,7 +28,7 @@ namespace GameData {
 
         [Header("Targeting")]
         public AbilityTargetType TargetType;    // Type of targets allowed
-        public AbilityTargetMode TargetingMode; // If this is point-select or global
+        public AbilityTargetMode TargetMode; // If this is point-select or global
         public AbilityTargetShape TargetShape;  // Shape of area affected
         public uint RangeMax;                   // Max range from caster
         public uint RangeMin;                   // Min range from caster (0 will allow self-targeting)

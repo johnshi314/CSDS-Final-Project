@@ -15,7 +15,7 @@ MonoBehaviour:
   Id: 3
   DisplayName: Union Meeting
   TargetType: -1
-  TargetingMode: 0
+  TargetMode: 0
   TargetShape: 3
   RangeMax: 4
   RangeMin: 2

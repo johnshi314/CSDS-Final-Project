@@ -15,7 +15,7 @@ MonoBehaviour:
   Id: 1
   DisplayName: Long Print Job
   TargetType: 6
-  TargetingMode: 0
+  TargetMode: 0
   TargetShape: 0
   RangeMax: 1
   RangeMin: 1
