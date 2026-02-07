@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
+  m_Name: SampleAOE
+  m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
+  Id: 3
+  DisplayName: Union Meeting
+  TargetType: -1
+  TargetMode: 0
+  TargetShape: 3
+  RangeMax: 4
+  RangeMin: 2
+  Cost: 2
+  Effects:
+  - EffectType: 2
+    Amount: 1
+    Duration: 1

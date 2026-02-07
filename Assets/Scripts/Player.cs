@@ -1,0 +1,16 @@
+/***********************************************************************
+ * File Name     : Player.cs
+ * Author        : Mikey Maldonado
+ * Date Created  : 2026-01-31
+ * Description   : Data structure representing a player in the game.
+ **********************************************************************/
+using UnityEngine;
+
+// GameData: Data related to the client-side game
+namespace GameData {
+    public class Player {
+        public string Id { get; private set; }   // Unique identifier for the player
+        public string Name { get; private set; } // Display name of the player
+        public string IP { get; private set; }   // IP address of the player
+    }
+}
