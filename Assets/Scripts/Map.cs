@@ -17,25 +17,39 @@ namespace GameMap {
         void Update() { }
 
         // Meta Information
-        public string mapName { get; private set; }
+        public string MapName;
 
         // Tile Data (walkable or blocked)
-        public bool[,] tiles { get; private set; }
-        public int width { get; private set; } = 10;
-        public int height { get; private set; } = 10;
+        public Tile[,] Tiles;
+        public int Width { 
+            get {
+                if (Tiles != null)
+                {
+                    return Tiles.GetLength(0);
+                }
+                return 0;
+            }}
+        public int Height { 
+            get {
+                if (Tiles != null)
+                {
+                    return Tiles.GetLength(1);
+                }
+                return 0;
+            }}
 
         // Tile indices that are valid spawnpoints
-        public Vector2Int[] spawnPoints { get; private set; }
+        public Vector2Int[] SpawnPoints;
 
         // Player Tracking
         // Track each agent's start tile
-        private Dictionary<Agent, Vector2Int> startTiles = new Dictionary<Agent, Vector2Int>();
+        private Dictionary<Agent, Tile> startTiles = new Dictionary<Agent, Tile>();
 
         // Track each agent's current tile
-        private Dictionary<Agent, Vector2Int> currentTiles = new Dictionary<Agent, Vector2Int>();
+        private Dictionary<Agent, Tile> currentTiles = new Dictionary<Agent, Tile>();
 
         // Track each agent's full path
-        private Dictionary<Agent, List<Vector2Int>> paths = new Dictionary<Agent, List<Vector2Int>>();
+        private Dictionary<Agent, List<Tile>> paths = new Dictionary<Agent, List<Tile>>();
 
         // ===================================================================== //
         // ======================= Static Factory Method ======================= //
@@ -46,9 +60,7 @@ namespace GameMap {
         /// <param name="mapName">A unique identifier for the map.</param>
         /// <param name="tiles">Stores which tiles on the map is walkable and blocked.</param>
         /// <param name="spawnPoints">Valid spawnpoint indices on the map.</param>
-        /// </summary>
-
-        public static Map NewMap(
+        public static GameObject NewMap(
         string mapName,
         bool[,] tiles,
         Vector2Int[] spawnPoints,
@@ -57,23 +69,60 @@ namespace GameMap {
             // Create Map GameObject
             GameObject mapObject = new GameObject(mapName);
 
-            // Add map component and initialize data
+            if (parent != null) {
+                mapObject.transform.SetParent(parent.transform);
+            }
+
+            // Create Map
             Map map = mapObject.AddComponent<Map>();
-            map.mapName = mapName;
-            map.tiles = tiles;
-            map.spawnPoints = spawnPoints;
-            return map;
+            map.Initialize(mapName, tiles, spawnPoints);
+
+            return mapObject;
+        }
+
+        /// <summary>
+        /// Initialize a map with the given properties.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="tiles"></param>
+        /// <param name="spawnPoints"></param>
+        public void Initialize(
+        string mapName,
+        bool[,] tiles,
+        Vector2Int[] spawnPoints) {
+            // Assert spawn points are within bounds of the tile array
+            int width = tiles.GetLength(0);
+            int height = tiles.GetLength(1);
+            foreach (Vector2Int pos in spawnPoints) {
+                if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) {
+                    Debug.LogError($"Spawn point {pos} is out of bounds for tile array of size ({width}, {height}).");
+                    return;
+                }
+            }
+            this.SpawnPoints = spawnPoints;
+
+            // Set map name
+            this.MapName = mapName;
+            
+            // Build the tile array
+            this.Tiles = new Tile[width, height];
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    this.Tiles[x, y] = new Tile(this, new Vector2Int(x, y), tiles[x, y]);
+                }
+            }
         }
         // ===================================================================== //
         // ======================= Public Map Methods ======================== //
 
         // Register agent with starting tile
-        public void RegisterAgent(Agent agent, Vector2Int startTile) {
+        public void RegisterAgent(Agent agent, Vector2Int startPos) {
+            Tile startTile = this.Tiles[startPos.x, startPos.y];
             startTiles[agent] = startTile;
             currentTiles[agent] = startTile;
 
             if (!paths.ContainsKey(agent)) {
-                paths[agent] = new List<Vector2Int>();
+                paths[agent] = new List<Tile>();
             }
             paths[agent].Add(startTile);
         }
@@ -82,23 +131,24 @@ namespace GameMap {
         // Map Manager will validate move
         public void MoveAgent(Agent agent, Vector2Int tilePos) {
             if (!currentTiles.ContainsKey(agent)) return;
-            currentTiles[agent] = tilePos;
-            paths[agent].Add(tilePos);
+            Tile movedToTile = this.Tiles[tilePos.x, tilePos.y];
+            currentTiles[agent] = movedToTile;
+            paths[agent].Add(movedToTile);
         }
 
         // Get starting tile of agent
-        public Vector2Int GetStartTile(Agent agent) {
-            return startTiles.ContainsKey(agent) ? startTiles[agent] : new Vector2Int(-1, -1);
+        public Tile GetStartTile(Agent agent) {
+            return startTiles.ContainsKey(agent) ? startTiles[agent] : null;
         }
 
         // Get current tile of agent
-        public Vector2Int GetCurrentTile(Agent agent) {
-            return currentTiles.ContainsKey(agent) ? currentTiles[agent] : new Vector2Int(-1, -1);
+        public Tile GetCurrentTile(Agent agent) {
+            return currentTiles.ContainsKey(agent) ? currentTiles[agent] : null;
         }
 
         // Get full path of an agent
-        public List<Vector2Int> GetPath(Agent agent) {
-            return paths.ContainsKey(agent) ? paths[agent] : new List<Vector2Int>();
+        public List<Tile> GetPath(Agent agent) {
+            return paths.ContainsKey(agent) ? paths[agent] : new List<Tile>();
         }
     }
 }
