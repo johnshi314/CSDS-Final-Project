@@ -17,17 +17,16 @@ namespace GameManager {
         void Update() { }
 
         // Map currently being managed
-        public Map ActiveMap { get; private set; }
-
+        public Map ActiveMap;
         // Track occupants on map
-        public Agent[,] Occupants { get; private set; }
+        public Agent[,] Occupants;
 
         // ===================================================================== //
         // ======================= Initialization Method ======================= //
 
         public void Initialize(Map map) {
             this.ActiveMap = map;
-            Occupants = new Agent[map.width, map.height];
+            Occupants = new Agent[map.Width, map.Height];
         }
 
         // ===================================================================== //
@@ -40,7 +39,7 @@ namespace GameManager {
             if (!InBounds(tilePos)) return false;
 
             // Check walkability
-            if (!ActiveMap.tiles[tilePos.x, tilePos.y]) return false;
+            if (!ActiveMap.Tiles[tilePos.x, tilePos.y].IsWalkable) return false;
 
             // Check occupancy
             if (Occupants[tilePos.x, tilePos.y] != null) return false;
@@ -61,17 +60,17 @@ namespace GameManager {
             if (!InBounds(targetTile)) return false;
 
             // Check walkability
-            if (!ActiveMap.tiles[targetTile.x, targetTile.y]) return false;
+            if (!ActiveMap.Tiles[targetTile.x, targetTile.y].IsWalkable) return false;
 
             // Check occupancy
             if (Occupants[targetTile.x, targetTile.y] != null) return false;
 
             // Find current tile of agent
-            Vector2Int currentTile = ActiveMap.GetCurrentTile(agent);
+            Tile currentTile = ActiveMap.GetCurrentTile(agent);
 
-            if (currentTile != new Vector2Int(-1, -1)) {
+            if (currentTile != null) {
                 // Clear old position
-                Occupants[currentTile.x, currentTile.y] = null;
+                Occupants[currentTile.Position.x, currentTile.Position.y] = null;
             }
 
             // Place agent on new tile
@@ -88,8 +87,8 @@ namespace GameManager {
 
         // Check if position in bounds
         private bool InBounds(Vector2Int tilePos) {
-            return tilePos.x >= 0 && tilePos.x < ActiveMap.width &&
-            tilePos.y >= 0 && tilePos.y < ActiveMap.height;
+            return tilePos.x >= 0 && tilePos.x < ActiveMap.Width &&
+            tilePos.y >= 0 && tilePos.y < ActiveMap.Height;
         }
 
         // Check if tile is occupied by any agent

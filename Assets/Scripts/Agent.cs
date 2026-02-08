@@ -82,7 +82,7 @@ namespace GameData {
 
             // If no GameObject name is provided, create one based on timestamp
             if (gameObjectName == null) {
-                long timestamp_now = System.DateTime.Now.Ticks;
+                long timestamp_now = DateTime.Now.Ticks;
                 gameObjectName = "Agent_" + timestamp_now;
             }
 
@@ -91,7 +91,7 @@ namespace GameData {
 
             // If a parent is specified, set this new agent as a child of that parent
             if (parent != null) {
-                agentObject.transform.parent = parent.transform;
+                agentObject.transform.SetParent(parent.transform);
             }
 
             // Set the 2D position of the agent
@@ -99,16 +99,24 @@ namespace GameData {
 
             // Add the Agent component and initialize its properties
             Agent agent = agentObject.AddComponent<Agent>();
-            agent.Player = player;
-            agent.AgentName = agent_name;
-            agent.MaxHP = hp;
-            agent.MaxRange = range;
-            agent.Abilities = abilities != null ? new List<GameData.Ability>(abilities) : new List<GameData.Ability>();
-            agent.CanTunnel = tunneling;
-            // Example check to see if ally can tunnel through
-            bool canAllyTunnel = (agent.CanTunnel & Tunneling.Ally) != 0;
-            agent.HP = hp;
+            agent.Initialize(player, agent_name, hp, range, abilities, tunneling);
             return agentObject;
+        }
+
+        public void Initialize(// Agent properties
+                            GameData.Player player = null,
+                            string agent_name = "MissingNo.",
+                            uint hp = 20,
+                            uint range = 3,
+                            IEnumerable<GameData.Ability> abilities = null,
+                            Tunneling tunneling = default) {
+            this.Player = player;
+            this.AgentName = agent_name;
+            this.MaxHP = hp;
+            this.MaxRange = range;
+            this.Abilities = abilities != null ? new List<GameData.Ability>(abilities) : new List<GameData.Ability>();
+            this.CanTunnel = tunneling;
+            this.HP = hp;
         }
 
         // ===================================================================== //
