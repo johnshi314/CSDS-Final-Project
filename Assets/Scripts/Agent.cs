@@ -44,6 +44,7 @@ namespace GameData {
         [Header("Current Stats")]
         [SerializeField] uint HP;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
+        private List<AbilityEffect> activeEffects = new();  // List of active effects with duration
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -208,14 +209,52 @@ namespace GameData {
         }
 
         /// <summary>
+        /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
+        /// </summary>
+        public void OnTurnStart() {
+            ReapplyAndDecrementEffects();
+        }
+
+        /// <summary>
         /// Called at the end of the agent's turn to decrement cooldowns.
         /// </summary>
         public void OnTurnEnd() {
             DecrementCooldowns();
         }
 
+        /// <summary>
+        /// Add an active effect to this agent.
+        /// </summary>
+        /// <param name="effect">The effect to add.</param>
+        public void AddEffect(AbilityEffect effect) {
+            if (effect == null) return;
+            // Create a copy of the effect to avoid modifying the original
+            var effectCopy = effect.Clone();
+            activeEffects.Add(effectCopy);
+        }
+
         // ===================================================================== //
         // ======================= Private Agent Methods ======================= //
+
+        /// <summary>
+        /// Reapply all active effects, decrement their durations, and remove expired effects.
+        /// </summary>
+        private void ReapplyAndDecrementEffects() {
+            for (int i = activeEffects.Count - 1; i >= 0; i--) {
+                var effect = activeEffects[i];
+                
+                // Reapply the effect
+                effect.ApplyToAgent(this);
+                
+                // Decrement duration
+                effect.Duration--;
+                
+                // Remove if expired
+                if (effect.Duration <= 0) {
+                    activeEffects.RemoveAt(i);
+                }
+            }
+        }
 
         /// <summary>
         /// Decrement all active cooldowns by 1.

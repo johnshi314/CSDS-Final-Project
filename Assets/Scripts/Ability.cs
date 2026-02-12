@@ -114,6 +114,18 @@ namespace GameData {
         public uint Duration; // Duration of effect (e.g., number of turns)
 
         /// <summary>
+        /// Create a copy of this effect.
+        /// </summary>
+        /// <returns>A new AbilityEffect with the same values.</returns>
+        public AbilityEffect Clone() {
+            return new AbilityEffect {
+                EffectType = this.EffectType,
+                Amount = this.Amount,
+                Duration = this.Duration
+            };
+        }
+
+        /// <summary>
         /// Apply this effect to all valid targets based on the ability context.
         /// </summary>
         /// <param name="context">Context information for ability resolution.</param>
@@ -122,16 +134,30 @@ namespace GameData {
             var targets = GetTargetsInShape(context);
             
             foreach (var target in targets) {
-                ApplyToAgent(target, context);
+                // TODO: Implement proper ally/non-ally checking when team system is in place
+                bool targetIsAlly = target == context.Caster;
+                
+                // Skip invalid targets based on ability's TargetType
+                if (targetIsAlly && !context.Ability.TargetType.HasFlag(AbilityTargetType.Ally))
+                    continue;
+                if (!targetIsAlly && !context.Ability.TargetType.HasFlag(AbilityTargetType.NonAlly))
+                    continue;
+ 
+                // Apply immediately
+                ApplyToAgent(target);
+                
+                // If persistent effect, add to agent's active effects
+                if (Duration > 0) {
+                    target.AddEffect(this);
+                }
             }
         }
 
         /// <summary>
-        /// Apply the effect to a single agent.
+        /// Apply the effect to a single agent immediately.
         /// </summary>
         /// <param name="agent">The agent to apply the effect to.</param>
-        /// <param name="context">Context information for ability resolution.</param>
-        private void ApplyToAgent(Agent agent, AbilityUseContext context) {
+        public void ApplyToAgent(Agent agent) {
             switch (EffectType) {
                 case AbilityEffectType.Damage:
                     agent.TakeDamage((int)Amount);
