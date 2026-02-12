@@ -162,7 +162,7 @@ namespace GameMap {
         }
 
         // Get agent at a specific tile position, if any
-        public Agent GetAgentAtTilePosition(Vector2Int tilePos) {
+        public Agent GetAgentAtPosition(Vector2Int tilePos) {
             int x = tilePos.x;
             int y = tilePos.y;
             if (x < 0 || x >= Width || y < 0 || y >= Height) {
