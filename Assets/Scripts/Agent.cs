@@ -45,6 +45,7 @@ namespace GameData {
         [SerializeField] uint HP;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffect> activeEffects = new();  // List of active effects with duration
+        public string Name { get { return AgentName; } }
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)

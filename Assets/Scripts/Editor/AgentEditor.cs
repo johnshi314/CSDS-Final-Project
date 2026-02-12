@@ -68,6 +68,88 @@ public class AgentEditor : Editor {
                 EditorUtility.SetDirty(agent);
             }
         }
+        // Display and allow editing of the list of active effects
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Active Effects", EditorStyles.boldLabel);
+        FieldInfo activeEffectsField = typeof(Agent).GetField("activeEffects", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (activeEffectsField == null) {
+            EditorGUILayout.HelpBox("Could not find activeEffects field.", MessageType.Error);
+            return;
+        }
+        var activeEffects = activeEffectsField.GetValue(agent) as List<AbilityEffect>;
+        if (activeEffects == null) {
+            EditorGUILayout.HelpBox("Active effects list is null.", MessageType.Warning);
+            return;
+        }
+
+        int removeIndex = -1;
+        for (int i = 0; i < activeEffects.Count; i++) {
+            var effect = activeEffects[i];
+            if (effect == null) continue;
+
+            string sourceName = effect.Source != null ? effect.Source.Name : "Unknown Source";
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            // Header row with label and remove button
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"Effect {i} (Source: {sourceName})", EditorStyles.boldLabel);
+            if (GUILayout.Button("X", GUILayout.Width(20), GUILayout.Height(18))) {
+                removeIndex = i;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUI.indentLevel++;
+
+            // Effect Type
+            EditorGUI.BeginChangeCheck();
+            var newEffectType = (AbilityEffectType)EditorGUILayout.EnumPopup("Effect Type", effect.EffectType);
+            if (EditorGUI.EndChangeCheck()) {
+                effect.EffectType = newEffectType;
+                EditorUtility.SetDirty(agent);
+            }
+
+            // Amount
+            EditorGUI.BeginChangeCheck();
+            uint newAmount = (uint)Mathf.Max(0, EditorGUILayout.IntField("Amount", (int)effect.Amount));
+            if (EditorGUI.EndChangeCheck()) {
+                effect.Amount = newAmount;
+                EditorUtility.SetDirty(agent);
+            }
+
+            // Duration
+            EditorGUI.BeginChangeCheck();
+            uint newDuration = (uint)Mathf.Max(0, EditorGUILayout.IntField("Duration", (int)effect.Duration));
+            if (EditorGUI.EndChangeCheck()) {
+                effect.Duration = newDuration;
+                EditorUtility.SetDirty(agent);
+            }
+
+            // Source (drag-and-drop Agent field)
+            EditorGUI.BeginChangeCheck();
+            var newSource = (Agent)EditorGUILayout.ObjectField("Source", effect.Source, typeof(Agent), true);
+            if (EditorGUI.EndChangeCheck()) {
+                PropertyInfo sourceProp = typeof(AbilityEffect).GetProperty("Source", BindingFlags.Public | BindingFlags.Instance);
+                sourceProp.SetValue(effect, newSource);
+                EditorUtility.SetDirty(agent);
+            }
+
+            EditorGUI.indentLevel--;
+            EditorGUILayout.EndVertical();
+        }
+
+        // Remove after iteration to avoid modifying list while iterating
+        if (removeIndex >= 0) {
+            activeEffects.RemoveAt(removeIndex);
+            EditorUtility.SetDirty(agent);
+        }
+
+        // Add button
+        if (GUILayout.Button("Add Effect")) {
+            activeEffects.Add(new AbilityEffect());
+            EditorUtility.SetDirty(agent);
+        }
+
         EditorGUI.indentLevel--;
     }
 }

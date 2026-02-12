@@ -112,6 +112,7 @@ namespace GameData {
         public AbilityEffectType EffectType; // Type of effect (e.g., damage, heal, buff)
         public uint Amount; // Amount of effect (e.g., damage amount, heal amount)
         public uint Duration; // Duration of effect (e.g., number of turns)
+        public Agent Source {get; private set;} // The agent that is the source of this effect (e.g., the caster)
 
         /// <summary>
         /// Create a copy of this effect.
@@ -119,6 +120,7 @@ namespace GameData {
         /// <returns>A new AbilityEffect with the same values.</returns>
         public AbilityEffect Clone() {
             return new AbilityEffect {
+                Source = this.Source,
                 EffectType = this.EffectType,
                 Amount = this.Amount,
                 Duration = this.Duration
@@ -130,6 +132,11 @@ namespace GameData {
         /// </summary>
         /// <param name="context">Context information for ability resolution.</param>
         public void Apply(AbilityUseContext context) {
+            // Set the source of the effect to the caster if not already set
+            if (Source == null) {
+                Source = context.Caster;
+            }
+
             // Get all targets affected by this ability
             var targets = GetTargetsInShape(context);
             
