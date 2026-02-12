@@ -14,12 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
   Id: 4
   DisplayName: Reply All
-  TargetType: 4
+  TargetType: 2
   TargetMode: 1
   TargetShape: 6
   RangeMax: 0
   RangeMin: 0
   Cost: 3
+  Cooldown: 2
   Effects:
   - EffectType: 3
     Amount: 1

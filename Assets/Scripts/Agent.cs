@@ -7,6 +7,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using GameMap;
 
 // GameData: Data related to the client-side game
 namespace GameData {
@@ -17,7 +18,15 @@ namespace GameData {
     public class Agent : MonoBehaviour {
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
-        public void Start() { }
+        public void Start() {
+            // Initialize current HP to max HP at the start
+            this.HP = this.MaxHP;
+
+            // Initialize cooldowns for all abilities to 0 (available)
+            foreach (var ability in Abilities) {
+                currentCooldowns[ability] = 0;
+            }
+        }
 
         // Update is called once per frame
         public void Update() { }
@@ -34,6 +43,7 @@ namespace GameData {
 
         [Header("Current Stats")]
         [SerializeField] uint HP;                   // Current health points
+        private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -134,6 +144,17 @@ namespace GameData {
         }
 
         /// <summary>
+        /// Heal the agent, increasing its HP up to maximum.
+        /// </summary>
+        /// <param name="amount">Amount of HP to restore.</param>
+        public void Heal(int amount) {
+            this.HP += (uint)amount;
+            if (this.HP > this.MaxHP) {
+                this.HP = this.MaxHP;
+            }
+        }
+
+        /// <summary>
         /// Check if the agent is knocked out (HP <= 0).
         /// </summary>
         /// <returns>True if the agent is knocked out, otherwise false.</returns>
@@ -146,6 +167,65 @@ namespace GameData {
         /// </summary>
         public void ResetHP() {
             this.HP = this.MaxHP;
+        }
+
+        /// <summary>
+        /// Check if the agent can use the given ability.
+        /// </summary>
+        /// <param name="ability">The ability to check.</param>
+        /// <returns>True if the ability is available (not on cooldown), otherwise false.</returns>
+        public bool CanUseAbility(Ability ability) {
+            if (ability == null || !Abilities.Contains(ability))
+                return false;
+            int cooldown = currentCooldowns[ability];
+            return cooldown <= 0;
+        }
+
+        /// <summary>
+        /// Use an ability on a target and resolve its effects.
+        /// </summary>
+        /// <param name="ability">The ability to use.</param>
+        /// <param name="targetTile">The tile being targeted.</param>
+        /// <returns>True if the ability was successfully used, false otherwise.</returns>
+        public bool UseAbility(Ability ability, Tile targetTile) {
+            if (!CanUseAbility(ability))
+                return false;
+            
+            // Create context for ability resolution
+            var context = new AbilityUseContext {
+                Ability = ability,
+                Caster = this,
+                TargetTile = targetTile
+            };
+            
+            // Resolve the ability's effects
+            ability.Resolve(context);
+            
+            // Set cooldown after successful use
+            currentCooldowns[ability] = (int)ability.Cooldown;
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Called at the end of the agent's turn to decrement cooldowns.
+        /// </summary>
+        public void OnTurnEnd() {
+            DecrementCooldowns();
+        }
+
+        // ===================================================================== //
+        // ======================= Private Agent Methods ======================= //
+
+        /// <summary>
+        /// Decrement all active cooldowns by 1.
+        /// </summary>
+        private void DecrementCooldowns() {
+            var keys = new List<Ability>(currentCooldowns.Keys);
+            foreach (var key in keys) {
+                if (currentCooldowns[key] > 0)
+                    currentCooldowns[key]--;
+            }
         }
     }
 }

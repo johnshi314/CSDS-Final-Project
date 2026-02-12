@@ -14,12 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
   Id: 2
   DisplayName: Passive Agressive Email
-  TargetType: 6
+  TargetType: 3
   TargetMode: 0
   TargetShape: 0
   RangeMax: 5
   RangeMin: 1
   Cost: 2
+  Cooldown: 1
   Effects:
   - EffectType: 0
     Amount: 4

@@ -150,5 +150,36 @@ namespace GameMap {
         public List<Tile> GetPath(Agent agent) {
             return paths.ContainsKey(agent) ? paths[agent] : new List<Tile>();
         }
+
+        // Get the agent at a specific tile, if any
+        public Agent GetAgentAtTile(Tile tile) {
+            foreach (var kvp in currentTiles) {
+                if (kvp.Value.Position == tile.Position) {
+                    return kvp.Key;
+                }
+            }
+            return null;
+        }
+
+        // Get agent at a specific tile position, if any
+        public Agent GetAgentAtTilePosition(Vector2Int tilePos) {
+            int x = tilePos.x;
+            int y = tilePos.y;
+            if (x < 0 || x >= Width || y < 0 || y >= Height) {
+                Debug.LogError($"Tile position {tilePos} is out of bounds for tile array of size ({Width}, {Height}).");
+                return null;
+            }
+            return GetAgentAtTile(this.Tiles[x, y]);
+        }
+
+        public Tile GetTileAtPosition(Vector2Int tilePos) {
+            int x = tilePos.x;
+            int y = tilePos.y;
+            if (x < 0 || x >= Width || y < 0 || y >= Height) {
+                Debug.LogError($"Tile position {tilePos} is out of bounds for tile array of size ({Width}, {Height}).");
+                return null;
+            }
+            return this.Tiles[x, y];
+        }
     }
 }

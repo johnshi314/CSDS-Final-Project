@@ -116,6 +116,9 @@ public class AbilityEditor: Editor {
         // Draw Costs fields
         EditorGUILayout.PropertyField(serializedObject.FindProperty("Cost"));
 
+        // Draw Cooldown field
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("Cooldown"));
+
         EditorGUILayout.Space();
 
         // Draw Effects fields
