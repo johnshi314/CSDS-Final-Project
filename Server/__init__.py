@@ -7,4 +7,6 @@
 import os
 import sys
 # Add project root to sys.path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)

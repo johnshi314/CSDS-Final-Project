@@ -1,15 +1,24 @@
+import sys
 import sqlalchemy as db
 import json
-import logging
+import os
 from datetime import datetime, timezone
 from sqlalchemy import text
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+from logging_config import get_logger
+load_dotenv()
+logger = get_logger(__name__)
 
 # Create engine
-engine = db.create_engine('mysql+pymysql://root:mysqlPASSWORD@localhost:3306/netflower')
+engine = db.create_engine('mysql+pymysql://{}:{}@{}:{}/{}'.format(
+    os.getenv('DB_USER'),
+    os.getenv('DB_PASSWORD'),
+    os.getenv('DB_HOST'),
+    os.getenv('DB_PORT'),
+    os.getenv('DB_NAME')))
 
 # Inspect tables
 inspector = db.inspect(engine)

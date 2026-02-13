@@ -13,11 +13,10 @@ Turn-based WebSocket server for Unity clients.
   said/epoch messages.
 """
 import asyncio
-import logging
-
 from websockets.asyncio.server import serve
+from logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Shared state: modified by connection handlers and game loop.
 # Use "global name" in a function only when you *assign* to that name
@@ -97,16 +96,17 @@ async def handler(websocket):
 
 async def main(host: str = "0.0.0.0", port: int = 8765):
     """Run the turn-based server."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
     logger.info("Turn-based WebSocket server on ws://%s:%s", host, port)
     async with serve(handler, host, port):
         asyncio.create_task(game_loop())
-        await asyncio.Future()
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            logger.info("WebSocket server shutting down...")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass  # Graceful shutdown on Ctrl+C

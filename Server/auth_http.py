@@ -3,7 +3,6 @@ HTTP Auth Server for Unity Game
 Provides REST endpoints for registration, login, and token verification.
 """
 from datetime import datetime, timedelta, timezone
-import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -14,14 +13,11 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from Database import queries
+from logging_config import get_logger
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # JWT Configuration
 JWT_SECRET = os.getenv('JWT_SECRET', 'change_this_secret_key')
@@ -161,4 +157,7 @@ def verify_token(payload: TokenVerifyRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    except KeyboardInterrupt:
+        logger.info("Auth server stopped by user")

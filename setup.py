@@ -15,42 +15,10 @@ import sys
 import configparser
 import logging
 
+from logging_config import get_logger
 
-# Setup logging
-def setup_logger(project_dir: Path) -> logging.Logger:
-    """Setup logger with both file and console handlers."""
-    # Create logs directory
-    logs_dir = project_dir / "logs"
-    logs_dir.mkdir(exist_ok=True)
-    
-    # Create logger
-    logger = logging.getLogger("setup")
-    logger.setLevel(logging.DEBUG)
-    
-    # Prevent duplicate handlers
-    if logger.handlers:
-        logger.handlers.clear()
-    
-    # File handler - detailed logging
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_handler = logging.FileHandler(logs_dir / f"setup_{timestamp}.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler.setFormatter(file_formatter)
-    
-    # Console handler - user-friendly output
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter("%(message)s")
-    console_handler.setFormatter(console_formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    
-    return logger
+# Setup logger
+logger = get_logger(__name__)
 
 
 def is_git_repository(path: Path) -> bool:
@@ -331,9 +299,6 @@ def configure_unity_yaml_merge(project_path: Path, unity_path: Path, logger: log
 def main():
     # Get the directory where this script is located
     script_dir = Path(__file__).resolve().parent
-    
-    # Setup logger
-    logger = setup_logger(script_dir)
     
     logger.info("=" * 60)
     logger.info("Unity Project Setup")
