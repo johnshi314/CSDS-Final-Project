@@ -8,16 +8,17 @@ from contextlib import asynccontextmanager
 
 import bcrypt
 import jwt
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from Database import queries
 from logging_config import get_logger
 
-load_dotenv()
-
 logger = get_logger(__name__)
+
+# Auth Server Configuration
+AUTH_SERVER_HOST = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
+AUTH_SERVER_PORT = int(os.getenv("AUTH_SERVER_PORT", 8000))
 
 # JWT Configuration
 JWT_SECRET = os.getenv('JWT_SECRET', 'change_this_secret_key')
@@ -158,6 +159,6 @@ def verify_token(payload: TokenVerifyRequest):
 if __name__ == "__main__":
     import uvicorn
     try:
-        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+        uvicorn.run(app, host=AUTH_SERVER_HOST, port=AUTH_SERVER_PORT, log_level="info")
     except KeyboardInterrupt:
         logger.info("Auth server stopped by user")

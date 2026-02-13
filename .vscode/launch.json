@@ -5,6 +5,27 @@
             "name": "Attach to Unity",
             "type": "vstuc",
             "request": "attach"
+        },
+        {
+            "name": "Echo Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "Server.multiplayer_echo",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Auth Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "Server.auth_http",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "Server",
+            "console": "integratedTerminal"
         }
      ]
 }

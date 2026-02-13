@@ -12,11 +12,15 @@ Turn-based WebSocket server for Unity clients.
   an epoch counter (epoch|n) to all. Clients wait for their turn and listen for
   said/epoch messages.
 """
+import os
 import asyncio
 from websockets.asyncio.server import serve
 from logging_config import get_logger
 
 logger = get_logger(__name__)
+
+SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.getenv("SERVER_PORT", 8765))
 
 # Shared state: modified by connection handlers and game loop.
 # Use "global name" in a function only when you *assign* to that name
@@ -94,7 +98,7 @@ async def handler(websocket):
         logger.info("Client disconnected: player %s", pid)
 
 
-async def main(host: str = "0.0.0.0", port: int = 8765):
+async def main(host: str = SERVER_HOST, port: int = SERVER_PORT):
     """Run the turn-based server."""
     logger.info("Turn-based WebSocket server on ws://%s:%s", host, port)
     async with serve(handler, host, port):
@@ -107,6 +111,6 @@ async def main(host: str = "0.0.0.0", port: int = 8765):
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        asyncio.run(main(host=SERVER_HOST, port=SERVER_PORT))
     except KeyboardInterrupt:
         pass  # Graceful shutdown on Ctrl+C

@@ -2,15 +2,25 @@ import sys
 import sqlalchemy as db
 import json
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 from sqlalchemy import text
-from dotenv import load_dotenv
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+
+# Add project root to path for importing project modules and variables
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.append(_project_root)
+
+# Log output to file with timestamps
 from logging_config import get_logger
-load_dotenv()
 logger = get_logger(__name__)
+
+# Load environment variables (e.g. for DB connection)
+from dotenv import load_dotenv
+load_dotenv(
+    dotenv_path=Path(_project_root) / ".env"
+)
+
 
 # Create engine
 engine = db.create_engine('mysql+pymysql://{}:{}@{}:{}/{}'.format(
