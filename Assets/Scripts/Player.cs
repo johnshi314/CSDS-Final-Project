@@ -9,8 +9,8 @@ using UnityEngine;
 // GameData: Data related to the client-side game
 namespace GameData {
     public class Player {
-        public string Id { get; private set; }   // Unique identifier for the player
-        public string Name { get; private set; } // Display name of the player
-        public string IP { get; private set; }   // IP address of the player
+        public int Id { get; set; }   // Unique identifier for the player
+        public string Name { get; set; } // Display name of the player
+        public string IP { get; set; }   // IP address of the player
     }
 }
