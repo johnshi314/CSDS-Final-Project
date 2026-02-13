@@ -1,6 +1,12 @@
 import sqlalchemy as db
 import json
+import logging
 from datetime import datetime, timezone
+from sqlalchemy import text
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create engine
 engine = db.create_engine('mysql+pymysql://root:mysqlPASSWORD@localhost:3306/netflower')
@@ -9,35 +15,68 @@ engine = db.create_engine('mysql+pymysql://root:mysqlPASSWORD@localhost:3306/net
 inspector = db.inspect(engine)
 print("Tables:", inspector.get_table_names())
 
-# -----------------------------
-# Insert Functions
-# -----------------------------
+# =============================
+# User Authentication Functions
+# =============================
+
+def create_player(hashedpw):
+    """Create a new player account with hashed password. Returns generated player_id."""
+    try:
+        with engine.begin() as connection:
+            result = connection.execute(text(
+                "INSERT INTO players (created_at, hashedpw) VALUES (:created_at, :hashedpw)"
+            ), {"created_at": datetime.now(timezone.utc), "hashedpw": hashedpw})
+            player_id = result.lastrowid
+            logger.info(f"Player created successfully (ID: {player_id})")
+            return player_id
+    except Exception as e:
+        logger.error(f"Error creating player: {e}")
+        return None
+
+
+def get_player_by_id(player_id):
+    """Retrieve player by ID"""
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text(
+                "SELECT player_id, created_at, hashedpw FROM players WHERE player_id = :player_id"
+            ), {"player_id": player_id})
+            row = result.mappings().first()
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error retrieving player: {e}")
+        return None
+
+
+# =============================
+# Game Data Insert Functions
+# =============================
 
 def insert_players(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
     for row in rows:
         if "player_id" not in row or "hashedpw" not in row:
-            print("Each object must contain player_id and hashedpw")
+            logger.error("Each object must contain player_id and hashedpw")
             return
         row["created_at"] = datetime.now(timezone.utc)
 
-    sql = db.text("INSERT INTO players (player_id, created_at, hashedpw) VALUES (:player_id, :created_at, :hashedpw)")
+    sql = text("INSERT INTO players (player_id, created_at, hashedpw) VALUES (:player_id, :created_at, :hashedpw)")
 
     try:
-        with engine.begin() as connection:  # begin() automatically handles commit/rollback
+        with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} players successfully!")
+        logger.info(f"Inserted {len(rows)} players successfully!")
     except Exception as e:
-        print("Error inserting players:", e)
+        logger.error(f"Error inserting players: {e}")
 
 
 def get_hashedpw(player_id):
-    sql = db.text("SELECT hashedpw FROM players WHERE player_id = :player_id")
+    sql = text("SELECT hashedpw FROM players WHERE player_id = :player_id")
     try:
         with engine.connect() as connection:
             result = connection.execute(sql, {"player_id": player_id})
@@ -45,10 +84,10 @@ def get_hashedpw(player_id):
             if row:
                 return row[0]
             else:
-                print(f"No player found with player_id = {player_id}")
+                logger.warning(f"No player found with player_id = {player_id}")
                 return None
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
         return None
 
 
@@ -56,23 +95,23 @@ def insert_characters(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
-    sql = db.text("INSERT INTO characters (character_id, name) VALUES (:character_id, :name)")
+    sql = text("INSERT INTO characters (character_id, name) VALUES (:character_id, :name)")
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} characters successfully!")
+        logger.info(f"Inserted {len(rows)} characters successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 def insert_matches(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
     for row in rows:
@@ -81,45 +120,45 @@ def insert_matches(json_string):
         if "end_time" in row and isinstance(row["end_time"], str):
             row["end_time"] = datetime.fromisoformat(row["end_time"].replace(" ", "T"))
 
-    sql = db.text("""
+    sql = text("""
         INSERT INTO matches (match_id, start_time, end_time, duration, queue_time, winner_team_id)
         VALUES (:match_id, :start_time, :end_time, :duration, :queue_time, :winner_team_id)
     """)
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} matches successfully!")
+        logger.info(f"Inserted {len(rows)} matches successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 def insert_matchups(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
-    sql = db.text("""
+    sql = text("""
         INSERT INTO matchups (matchup_id, match_id, character_a_id, character_b_id, winner_character, duration)
         VALUES (:matchup_id, :match_id, :character_a_id, :character_b_id, :winner_character, :duration)
     """)
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} matchups successfully!")
+        logger.info(f"Inserted {len(rows)} matchups successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 def insert_match_players(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
-    sql = db.text("""
+    sql = text("""
         INSERT INTO match_players (
             match_player_id, match_id, player_id, character_id, team_id,
             damage_dealt, damage_taken, turns_taken, won, disconnected
@@ -132,44 +171,44 @@ def insert_match_players(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} match_players successfully!")
+        logger.info(f"Inserted {len(rows)} match_players successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 def insert_ability_usage(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
-    sql = db.text("""
+    sql = text("""
         INSERT INTO ability_usage (usage_id, match_player_id, ability_id, damage_done, downtime)
         VALUES (:usage_id, :match_player_id, :ability_id, :damage_done, :downtime)
     """)
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} ability_usage records successfully!")
+        logger.info(f"Inserted {len(rows)} ability_usage records successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 def insert_abilities_picked(json_string):
     try:
         rows = json.loads(json_string)
     except json.JSONDecodeError as e:
-        print("Invalid JSON:", e)
+        logger.error(f"Invalid JSON: {e}")
         return
 
-    sql = db.text("INSERT INTO abilities_picked (ability_id, character_id) VALUES (:ability_id, :character_id)")
+    sql = text("INSERT INTO abilities_picked (ability_id, character_id) VALUES (:ability_id, :character_id)")
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
-        print(f"Inserted {len(rows)} abilities_picked records successfully!")
+        logger.info(f"Inserted {len(rows)} abilities_picked records successfully!")
     except Exception as e:
-        print("Database error:", e)
+        logger.error(f"Database error: {e}")
 
 
 # -----------------------------
@@ -237,15 +276,16 @@ abilities_picked_json = json.dumps([
     {"ability_id": 102, "character_id": 2}
 ])
 
-# -----------------------------
-# Run Test Inserts
-# -----------------------------
-insert_players(players_json)
-insert_characters(characters_json)
-insert_match_players(match_players_json)
-insert_matches(matches_json)
-insert_matchups(matchups_json)
-insert_abilities_picked(abilities_picked_json)
-insert_ability_usage(ability_usage_json)
+if __name__ == "__main__":
+    # =============================
+    # Run Test Inserts
+    # =============================
+    insert_players(players_json)
+    insert_characters(characters_json)
+    insert_matches(matches_json)
+    insert_matchups(matchups_json)
+    insert_match_players(match_players_json)
+    insert_abilities_picked(abilities_picked_json)
+    insert_ability_usage(ability_usage_json)
 
-print("All test inserts completed!")
+    logger.info("All test inserts completed!")
