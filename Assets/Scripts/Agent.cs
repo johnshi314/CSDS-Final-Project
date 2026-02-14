@@ -8,6 +8,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using GameMap;
+using System.Media;
 
 // GameData: Data related to the client-side game
 namespace GameData {
@@ -133,6 +134,18 @@ namespace GameData {
 
         // ===================================================================== //
         // ======================= Public Agent Methods ======================== //
+
+        /// <summary>
+        /// Getter methods for all variables
+        /// </summary>
+        public GameData.Player GetPlayer() { return this.Player; }
+        public String GetAgentName() {  return this.AgentName; }
+        public uint GetMaxHP() {  return this.MaxHP; }
+        public uint GetMaxRange() { return this.MaxRange; }
+        public List<Ability> GetAbilities() { return this.Abilities; }
+        public Tunneling GetTunneling() { return this.CanTunnel; }
+        public uint GetHP() {  return this.HP; }
+  
 
         /// <summary>
         /// Apply damage to the agent, reducing its HP.
