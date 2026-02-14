@@ -357,6 +357,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 528822497}
+  - component: {fileID: 528822498}
   m_Layer: 0
   m_Name: TextBasedDemoManager
   m_TagString: Untagged
@@ -379,6 +380,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &528822498
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 528822496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e23b56151ae86ef4cb6e051cbffab1eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TextBasedDemoGenerator
 --- !u!1 &594704984
 GameObject:
   m_ObjectHideFlags: 0

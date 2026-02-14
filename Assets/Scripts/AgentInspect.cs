@@ -20,5 +20,10 @@ public class AgentInspect : MonoBehaviour
     void Update()
     {
         dialog.text = "HP: " + agent.GetHP().ToString();
+        //TODO Reference map to get Agent position
+    }
+
+    public void Ability1() {
+
     }
 }

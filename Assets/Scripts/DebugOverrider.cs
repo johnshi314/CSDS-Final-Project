@@ -1,16 +1,12 @@
 using UnityEngine;
+using GameData;
 
 public class DebugOverrider : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
+    [SerializeField] public Agent agent;
+    private List<Ability> Abilities = agent.GetAbilities();
+    
+    public void UseAbility(int i) {
+        // agent.UseAbility(Abilities[i],TARGETTILE);
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-}
+    

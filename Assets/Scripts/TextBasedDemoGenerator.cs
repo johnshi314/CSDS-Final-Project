@@ -4,7 +4,7 @@ using GameMap;
 using System.Runtime.InteropServices;
 
 public class TextBasedDemoGenerator : MonoBehaviour {
-    public GameObject map;
+    private GameObject map;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start() {
         /*Generate a 2x1 Map with 2 tiles and spawnpoints at A and B
@@ -16,6 +16,9 @@ public class TextBasedDemoGenerator : MonoBehaviour {
             "TextBasedDemo", // Name
             tiles, 
             spawnpoints); 
+
+        // Register Agents to map
+        
 
 
 
