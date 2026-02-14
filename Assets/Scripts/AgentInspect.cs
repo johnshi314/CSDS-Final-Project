@@ -5,6 +5,7 @@ using TMPro;
 using GameData;
 using System.Globalization;
 
+
 public class AgentInspect : MonoBehaviour
 {
     [SerializeField] public Agent agent;
@@ -18,6 +19,6 @@ public class AgentInspect : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        dialog.text = "HP: " + agent.HP.toString();
+        dialog.text = "HP: " + agent.GetHP().ToString();
     }
 }

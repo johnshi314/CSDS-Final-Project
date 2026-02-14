@@ -15,9 +15,9 @@ MonoBehaviour:
   Id: 9001
   DisplayName: 3 Damage
   TargetType: 2
-  TargetMode: 0
-  TargetShape: 0
-  RangeMax: 5
+  TargetMode: 1
+  TargetShape: 6
+  RangeMax: 0
   RangeMin: 0
   Cost: 0
   Cooldown: 0
