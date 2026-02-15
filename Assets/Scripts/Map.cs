@@ -180,5 +180,16 @@ namespace NetFlower {
             }
             return this.Tiles[x, y];
         }
+
+        /// <summary>
+        /// Calculates and returns all tile positions the agent can move to.
+        /// Uses Algorithm-based distance calculation based on agent's movement range and walkability of tiles.
+        /// </summary>
+        public List<Tile> GetMovableTiles(Agent agent) {
+            List<Tile> movableTiles = new List<Tile>();
+            // TODO: Implement pathfinding-based movement range calculation that accounts for walkability and obstacles.
+
+            return movableTiles;
+        }
     }
 }

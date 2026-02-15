@@ -165,24 +165,24 @@ public class GridUI : MonoBehaviour {
         }
 
         // Get tiles within movement range
-        List<Vector3Int> movableTiles = GetMovableTiles(agent);
+        List<Tile> movableTiles = map.GetMovableTiles(agent); // TODO: Implement this method in Map to return walkable tiles within range
+        List<Vector3Int> highlightPositions = new List<Vector3Int>();
+
+        // Convert tile positions to Vector3Int for highlighting
+        foreach (Tile tile in movableTiles) {
+            // Convert tile position to Vector3Int for tilemap highlighting
+            Vector3Int cellPos = new Vector3Int(tile.Position.x, tile.Position.y, 0);
+            highlightPositions.Add(cellPos);
+        }
 
         // Highlight them
-        tileVisualizer.HighlightCells(movableTiles, highlightColor, alpha);
+        tileVisualizer.HighlightCells(highlightPositions, highlightColor, alpha);
 
-        return movableTiles;
+        // Return the list of highlighted positions for reference
+        return highlightPositions;
     }
 
-    /// <summary>
-    /// Calculates and returns all tile positions the agent can move to.
-    /// Uses Algorithm-based distance calculation based on agent's movement range and walkability of tiles.
-    /// </summary>
-    public List<Vector3Int> GetMovableTiles(Agent agent) {
-        List<Vector3Int> movableTiles = new List<Vector3Int>();
-        // TODO: Implement pathfinding-based movement range calculation that accounts for walkability and obstacles.
 
-        return movableTiles;
-    }
 
     /// <summary>
     /// Clears all persistent tile highlights (keeps hover highlighting active).
