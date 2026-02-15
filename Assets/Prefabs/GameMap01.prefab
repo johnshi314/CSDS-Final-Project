@@ -566,7 +566,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_Name
-      value: GameMap Variant1
+      value: GameMap01
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: tileHoverColor.b
+      value: 0.47770557
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: tileHoverColor.g
+      value: 0.74677247
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: tileHoverColor.r
+      value: 0.8962264
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
