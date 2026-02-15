@@ -136,7 +136,7 @@ namespace NetFlower {
         /// <summary>
         /// Getter methods for all variables
         /// </summary>
-        public GameData.Player GetPlayer() { return this.Player; }
+        public NetFlower.Player GetPlayer() { return this.Player; }
         public String GetAgentName() {  return this.AgentName; }
         public uint GetMaxHP() {  return this.MaxHP; }
         public uint GetMaxRange() { return this.MaxRange; }
