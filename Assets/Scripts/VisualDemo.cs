@@ -15,6 +15,7 @@ public class VisualDemo : MonoBehaviour
     private bool inIntroSequence = true;
     private int introIndex = 0;
     private Vector2Int[] introPositions = new Vector2Int[] {
+        new Vector2Int(0, 0),
         new Vector2Int(0, 1),
         new Vector2Int(0, 2),
         new Vector2Int(0, 3),

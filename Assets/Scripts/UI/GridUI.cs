@@ -19,6 +19,11 @@ namespace NetFlower.UI {
         [SerializeField] private Color tileHoverColor = Color.yellow;
         [SerializeField, Range(0f, 1f)] private float tileHoverAlpha = 0.5f;
         
+        [Header("Debug Visualization")]
+        [SerializeField] private bool showMapBoundsGizmos = true;
+        [SerializeField] private Color walkableColor = Color.green;
+        [SerializeField] private Color unwalkableColor = Color.red;
+        
         private TileVisualizer tileVisualizer;
         private Vector2Int tilemapBoundsMin; // Offset for tilemap coordinates (could be negative)
 
@@ -373,6 +378,34 @@ namespace NetFlower.UI {
             
             Tile currentTile = map.GetCurrentTile(agent);
             return currentTile?.Position;
+        }
+
+        /// <summary>
+        /// Draws gizmos showing the bounds of each tile in the map.
+        /// Green for walkable tiles, red for unwalkable tiles.
+        /// </summary>
+        void OnDrawGizmos() {
+            if (!showMapBoundsGizmos || map == null || tilemap == null) return;
+
+            // Draw each tile in the map
+            for (int y = 0; y < map.Height; y++) {
+                for (int x = 0; x < map.Width; x++) {
+                    Tile tile = map.Tiles[x, y];
+                    Vector2Int mapIndex = new Vector2Int(x, y);
+                    Vector2Int tilemapCoord = MapIndexToTilemap(mapIndex);
+                    
+                    // Get the world position and size of this tile
+                    Vector3Int cellPosition = new Vector3Int(tilemapCoord.x, tilemapCoord.y, 0);
+                    Vector3 worldPos = tilemap.GetCellCenterWorld(cellPosition);
+                    Vector3 cellSize = tilemap.cellSize;
+                    
+                    // Set color based on walkability
+                    Gizmos.color = tile.IsWalkable ? walkableColor : unwalkableColor;
+                    
+                    // Draw wire cube to outline the tile
+                    Gizmos.DrawWireCube(worldPos, new Vector3(cellSize.x, cellSize.y, 0.1f));
+                }
+            }
         }
     }
 
