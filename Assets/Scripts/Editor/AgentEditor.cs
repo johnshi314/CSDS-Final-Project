@@ -2,10 +2,12 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Reflection;
-using GameData;
+using NetFlower;
+
+namespace NetFlower.Editor {
 
 [CustomEditor(typeof(Agent))]
-public class AgentEditor : Editor {
+public class AgentEditor : UnityEditor.Editor {
     public override void OnInspectorGUI() {
         // Draw the default inspector
         DrawDefaultInspector();
@@ -152,4 +154,6 @@ public class AgentEditor : Editor {
 
         EditorGUI.indentLevel--;
     }
+}
+
 }

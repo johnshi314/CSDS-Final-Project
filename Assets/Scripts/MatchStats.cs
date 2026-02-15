@@ -1,6 +1,6 @@
 using System;
 
-namespace GameManager {
+namespace NetFlower {
 
     [System.Serializable]
     public class MatchData {

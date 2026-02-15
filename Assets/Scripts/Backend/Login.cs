@@ -5,10 +5,9 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
-using GameData;
-using GameUI;
+using NetFlower.UI;
 
-namespace Backend {
+namespace NetFlower.Backend {
     public class Login : MonoBehaviour {
         [SerializeField] string authServerBaseUrl = "http://localhost:8000";
         [SerializeField] UserInput playerIdInput;

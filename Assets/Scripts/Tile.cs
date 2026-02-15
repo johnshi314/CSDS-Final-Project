@@ -6,9 +6,8 @@
 **********************************************************************/
 using UnityEngine;
 using System;
-using GameData;
 
-namespace GameMap {
+namespace NetFlower {
     /// <summary>
     /// Enum representing different types of tiles.
     /// </summary>

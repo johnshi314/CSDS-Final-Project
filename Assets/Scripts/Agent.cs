@@ -7,10 +7,8 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
-using GameMap;
 
-// GameData: Data related to the client-side game
-namespace GameData {
+namespace NetFlower {
 
     /// <summary>
     /// Data structure representing an agent in the game who can perform actions and take and deal damage.
@@ -32,13 +30,13 @@ namespace GameData {
         public void Update() { }
 
         [Header("Identity")]
-        GameData.Player Player;  // The player controlling this agent
+        Player Player;  // The player controlling this agent
         [SerializeField] string AgentName;       // Agent's display name
 
         [Header("Base Stats")]
         [SerializeField] uint MaxHP = 20;       // Maximum health points
         [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
-        [SerializeField] List<GameData.Ability> Abilities;  // List of Abilities this agent can use
+        [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
         [SerializeField] Tunneling CanTunnel;               // How other agents can pass through this agent
 
         [Header("Current Stats")]
@@ -46,6 +44,7 @@ namespace GameData {
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffect> activeEffects = new();  // List of active effects with duration
         public string Name { get { return AgentName; } }
+        public uint MovementRange { get { return MaxRange; } }
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -81,11 +80,11 @@ namespace GameData {
         /// <param name="position">2D position where the agent will be placed.</param>
         /// <returns>The newly created Agent component.</returns>
         public static GameObject NewAgent(// Agent properties
-                                        GameData.Player player = null,
+                                        Player player = null,
                                         string agent_name = "MissingNo.",
                                         uint hp = 20,
                                         uint range = 3,
-                                        IEnumerable<GameData.Ability> abilities = null,
+                                        IEnumerable<Ability> abilities = null,
                                         Tunneling tunneling = default,
                                         // How to place it in the scene
                                         string gameObjectName = null,
@@ -116,17 +115,17 @@ namespace GameData {
         }
 
         public void Initialize(// Agent properties
-                            GameData.Player player = null,
+                            Player player = null,
                             string agent_name = "MissingNo.",
                             uint hp = 20,
                             uint range = 3,
-                            IEnumerable<GameData.Ability> abilities = null,
+                            IEnumerable<Ability> abilities = null,
                             Tunneling tunneling = default) {
             this.Player = player;
             this.AgentName = agent_name;
             this.MaxHP = hp;
             this.MaxRange = range;
-            this.Abilities = abilities != null ? new List<GameData.Ability>(abilities) : new List<GameData.Ability>();
+            this.Abilities = abilities != null ? new List<Ability>(abilities) : new List<Ability>();
             this.CanTunnel = tunneling;
             this.HP = hp;
         }

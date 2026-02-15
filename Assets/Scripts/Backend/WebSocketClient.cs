@@ -12,8 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-// Backend: networking and backend-related functionality
-namespace Backend {
+namespace NetFlower.Backend {
 
     /// <summary>
     /// Turn-based WebSocket client. Connects to the server, receives you/turn/said/epoch

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GameUI {
+namespace NetFlower.UI {
 
     public class UserInput : MonoBehaviour
     {

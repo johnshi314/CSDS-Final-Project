@@ -1,4 +1,4 @@
-namespace GameManager {
+namespace NetFlower {
 
     [System.Serializable]
     public class AbilityUsageStats {

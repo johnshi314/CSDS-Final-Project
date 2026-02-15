@@ -6,13 +6,13 @@
 **********************************************************************/
 using System;
 using System.Collections.Generic;
-using GameData;
+using NetFlower;
 using Mono.Cecil.Cil;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 /// Placeholder
-namespace GameManager {
+namespace NetFlower {
 
     /// <summary>
     /// Manages turns during a game.

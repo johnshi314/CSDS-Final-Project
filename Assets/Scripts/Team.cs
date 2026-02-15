@@ -7,7 +7,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-namespace GameData {
+namespace NetFlower {
     public enum TeamColor {
         Red,
         Blue

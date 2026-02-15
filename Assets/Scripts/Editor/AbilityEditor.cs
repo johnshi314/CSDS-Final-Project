@@ -23,17 +23,19 @@ using UnityEngine;
 using UnityEditor;
 using System;
 using System.Collections.Generic;
-using GameData;
+using NetFlower;
 
-[CustomEditor(typeof(GameData.Ability))]
-public class AbilityEditor: Editor {
-    private static readonly Dictionary<int, GameData.AbilityTargetType> LastValidTargetType
-        = new Dictionary<int, GameData.AbilityTargetType>();
+namespace NetFlower.Editor {
+
+[CustomEditor(typeof(Ability))]
+public class AbilityEditor: UnityEditor.Editor {
+    private static readonly Dictionary<int, AbilityTargetType> LastValidTargetType
+        = new Dictionary<int, AbilityTargetType>();
 
     public override void OnInspectorGUI() {
         serializedObject.Update();
 
-        GameData.Ability ability = (GameData.Ability)target;
+        Ability ability = (Ability)target;
         var targetTypeProp = serializedObject.FindProperty("TargetType");
         var targetModeProp = serializedObject.FindProperty("TargetMode");
         var targetShapeProp = serializedObject.FindProperty("TargetShape");
@@ -52,12 +54,12 @@ public class AbilityEditor: Editor {
             if (LastValidTargetType.TryGetValue(abilityId, out var lastTargetType) && lastTargetType != 0) {
                 targetTypeProp.intValue = (int)lastTargetType;
             } else {
-                targetTypeProp.intValue = (int)GameData.AbilityTargetType.Everything;
+                targetTypeProp.intValue = (int)AbilityTargetType.Everything;
             }
         }
 
-        var currentTargetType = (GameData.AbilityTargetType)targetTypeProp.intValue;
-        var newTargetType = (GameData.AbilityTargetType)EditorGUILayout.EnumFlagsField(
+        var currentTargetType = (AbilityTargetType)targetTypeProp.intValue;
+        var newTargetType = (AbilityTargetType)EditorGUILayout.EnumFlagsField(
             "Target Type",
             currentTargetType
         );
@@ -67,7 +69,7 @@ public class AbilityEditor: Editor {
             if (LastValidTargetType.TryGetValue(abilityId, out var lastTargetType) && lastTargetType != 0) {
                 newTargetType = lastTargetType;
             } else {
-                newTargetType = GameData.AbilityTargetType.Everything;
+                newTargetType = AbilityTargetType.Everything;
             }
         } else {
             LastValidTargetType[abilityId] = newTargetType;
@@ -78,22 +80,22 @@ public class AbilityEditor: Editor {
         EditorGUILayout.PropertyField(targetModeProp);
 
         // Conditionally enable/disable TargetShape and Range fields based on TargetMode
-        bool isGlobalMode = (GameData.AbilityTargetMode)targetModeProp.enumValueIndex == GameData.AbilityTargetMode.Global;
+        bool isGlobalMode = (AbilityTargetMode)targetModeProp.enumValueIndex == AbilityTargetMode.Global;
         
         EditorGUI.BeginDisabledGroup(isGlobalMode);
         
         // Custom dropdown for TargetShape that excludes None when enabled
         if (!isGlobalMode) {
             // Get all enum values except None
-            var validShapes = Enum.GetValues(typeof(GameData.AbilityTargetShape));
-            var shapeList = new List<GameData.AbilityTargetShape>();
-            foreach (GameData.AbilityTargetShape shape in validShapes) {
-                if (shape != GameData.AbilityTargetShape.None) {
+            var validShapes = Enum.GetValues(typeof(AbilityTargetShape));
+            var shapeList = new List<AbilityTargetShape>();
+            foreach (AbilityTargetShape shape in validShapes) {
+                if (shape != AbilityTargetShape.None) {
                     shapeList.Add(shape);
                 }
             }
             
-            var currentShape = (GameData.AbilityTargetShape)targetShapeProp.enumValueIndex;
+            var currentShape = (AbilityTargetShape)targetShapeProp.enumValueIndex;
             int currentIndex = shapeList.IndexOf(currentShape);
             if (currentIndex < 0) currentIndex = 0; // Default to first valid option
             
@@ -131,7 +133,7 @@ public class AbilityEditor: Editor {
 
         // Set values to None/0 when Global mode is active
         if (isGlobalMode) {
-            targetShapeProp.enumValueIndex = (int)GameData.AbilityTargetShape.None;
+            targetShapeProp.enumValueIndex = (int)AbilityTargetShape.None;
             rangeMinProp.intValue = 0;
             rangeMaxProp.intValue = 0;
         }
@@ -140,4 +142,6 @@ public class AbilityEditor: Editor {
             EditorUtility.SetDirty(ability);
         }
     }
+}
+
 }

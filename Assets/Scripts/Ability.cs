@@ -14,10 +14,8 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
-using GameManager;
-using GameMap;
 
-namespace GameData {
+namespace NetFlower {
     /// <summary>
     /// Data structure representing an ability that agents can use in the game.
     /// </summary>

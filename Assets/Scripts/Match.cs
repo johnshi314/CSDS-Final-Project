@@ -1,10 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
-using GameData;
-using GameMap;
 
 // Placeholder
-namespace GameManager {
+namespace NetFlower {
     public class Match : MonoBehaviour {
 
         // Match stats

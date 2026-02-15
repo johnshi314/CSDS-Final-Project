@@ -5,10 +5,9 @@
 * Description   : Data structure representing the game map manager
 **********************************************************************/
 using UnityEngine;
-using GameMap;
-using GameData;
+using NetFlower;
 
-namespace GameManager {
+namespace NetFlower {
     public class MapManager : MonoBehaviour {
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start() { }

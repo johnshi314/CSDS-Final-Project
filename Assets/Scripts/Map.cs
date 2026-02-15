@@ -6,9 +6,8 @@
 **********************************************************************/
 using UnityEngine;
 using System.Collections.Generic;
-using GameData;
 
-namespace GameMap {
+namespace NetFlower {
     public class Map : MonoBehaviour {
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start() { }

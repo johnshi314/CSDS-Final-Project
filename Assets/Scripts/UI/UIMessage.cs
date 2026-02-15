@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GameUI {
+namespace NetFlower.UI {
     public class UIMessage : MonoBehaviour
     {
         // Textmeshpro text component

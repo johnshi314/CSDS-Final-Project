@@ -6,8 +6,7 @@
  **********************************************************************/
 using UnityEngine;
 
-// GameData: Data related to the client-side game
-namespace GameData {
+namespace NetFlower {
     public class Player {
         public int Id { get; set; }   // Unique identifier for the player
         public string Name { get; set; } // Display name of the player
