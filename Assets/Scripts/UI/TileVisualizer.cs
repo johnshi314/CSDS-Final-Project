@@ -26,7 +26,7 @@ public class TileVisualizer : MonoBehaviour {
     private bool isInitialized = false;
 
     /// <summary>
-    /// Initialize the TileVisualizer with configuration from GridUI.
+    /// Initialize the TileVisualizer with configuration from GridMap.
     /// Call this instead of using inspector fields.
     /// </summary>
     public void Initialize(Tilemap tilemap, TileBase highlightTile, Color hoverColor, float hoverAlpha = 0.5f) {

@@ -52,6 +52,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2775240196266690614, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: MapName
+      value: Demo Map
+      objectReference: {fileID: 0}
     - target: {fileID: 3721491440265615316, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_Tiles.Array.size
       value: 74

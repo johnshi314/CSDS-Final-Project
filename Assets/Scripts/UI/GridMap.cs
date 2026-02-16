@@ -5,10 +5,20 @@ using NetFlower;
 
 namespace NetFlower.UI {
 
-    public class GridUI : MonoBehaviour {
+    public class GridMap : MonoBehaviour {
 
-        public Map map;
-        public  Tilemap tilemap;
+        [Header("Map Management")]
+        [SerializeField] private MapManager mapManager;
+        
+        [Header("Initial Agents")]
+        [SerializeField] private List<Agent> initialAgents = new List<Agent>();
+        
+        [Header("Spawn Points")]
+        [SerializeField] private Vector2Int[] spawnPoints = new Vector2Int[0];
+
+        private Map map;
+        public Map Map => map;
+        public Tilemap tilemap;
         
         [Header("Walkability Configuration")]
         [SerializeField] private Tilemap walkableTilemap;
@@ -33,6 +43,17 @@ namespace NetFlower.UI {
             // This game object (Should be the Grid object in the scene)
             GameObject thisObject = this.gameObject;
 
+            if (mapManager == null) {
+                mapManager = FindFirstObjectByType<MapManager>();
+            }
+            if (mapManager == null) {
+                Debug.LogError("GridMap: MapManager not found! Assign one in the inspector or add it to the scene.");
+                return;
+            }
+
+            if (mapManager.ActiveMap != null) {
+                map = mapManager.ActiveMap;
+            }
             if (map == null) {
                 // Get the Map component from this game object
                 map = thisObject.GetComponent<Map>();
@@ -73,14 +94,16 @@ namespace NetFlower.UI {
                 walkableRenderer.enabled = false;
             }
 
-            Vector2Int[] spawnPoints = new Vector2Int[] {};
-
             // Initialize the Map with the loaded walkability data and spawn points
             map.Initialize(
                 "World 1",
                 walkabilityData.Walkability,
                 spawnPoints
             );
+
+            // Pass initial agents to MapManager and initialize
+            mapManager.SetInitialAgents(initialAgents);
+            mapManager.Initialize(map);
 
             Debug.Log("Map Name: " + map.MapName);
             Debug.Log("Map Width: " + map.Width);
@@ -90,8 +113,31 @@ namespace NetFlower.UI {
             if (enableTileVisuals) {
                 SetupTileVisualizer();
             }
+            
+            // Visually position initial agents after MapManager has placed them
+            PositionInitialAgents();
         }
 
+        /// <summary>
+        /// Visually positions all initial agents at their spawn points.
+        /// Called after MapManager has placed agents logically.
+        /// </summary>
+        private void PositionInitialAgents() {
+            foreach (Agent agent in initialAgents) {
+                if (agent == null) continue;
+                
+                Tile currentTile = map.GetCurrentTile(agent);
+                if (currentTile != null) {
+                    // Convert map index to world position and update agent's transform
+                    Vector3 worldPos = MapIndexToWorldPosition(currentTile.Position, agent.transform.position.z);
+                    agent.transform.position = worldPos;
+                    Debug.Log($"GridMap: Positioned {agent.Name} at world position {worldPos} (map index {currentTile.Position})");
+                } else {
+                    Debug.LogWarning($"GridMap: Agent {agent.Name} not placed on map, skipping visual positioning.");
+                }
+            }
+        }
+        
         /// <summary>
         /// Sets up the tile visualizer for colliders and hover highlighting.
         /// </summary>
@@ -166,14 +212,14 @@ namespace NetFlower.UI {
         /// </summary>
         public List<Vector3Int> HighlightMovementRange(Agent agent, Color highlightColor, float alpha = 0.6f) {
             if (map == null || tileVisualizer == null || agent == null) {
-                Debug.LogWarning("GridUI: Cannot highlight movement range - map, visualizer, or agent is null");
+                Debug.LogWarning("GridMap: Cannot highlight movement range - map, visualizer, or agent is null");
                 return new List<Vector3Int>();
             }
 
             // Verify agent is on this map
             Tile currentTile = map.GetCurrentTile(agent);
             if (currentTile == null) {
-                Debug.LogWarning($"GridUI: Agent {agent.Name} is not registered on this map");
+                Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
                 return new List<Vector3Int>();
             }
 
@@ -227,7 +273,7 @@ namespace NetFlower.UI {
         /// </summary>
         public Vector3 GridToWorldPosition(Vector2Int tilemapPosition) {
             if (tilemap == null) {
-                Debug.LogWarning("GridUI: Tilemap is null, returning direct conversion");
+                Debug.LogWarning("GridMap: Tilemap is null, returning direct conversion");
                 return new Vector3(tilemapPosition.x, tilemapPosition.y, 0);
             }
             
@@ -266,8 +312,8 @@ namespace NetFlower.UI {
         /// Also sets the agent's GameObject position to match the grid position.
         /// </summary>
         public void RegisterAgent(Agent agent, Vector2Int tilemapPosition) {
-            if (map == null || agent == null) {
-                Debug.LogWarning("GridUI: Cannot register agent - map or agent is null");
+            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+                Debug.LogWarning("GridMap: Cannot register agent - map manager, map, or agent is null");
                 return;
             }
 
@@ -275,7 +321,10 @@ namespace NetFlower.UI {
             Vector2Int mapIndex = TilemapToMapIndex(tilemapPosition);
 
             // Register with the map
-            map.RegisterAgent(agent, mapIndex);
+            if (!mapManager.PlaceAgent(agent, mapIndex)) {
+                Debug.LogWarning($"GridMap: Could not place {agent.Name} at map index {mapIndex}");
+                return;
+            }
 
             // Update visual position using tilemap conversion
             agent.transform.position = GridToWorldPosition(tilemapPosition, agent.transform.position.z);
@@ -287,13 +336,16 @@ namespace NetFlower.UI {
         /// Also sets the agent's GameObject position to match the grid position.
         /// </summary>
         public void RegisterAgentByMapIndex(Agent agent, Vector2Int mapIndex) {
-            if (map == null || agent == null) {
-                Debug.LogWarning("GridUI: Cannot register agent - map or agent is null");
+            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+                Debug.LogWarning("GridMap: Cannot register agent - map manager, map, or agent is null");
                 return;
             }
 
-            // Register with the map
-            map.RegisterAgent(agent, mapIndex);
+            // Register with the map manager
+            if (!mapManager.PlaceAgent(agent, mapIndex)) {
+                Debug.LogWarning($"GridMap: Could not place {agent.Name} at map index {mapIndex}");
+                return;
+            }
 
             // Update visual position
             Vector3 worldPos = MapIndexToWorldPosition(mapIndex, agent.transform.position.z);
@@ -307,15 +359,15 @@ namespace NetFlower.UI {
         /// Updates both the map data and the GameObject's visual position.
         /// </summary>
         public void MoveAgent(Agent agent, Vector2Int newTilemapPosition) {
-            if (map == null || agent == null) {
-                Debug.LogWarning("GridUI: Cannot move agent - map or agent is null");
+            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+                Debug.LogWarning("GridMap: Cannot move agent - map manager, map, or agent is null");
                 return;
             }
 
             // Verify agent is registered
-            Tile currentTile = map.GetCurrentTile(agent);
+            Tile currentTile = mapManager.ActiveMap.GetCurrentTile(agent);
             if (currentTile == null) {
-                Debug.LogWarning($"GridUI: Agent {agent.Name} is not registered on this map");
+                Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
                 return;
             }
 
@@ -323,7 +375,10 @@ namespace NetFlower.UI {
             Vector2Int mapIndex = TilemapToMapIndex(newTilemapPosition);
 
             // Update map data
-            map.MoveAgent(agent, mapIndex);
+            if (!mapManager.RequestMove(agent, mapIndex)) {
+                Debug.LogWarning($"GridMap: Could not move {agent.Name} to map index {mapIndex}");
+                return;
+            }
 
             // Update visual position using tilemap conversion (keep original Z)
             agent.transform.position = GridToWorldPosition(newTilemapPosition, agent.transform.position.z);
@@ -335,20 +390,23 @@ namespace NetFlower.UI {
         /// Updates both the map data and the GameObject's visual position.
         /// </summary>
         public void MoveAgentByMapIndex(Agent agent, Vector2Int newMapIndex) {
-            if (map == null || agent == null) {
-                Debug.LogWarning("GridUI: Cannot move agent - map or agent is null");
+            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+                Debug.LogWarning("GridMap: Cannot move agent - map manager, map, or agent is null");
                 return;
             }
 
             // Verify agent is registered
-            Tile currentTile = map.GetCurrentTile(agent);
+            Tile currentTile = mapManager.ActiveMap.GetCurrentTile(agent);
             if (currentTile == null) {
-                Debug.LogWarning($"GridUI: Agent {agent.Name} is not registered on this map");
+                Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
                 return;
             }
 
-            // Update map data
-            map.MoveAgent(agent, newMapIndex);
+            // Update map data via map manager
+            if (!mapManager.RequestMove(agent, newMapIndex)) {
+                Debug.LogWarning($"GridMap: Could not move {agent.Name} to map index {newMapIndex}");
+                return;
+            }
 
             // Update visual position (keep original Z)
             Vector3 worldPos = MapIndexToWorldPosition(newMapIndex, agent.transform.position.z);

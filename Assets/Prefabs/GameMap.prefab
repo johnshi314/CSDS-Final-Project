@@ -2116,8 +2116,9 @@ GameObject:
   m_Component:
   - component: {fileID: 363023989136914256}
   - component: {fileID: 116328072218797428}
-  - component: {fileID: 2775240196266690614}
   - component: {fileID: 6562996664655615714}
+  - component: {fileID: 1670328504005014428}
+  - component: {fileID: 2775240196266690614}
   m_Layer: 0
   m_Name: GameMap
   m_TagString: Untagged
@@ -2154,20 +2155,6 @@ Grid:
   m_CellGap: {x: 0, y: 0, z: 0}
   m_CellLayout: 3
   m_CellSwizzle: 0
---- !u!114 &2775240196266690614
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5006071418379397573}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3512845aa0e970e4ea3c6d6368aad700, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameMap.Map
-  MapName: 
-  SpawnPoints: []
 --- !u!114 &6562996664655615714
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2180,7 +2167,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27a0b7e4bec821a85ba74ab32801c148, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridUI
-  map: {fileID: 2775240196266690614}
+  mapManager: {fileID: 1670328504005014428}
+  initialAgents: []
+  spawnPoints:
+  - {x: 1, y: 1}
   tilemap: {fileID: 5143134723028469190}
   walkableTilemap: {fileID: 3721491440265615316}
   enableTileVisuals: 1
@@ -2190,3 +2180,30 @@ MonoBehaviour:
   showMapBoundsGizmos: 1
   walkableColor: {r: 0, g: 1, b: 0, a: 1}
   unwalkableColor: {r: 1, g: 0, b: 0, a: 1}
+--- !u!114 &1670328504005014428
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5006071418379397573}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4604b7af54dfc00418537ac45ad0b2bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.MapManager
+  ActiveMap: {fileID: 2775240196266690614}
+--- !u!114 &2775240196266690614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5006071418379397573}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3512845aa0e970e4ea3c6d6368aad700, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameMap.Map
+  MapName: RENAME
+  SpawnPoints: []

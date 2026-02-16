@@ -2,14 +2,12 @@ using UnityEngine;
 using NetFlower;
 using NetFlower.UI;
 
-public class VisualDemo : MonoBehaviour
-{
-    [SerializeField] private GridUI gridUI;
+public class VisualDemo : MonoBehaviour {
+    [SerializeField] private GridMap gridMap;
     [SerializeField] private Agent agent;
     [SerializeField] private float moveInterval = 1f;
 
     private float moveTimer = 0f;
-    private bool isRegistered = false;
     
     // Intro sequence to show specific positions
     private bool inIntroSequence = true;
@@ -22,13 +20,12 @@ public class VisualDemo : MonoBehaviour
         new Vector2Int(0, 4)
     };
 
-    void Start()
-    {
-        // Auto-find GridUI if not assigned
-        if (gridUI == null) {
-            gridUI = GetComponent<GridUI>();
-            if (gridUI == null) {
-                Debug.LogError("VisualDemo: GridUI not found! Attach this to the Grid GameObject or assign GridUI.");
+    void Start() {
+        // Auto-find GridMap if not assigned
+        if (gridMap == null) {
+            gridMap = GetComponent<GridMap>();
+            if (gridMap == null) {
+                Debug.LogError("VisualDemo: GridMap not found! Attach this to the Grid GameObject or assign GridMap.");
                 return;
             }
         }
@@ -41,13 +38,9 @@ public class VisualDemo : MonoBehaviour
                 return;
             }
         }
-
-        // Wait a frame for GridUI to initialize
-        Invoke(nameof(RegisterAgentDelayed), 0.1f);
     }
 
-    void Update()
-    {
+    void Update() {
         WalkDemo();         // Comment this out if you want to test only the intro sequence
         // SomeOtherDemo(); // Uncomment to test additional visual functionalities
     }
@@ -60,7 +53,7 @@ public class VisualDemo : MonoBehaviour
         // This demo will move the agent around the map in a simple pattern
         // demonstrating the visual updates.
         
-        if (!isRegistered || agent == null || gridUI == null) return;
+        if (agent == null || gridMap == null) return;
 
         moveTimer += Time.deltaTime;
 
@@ -73,14 +66,14 @@ public class VisualDemo : MonoBehaviour
                     Vector2Int introPos = introPositions[introIndex];
                     
                     // Check if position is within bounds
-                    if (introPos.x >= 0 && introPos.x < gridUI.map.Width && 
-                        introPos.y >= 0 && introPos.y < gridUI.map.Height) {
+                    if (introPos.x >= 0 && introPos.x < gridMap.Map.Width && 
+                        introPos.y >= 0 && introPos.y < gridMap.Map.Height) {
                         
-                        Vector2Int tilemapCoord = gridUI.MapIndexToTilemap(introPos);
-                        bool isWalkable = gridUI.map.Tiles[introPos.x, introPos.y].IsWalkable;
+                        Vector2Int tilemapCoord = gridMap.MapIndexToTilemap(introPos);
+                        bool isWalkable = gridMap.Map.Tiles[introPos.x, introPos.y].IsWalkable;
                         
                         Debug.Log($"Intro sequence: Moving to map index {introPos} (tilemap coord {tilemapCoord}), walkable={isWalkable}");
-                        gridUI.MoveAgentByMapIndex(agent, introPos);
+                        gridMap.MoveAgentByMapIndex(agent, introPos);
                     } else {
                         Debug.LogWarning($"Intro position {introPos} is out of bounds!");
                     }
@@ -94,26 +87,26 @@ public class VisualDemo : MonoBehaviour
             }
 
             // Normal movement pattern (after intro)
-            Vector2Int? currentPos = gridUI.GetAgentMapIndex(agent);
+            Vector2Int? currentPos = gridMap.GetAgentMapIndex(agent);
             if (!currentPos.HasValue) return;
             
             // Try to move to adjacent walkable tile (simple right/down pattern)
             Vector2Int nextPos = currentPos.Value;
             
             // Try right first
-            if (nextPos.x + 1 < gridUI.map.Width && gridUI.map.Tiles[nextPos.x + 1, nextPos.y].IsWalkable) {
+            if (nextPos.x + 1 < gridMap.Map.Width && gridMap.Map.Tiles[nextPos.x + 1, nextPos.y].IsWalkable) {
                 nextPos = new Vector2Int(nextPos.x + 1, nextPos.y);
             }
             // Try down
-            else if (nextPos.y + 1 < gridUI.map.Height && gridUI.map.Tiles[nextPos.x, nextPos.y + 1].IsWalkable) {
+            else if (nextPos.y + 1 < gridMap.Map.Height && gridMap.Map.Tiles[nextPos.x, nextPos.y + 1].IsWalkable) {
                 nextPos = new Vector2Int(nextPos.x, nextPos.y + 1);
             }
             // Wrap back to start
             else {
                 // Find first walkable tile again
-                for (int y = 0; y < gridUI.map.Height; y++) {
-                    for (int x = 0; x < gridUI.map.Width; x++) {
-                        if (gridUI.map.Tiles[x, y].IsWalkable) {
+                for (int y = 0; y < gridMap.Map.Height; y++) {
+                    for (int x = 0; x < gridMap.Map.Width; x++) {
+                        if (gridMap.Map.Tiles[x, y].IsWalkable) {
                             nextPos = new Vector2Int(x, y);
                             goto found;
                         }
@@ -122,41 +115,7 @@ public class VisualDemo : MonoBehaviour
                 found:;
             }
             
-            gridUI.MoveAgentByMapIndex(agent, nextPos);
+            gridMap.MoveAgentByMapIndex(agent, nextPos);
         }
-    }
-
-    void RegisterAgentDelayed() {
-        // Call this function after a short delay to ensure GridUI
-        // is fully initialized before we try to register the agent.
-
-        // Log the map bounds for debugging
-        Debug.Log($"Map dimensions: {gridUI.map.Width}x{gridUI.map.Height}");
-        Debug.Log($"Map index (0,0) corresponds to tilemap coordinate: {gridUI.MapIndexToTilemap(Vector2Int.zero)}");
-        Debug.Log($"Map index ({gridUI.map.Width-1},{gridUI.map.Height-1}) corresponds to tilemap coordinate: {gridUI.MapIndexToTilemap(new Vector2Int(gridUI.map.Width-1, gridUI.map.Height-1))}");
-        
-        // Find a walkable tile to start on
-        Vector2Int startPos = Vector2Int.zero;
-        bool foundWalkable = false;
-        
-        for (int y = 0; y < gridUI.map.Height && !foundWalkable; y++) {
-            for (int x = 0; x < gridUI.map.Width && !foundWalkable; x++) {
-                if (gridUI.map.Tiles[x, y].IsWalkable) {
-                    startPos = new Vector2Int(x, y);
-                    foundWalkable = true;
-                    Debug.Log($"Found first walkable tile at map index {startPos}, tilemap coord: {gridUI.MapIndexToTilemap(startPos)}");
-                }
-            }
-        }
-        
-        if (!foundWalkable) {
-            Debug.LogError("No walkable tiles found on the map!");
-            return;
-        }
-        
-        // Register the agent at the first walkable tile
-        gridUI.RegisterAgentByMapIndex(agent, startPos);
-        isRegistered = true;
-        Debug.Log("VisualDemo: Agent registered and ready to move");
     }
 }

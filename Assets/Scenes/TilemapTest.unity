@@ -127,6 +127,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: initialAgents.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: 'initialAgents.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1464626123}
     - target: {fileID: 1851586129582700408, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: m_Name
       value: GameMapDemo
@@ -1394,7 +1402,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2029823870383830514, guid: bb223c987d50db64992334d4722199ec, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.75
+      value: 1.25
       objectReference: {fileID: 0}
     - target: {fileID: 2029823870383830514, guid: bb223c987d50db64992334d4722199ec, type: 3}
       propertyPath: m_LocalPosition.z

@@ -37,8 +37,8 @@ namespace NetFlower {
                 return 0;
             }}
 
-        // Tile indices that are valid spawnpoints
-        public Vector2Int[] SpawnPoints;
+        // Tile indices that are valid spawnpoints. Assigned using GridMap Component.
+        [HideInInspector] public Vector2Int[] SpawnPoints;
 
         // Player Tracking
         // Track each agent's start tile
