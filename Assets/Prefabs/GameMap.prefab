@@ -2118,7 +2118,6 @@ GameObject:
   - component: {fileID: 116328072218797428}
   - component: {fileID: 2775240196266690614}
   - component: {fileID: 6562996664655615714}
-  - component: {fileID: 2759981237154363912}
   m_Layer: 0
   m_Name: GameMap
   m_TagString: Untagged
@@ -2191,18 +2190,3 @@ MonoBehaviour:
   showMapBoundsGizmos: 1
   walkableColor: {r: 0, g: 1, b: 0, a: 1}
   unwalkableColor: {r: 1, g: 0, b: 0, a: 1}
---- !u!114 &2759981237154363912
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5006071418379397573}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f48f45bf8815871d8d9c5779555efea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VisualDemo
-  gridUI: {fileID: 6562996664655615714}
-  agent: {fileID: 0}
-  moveInterval: 1

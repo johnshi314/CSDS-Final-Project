@@ -135,6 +135,10 @@ PrefabInstance:
       propertyPath: agent
       value: 
       objectReference: {fileID: 1464626123}
+    - target: {fileID: 6071826861009240263, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: agent
+      value: 
+      objectReference: {fileID: 1464626123}
     - target: {fileID: 6467939607221578221, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -175,6 +179,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0.198
       objectReference: {fileID: 0}
+    - target: {fileID: 8828859461846721717, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: agent
+      value: 
+      objectReference: {fileID: 1464626123}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -396,7 +404,7 @@ TilemapRenderer:
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 1870496723
-  m_SortingLayer: 0
+  m_SortingLayer: 1
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_ChunkSize: {x: 32, y: 32, z: 32}
