@@ -8,10 +8,20 @@ namespace NetFlower.UI {
     public class GridMap : MonoBehaviour {
 
         [Header("Map Management")]
-        [SerializeField] private MapManager mapManager;
+        public string mapName = "New World";
+        private MapManager mapManager;
         
-        [Header("Initial Agents")]
-        [SerializeField] private List<Agent> initialAgents = new List<Agent>();
+        [Header("Team Setup")]
+        [SerializeField] private List<Agent> redAgents = new();
+        [SerializeField] private List<Agent> blueAgents = new();
+        [SerializeField] private List<Vector2Int> redStartTiles = new();
+        [SerializeField] private List<Vector2Int> blueStartTiles = new();
+
+        // Optional accessors if MapManager needs to read these from GridUI
+        public IReadOnlyList<Agent> RedAgents => redAgents;
+        public IReadOnlyList<Agent> BlueAgents => blueAgents;
+        public IReadOnlyList<Vector2Int> RedStartTiles => redStartTiles;
+        public IReadOnlyList<Vector2Int> BlueStartTiles => blueStartTiles;
 
         [Header("Map Definition")]
         [SerializeField] private Tilemap tilemap;
@@ -36,19 +46,22 @@ namespace NetFlower.UI {
         private bool IsMapReady => mapManager != null && mapManager.HasActiveMap;
         private Map ActiveMap => IsMapReady ? mapManager.Map : null;
 
+        private IEnumerable<Agent> ConfiguredAgents {
+            get {
+                foreach (Agent agent in redAgents) {
+                    if (agent != null) yield return agent;
+                }
+                foreach (Agent agent in blueAgents) {
+                    if (agent != null) yield return agent;
+                }
+            }
+        }
+
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start()
         {
             // This game object (Should be the Grid object in the scene)
             GameObject thisObject = this.gameObject;
-
-            if (mapManager == null) {
-                mapManager = FindFirstObjectByType<MapManager>();
-            }
-            if (mapManager == null) {
-                Debug.LogError("GridMap: MapManager not found! Assign one in the inspector or add it to the scene.");
-                return;
-            }
 
             if (tilemap == null) {
                 // Get the Tilemap component from the child objects
@@ -86,15 +99,25 @@ namespace NetFlower.UI {
                 walkableRenderer.enabled = false;
             }
 
-            // Initialize the Map with the loaded walkability data and spawn points
-            Map map = new Map(
-                mapManager.MapName,
+            Team redTeam = new Team("Red", TeamColor.Red, redAgents);
+            Team blueTeam = new Team("Blue", TeamColor.Blue, blueAgents);
+
+            // Build map manager and map data together
+            mapManager = new MapManager(
+                mapName,
                 walkabilityData.Walkability,
-                mapManager.SpawnPoints
+                redTeam,
+                blueTeam,
+                redStartTiles,
+                blueStartTiles
             );
 
-            // Pass initial agents to MapManager and initialize
-            mapManager.Initialize(map, initialAgents);
+            if (!IsMapReady) {
+                Debug.LogError("GridMap: Failed to initialize MapManager with an active map.");
+                return;
+            }
+
+            Map map = ActiveMap;
 
             Debug.Log("Map Name: " + map.MapName);
             Debug.Log("Map Width: " + map.Width);
@@ -116,9 +139,7 @@ namespace NetFlower.UI {
         private void PositionInitialAgents() {
             if (!IsMapReady) return;
 
-            foreach (Agent agent in initialAgents) {
-                if (agent == null) continue;
-                
+            foreach (Agent agent in ConfiguredAgents) {
                 Tile currentTile = ActiveMap.GetCurrentTile(agent);
                 if (currentTile != null) {
                     // Convert map index to world position and update agent's transform
@@ -420,17 +441,8 @@ namespace NetFlower.UI {
             tile = null;
             if (!IsMapReady) return false;
 
-            Map map = ActiveMap;
-            for (int y = 0; y < map.Height; y++) {
-                for (int x = 0; x < map.Width; x++) {
-                    Tile currentTile = map.GetTileAtPosition(new Vector2Int(x, y));
-                    if (currentTile != null && currentTile.IsWalkable) {
-                        tile = currentTile;
-                        return true;
-                    }
-                }
-            }
-            return false;
+            tile = ActiveMap.TryGetFirstWalkableTile();
+            return tile != null;
          }
 #endregion
 
@@ -444,7 +456,7 @@ namespace NetFlower.UI {
         }
 
         private void DebugPrintMapCoordinate(Vector2Int mapCoord) {
-            Debug.Log($"Map Coord: {mapCoord} (Tilemap Coord: {MapIndexToTilemap(mapCoord)}), World Pos: {MapIndexToWorldPosition(mapCoord)}");
+            Debug.Log($"Map: {mapCoord} | Tilemap: {MapIndexToTilemap(mapCoord)} | World: {MapIndexToWorldPosition(mapCoord)}");
         }
 #endregion
 

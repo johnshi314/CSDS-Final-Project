@@ -213,5 +213,36 @@ namespace NetFlower {
          public Vector2Int GetDimensions() {
             return new Vector2Int(this.Width, this.Height);
          }
+
+         public Tile TryGetFirstWalkableTile() {
+            for (int x = 0; x < this.Width; x++) {
+                for (int y = 0; y < this.Height; y++) {
+                    if (this.Tiles[x, y].IsWalkable) {
+                        return this.Tiles[x, y];
+                    }
+                }
+            }
+            return null;
+         }
+
+         public string StringRepr() {
+            // use x for blocked tiles and . for walkable tiles
+            // also include agent positions with R for Red Team and B for Blue Team
+            // string repr = "";
+            // for (int y = this.Height - 1; y >= 0; y--) {
+            //     for (int x = 0; x < this.Width; x++) {
+            //         Vector2Int pos = new Vector2Int(x, y);
+            //         Agent agent = GetAgentAtPosition(pos);
+            //         if (agent != null) {
+            //             repr += agent.Team == Team.Red ? "R" : "B";
+            //         } else {
+            //             repr += this.Tiles[x, y].IsWalkable ? "." : "X";
+            //         }
+            //     }
+            //     repr += "\n";
+            // }
+            // return repr;
+            return "";
+        }
     }
 }

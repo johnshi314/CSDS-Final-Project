@@ -16,6 +16,12 @@ namespace NetFlower {
         public string Id { get; private set; }  // Unique identifier for the team
         public string Name;                     // Display name of the team
         public TeamColor TeamColor;             // If they are a Red or Blue team
-        public HashSet<Player> Members;         // Players in this team
+        public HashSet<Agent> Members;          // Agents in this team
+
+        public Team(string id, TeamColor teamColor, IEnumerable<Agent> members) {
+            this.Id = id;
+            this.TeamColor = teamColor;
+            this.Members = new HashSet<Agent>(members);
+        }
     }
 }

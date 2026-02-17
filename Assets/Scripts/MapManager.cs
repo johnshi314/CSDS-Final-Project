@@ -8,50 +8,111 @@ using UnityEngine;
 using System.Collections.Generic;
 
 namespace NetFlower {
-    public class MapManager : MonoBehaviour {
-        // Start is called once before the first execution of Update after the MonoBehaviour is created
-        void Start() { }
-
-        // Update is called once per frame
-        void Update() { }
+    public class MapManager {
 
         // Map currently being managed
         private Map activeMap;
 
-        [Header("Map Configuration")]
-        [SerializeField] private string mapName = "New World";
-        [SerializeField] private Vector2Int[] spawnPoints = new Vector2Int[0];
-
+        private string mapName = "New World";
+        private List<Vector2Int> redSpawnPoints = new List<Vector2Int>();
+        private List<Vector2Int> blueSpawnPoints = new List<Vector2Int>();
+        public List<Vector2Int> RedSpawnPoints => redSpawnPoints;
+        public List<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
         public Map Map => activeMap;
         public string MapName => mapName;
-        public Vector2Int[] SpawnPoints => spawnPoints;
         public bool HasActiveMap => activeMap != null;
         public int MapWidth => activeMap != null ? activeMap.Width : 0;
         public int MapHeight => activeMap != null ? activeMap.Height : 0;
         
         // Agents to initialize (For assigning in editor, use GridMap Component)
-        private List<Agent> initialAgents = new List<Agent>();
+        private Team redTeam;
+        private Team blueTeam;
         
         // ===================================================================== //
         // ======================= Initialization Method ======================= //
 
-        public void Initialize(Map map, List<Agent> agents) {
-            this.activeMap = map;
-            this.initialAgents = agents ?? new List<Agent>();
-            
-            if (spawnPoints == null) {
-                spawnPoints = new Vector2Int[0];
+        public MapManager(
+            string mapName,
+            bool[,] tiles,
+            Team redTeam,
+            Team blueTeam,
+            List<Vector2Int> redSpawnPoints = null,
+            List<Vector2Int> blueSpawnPoints = null
+        ) {
+
+            // Throw error if either redTeam or blueTeam is null or has no members
+            if (redTeam == null || redTeam.Members.Count == 0) {
+                Debug.LogError("MapManager: Red team is null or has no members. Please provide a valid team with agents.");
+                return;
             }
-            
-            // Check if there are enough starting positions for all agents
-            if (map.SpawnPoints.Length < initialAgents.Count) {
-                Debug.LogWarning($"MapManager: Not enough spawn points for all agents! Map has {map.SpawnPoints.Length} spawn points but {initialAgents.Count} agents.");
+            if (blueTeam == null || blueTeam.Members.Count == 0) {
+                Debug.LogError("MapManager: Blue team is null or has no members. Please provide a valid team with agents.");
+                return;
             }
 
-            // Register agents up to the number of spawn points available
-            for (int i = 0; i < Mathf.Min(map.SpawnPoints.Length, initialAgents.Count); i++) {
-                Vector2Int spawnPoint = map.SpawnPoints[i];
-                Agent agent = initialAgents[i];
+            this.redTeam = redTeam;
+            this.blueTeam = blueTeam;
+
+            this.redSpawnPoints = redSpawnPoints ?? new List<Vector2Int>();
+            this.blueSpawnPoints = blueSpawnPoints ?? new List<Vector2Int>();
+            
+            // Calculate how many spawn points are needed for each team based on team size and provided spawn points
+            int redSpawnsNeeded = this.redTeam.Members.Count - this.redSpawnPoints.Count;
+            int blueSpawnsNeeded = this.blueTeam.Members.Count - this.blueSpawnPoints.Count;
+
+            // Default separate teams on opposite sides of the map if spawn points are not provided
+            if (redSpawnsNeeded > 0) {
+                for (int i = 0; i < tiles.GetLength(0); i++) {
+                    for (int j = 0; j < tiles.GetLength(1); j++) {
+                        if (tiles[i, j]) { // If tile is walkable
+                            this.redSpawnPoints.Add(new Vector2Int(i, j));
+                            if (this.redSpawnPoints.Count >= redSpawnsNeeded) break;
+                        }
+                    }
+                    if (this.redSpawnPoints.Count >= redSpawnsNeeded) break;
+                }
+            }
+            if (blueSpawnsNeeded > 0) {
+                for (int i = tiles.GetLength(0) - 1; i >= 0; i--) {
+                    for (int j = tiles.GetLength(1) - 1; j >= 0; j--) {
+                        if (tiles[i, j] && !this.redSpawnPoints.Contains(new Vector2Int(i, j))) { // If tile is walkable and not already a spawn point
+                            this.blueSpawnPoints.Add(new Vector2Int(i, j));
+                            if (this.blueSpawnPoints.Count >= blueSpawnsNeeded) break;
+                        }
+                    }
+                    if (this.blueSpawnPoints.Count >= blueSpawnsNeeded) break;
+                }
+            }
+            List<Vector2Int> combinedSpawnPoints = new List<Vector2Int>();
+            combinedSpawnPoints.AddRange(this.redSpawnPoints);
+            combinedSpawnPoints.AddRange(this.blueSpawnPoints);
+
+            this.activeMap = new Map(
+                mapName,
+                tiles,
+                combinedSpawnPoints.ToArray()
+            );
+            
+             // Initialize map with agents
+             List<Agent> initialAgents = new List<Agent>();
+             initialAgents.AddRange(this.redTeam.Members);
+             initialAgents.AddRange(this.blueTeam.Members);
+
+            // Register Red Team agents
+            List<Agent> redMembers = new List<Agent>(this.redTeam.Members);
+            for (int i = 0; i < Mathf.Min(this.redSpawnPoints.Count, redMembers.Count); i++) {
+                Vector2Int spawnPoint = this.redSpawnPoints[i];
+                Agent agent = redMembers[i];
+                if (agent != null && !PlaceAgent(agent, spawnPoint)) {
+                    Debug.LogWarning($"MapManager: Failed to place {agent.Name} at {spawnPoint}.");
+                }
+            }
+
+            // Register Blue Team agents
+            List<Agent> blueMembers = new List<Agent>(this.blueTeam.Members);
+            for (int i = 0; i < Mathf.Min(this.blueSpawnPoints.Count, blueMembers.Count); i++) {
+                Vector2Int spawnPoint = this.blueSpawnPoints[i];
+                Agent agent = blueMembers[i];
                 if (agent != null && !PlaceAgent(agent, spawnPoint)) {
                     Debug.LogWarning($"MapManager: Failed to place {agent.Name} at {spawnPoint}.");
                 }
