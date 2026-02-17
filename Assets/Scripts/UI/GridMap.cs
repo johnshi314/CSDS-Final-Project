@@ -261,7 +261,7 @@ namespace NetFlower.UI {
         /// Converts a logical grid position to Unity world position.
         /// Uses the tilemap's cell center for accurate positioning.
         /// </summary>
-        public Vector3 GridToWorldPosition(Vector2Int tilemapPosition) {
+        public Vector3 TilemapToWorldPosition(Vector2Int tilemapPosition) {
             if (tilemap == null) {
                 Debug.LogWarning("GridMap: Tilemap is null, returning direct conversion");
                 return new Vector3(tilemapPosition.x, tilemapPosition.y, 0);
@@ -274,8 +274,8 @@ namespace NetFlower.UI {
         /// <summary>
         /// Converts a logical grid position to Unity world position, preserving Z coordinate.
         /// </summary>
-        public Vector3 GridToWorldPosition(Vector2Int tilemapPosition, float z) {
-            Vector3 worldPos = GridToWorldPosition(tilemapPosition);
+        public Vector3 TilemapToWorldPosition(Vector2Int tilemapPosition, float z) {
+            Vector3 worldPos = TilemapToWorldPosition(tilemapPosition);
             worldPos.z = z;
             return worldPos;
         }
@@ -285,7 +285,7 @@ namespace NetFlower.UI {
         /// </summary>
         public Vector3 MapIndexToWorldPosition(Vector2Int mapIndex) {
             Vector2Int tilemapCoord = MapIndexToTilemap(mapIndex);
-            return GridToWorldPosition(tilemapCoord);
+            return TilemapToWorldPosition(tilemapCoord);
         }
 
         /// <summary>
