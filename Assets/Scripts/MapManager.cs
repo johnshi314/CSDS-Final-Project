@@ -64,8 +64,9 @@ namespace NetFlower {
         // Place an agent on a specific tile and register them on the map
         public bool PlaceAgent(Agent agent, Vector2Int tilePos) {
             // Check if we can place the agent at the target position
-            if (!CanMoveAgent(agent, tilePos)) {
-                Debug.LogWarning($"MapManager: Cannot place {agent.Name} at {tilePos}. Position is out of bounds, not walkable, or already occupied.");
+            if (!CanPlaceAgent(agent, tilePos)) {
+                string agentName = agent != null ? agent.Name : "<null>";
+                Debug.LogWarning($"MapManager: Cannot place {agentName} at {tilePos}. Position is out of bounds, not walkable, or already occupied.");
                 return false;
             }
 
@@ -80,7 +81,8 @@ namespace NetFlower {
         public bool RequestMove(Agent agent, Vector2Int targetTile) {
             // Check if move is valid
             if (!CanMoveAgent(agent, targetTile)) {
-                Debug.LogWarning($"MapManager: Cannot move {agent.Name} to {targetTile}. Position is out of bounds, not walkable, or already occupied.");
+                string agentName = agent != null ? agent.Name : "<null>";
+                Debug.LogWarning($"MapManager: Cannot move {agentName} to {targetTile}. Position is out of bounds, not walkable, already occupied, or agent is not registered.");
                 return false;
             }
 
@@ -92,8 +94,27 @@ namespace NetFlower {
 
         // ===================================================================== //
         // ======================= Helper Methods ============================== //
-        private bool CanMoveAgent(Agent agent, Vector2Int tilePos) {
-            if (!HasActiveMap) return false;
+        private bool CanPlaceAgent(Agent agent, Vector2Int tilePos) {
+            if (!HasActiveMap || agent == null) return false;
+
+            // Check bounds
+            if (!activeMap.InBounds(tilePos)) return false;
+
+            // Check walkability
+            if (!activeMap.Tiles[tilePos.x, tilePos.y].IsWalkable) return false;
+
+            // Check occupancy
+            Agent occupant = activeMap.GetAgentAtPosition(tilePos);
+            if (occupant != null && occupant != agent) return false;
+
+            return true;
+        }
+
+        public bool CanMoveAgent(Agent agent, Vector2Int tilePos) {
+            if (!HasActiveMap || agent == null) return false;
+
+            // Agent must already be registered to move
+            if (activeMap.GetCurrentTile(agent) == null) return false;
 
             // Check bounds
             if (!activeMap.InBounds(tilePos)) return false;

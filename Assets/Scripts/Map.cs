@@ -189,5 +189,12 @@ namespace NetFlower {
 
             return movableTiles;
         }
+
+        /// <summary>
+        /// Returns the dimensions of the map as a Vector2Int (width, height).
+        /// </summary>
+         public Vector2Int GetDimensions() {
+            return new Vector2Int(this.Width, this.Height);
+         }
     }
 }
