@@ -8,12 +8,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 namespace NetFlower {
-    public class Map : MonoBehaviour {
-        // Start is called once before the first execution of Update after the MonoBehaviour is created
-        void Start() { }
-
-        // Update is called once per frame
-        void Update() { }
+    public class Map {
 
         // Meta Information
         public string MapName;
@@ -38,7 +33,7 @@ namespace NetFlower {
             }}
 
         // Tile indices that are valid spawnpoints. Assigned using GridMap Component.
-        [HideInInspector] public Vector2Int[] SpawnPoints;
+        public Vector2Int[] SpawnPoints;
 
         // Player Tracking
         // Track each agent's start tile
@@ -59,36 +54,30 @@ namespace NetFlower {
         /// <param name="mapName">A unique identifier for the map.</param>
         /// <param name="tiles">Stores which tiles on the map is walkable and blocked.</param>
         /// <param name="spawnPoints">Valid spawnpoint indices on the map.</param>
-        public static GameObject NewMap(
-        string mapName,
-        bool[,] tiles,
-        Vector2Int[] spawnPoints,
-        GameObject parent = null) {
-
-            // Create Map GameObject
-            GameObject mapObject = new GameObject(mapName);
-
-            if (parent != null) {
-                mapObject.transform.SetParent(parent.transform);
-            }
-
-            // Create Map
-            Map map = mapObject.AddComponent<Map>();
-            map.Initialize(mapName, tiles, spawnPoints);
-
-            return mapObject;
+        public Map(string mapName,
+                bool[,] tiles = null,
+                Vector2Int[] spawnPoints = null) {
+            this.Initialize(mapName, tiles, spawnPoints);
         }
 
         /// <summary>
         /// Initialize a map with the given properties.
         /// </summary>
-        /// <param name="mapName"></param>
-        /// <param name="tiles"></param>
-        /// <param name="spawnPoints"></param>
-        public void Initialize(
-        string mapName,
-        bool[,] tiles,
-        Vector2Int[] spawnPoints) {
+        /// <param name="mapName">A unique name for the map.</param>
+        /// <param name="tiles">Stores which tiles on the map is walkable and blocked.</param>
+        /// <param name="spawnPoints">Valid spawnpoint indices on the map.</param>
+        public void Initialize(string mapName,
+                            bool[,] tiles,
+                            Vector2Int[] spawnPoints) {
+            if (tiles == null) {
+                tiles = new bool[0, 0];
+            }
+            if (spawnPoints == null) {
+                spawnPoints = new Vector2Int[0];
+            }
+            if (string.IsNullOrEmpty(mapName)) {
+                mapName = "New World";
+            }
             // Assert spawn points are within bounds of the tile array
             int width = tiles.GetLength(0);
             int height = tiles.GetLength(1);
@@ -133,6 +122,15 @@ namespace NetFlower {
             Tile movedToTile = this.Tiles[tilePos.x, tilePos.y];
             currentTiles[agent] = movedToTile;
             paths[agent].Add(movedToTile);
+        }
+
+        public bool InBounds(Vector2Int tilePos) {
+            return tilePos.x >= 0 && tilePos.x < this.Width && tilePos.y >= 0 && tilePos.y < this.Height;
+        }
+
+        public bool IsWalkable(Vector2Int tilePos) {
+            if (!InBounds(tilePos)) return false;
+            return this.Tiles[tilePos.x, tilePos.y].IsWalkable;
         }
 
         // Get starting tile of agent

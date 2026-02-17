@@ -12,15 +12,9 @@ namespace NetFlower.UI {
         
         [Header("Initial Agents")]
         [SerializeField] private List<Agent> initialAgents = new List<Agent>();
-        
-        [Header("Spawn Points")]
-        [SerializeField] private Vector2Int[] spawnPoints = new Vector2Int[0];
 
-        private Map map;
-        public Map Map => map;
-        public Tilemap tilemap;
-        
-        [Header("Walkability Configuration")]
+        [Header("Map Definition")]
+        [SerializeField] private Tilemap tilemap;
         [SerializeField] private Tilemap walkableTilemap;
         
         [Header("Tile Visualization")]
@@ -33,8 +27,11 @@ namespace NetFlower.UI {
         [SerializeField] private bool showMapBoundsGizmos = true;
         [SerializeField] private Color walkableColor = Color.green;
         [SerializeField] private Color unwalkableColor = Color.red;
-        
+
+        // Cached references
+        public MapManager MapManager => mapManager;
         private TileVisualizer tileVisualizer;
+        public TileVisualizer TileVisualizer => tileVisualizer;
         private Vector2Int tilemapBoundsMin; // Offset for tilemap coordinates (could be negative)
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -51,13 +48,6 @@ namespace NetFlower.UI {
                 return;
             }
 
-            if (mapManager.ActiveMap != null) {
-                map = mapManager.ActiveMap;
-            }
-            if (map == null) {
-                // Get the Map component from this game object
-                map = thisObject.GetComponent<Map>();
-            }
             if (tilemap == null) {
                 // Get the Tilemap component from the child objects
                 tilemap = thisObject.GetComponentInChildren<Tilemap>();
@@ -95,15 +85,14 @@ namespace NetFlower.UI {
             }
 
             // Initialize the Map with the loaded walkability data and spawn points
-            map.Initialize(
-                "World 1",
+            Map map = new Map(
+                mapManager.MapName,
                 walkabilityData.Walkability,
-                spawnPoints
+                mapManager.SpawnPoints
             );
 
             // Pass initial agents to MapManager and initialize
-            mapManager.SetInitialAgents(initialAgents);
-            mapManager.Initialize(map);
+            mapManager.Initialize(map, initialAgents);
 
             Debug.Log("Map Name: " + map.MapName);
             Debug.Log("Map Width: " + map.Width);
@@ -123,10 +112,12 @@ namespace NetFlower.UI {
         /// Called after MapManager has placed agents logically.
         /// </summary>
         private void PositionInitialAgents() {
+            if (mapManager == null || !mapManager.HasActiveMap) return;
+
             foreach (Agent agent in initialAgents) {
                 if (agent == null) continue;
                 
-                Tile currentTile = map.GetCurrentTile(agent);
+                Tile currentTile = mapManager.Map.GetCurrentTile(agent);
                 if (currentTile != null) {
                     // Convert map index to world position and update agent's transform
                     Vector3 worldPos = MapIndexToWorldPosition(currentTile.Position, agent.transform.position.z);
@@ -160,19 +151,13 @@ namespace NetFlower.UI {
             }
         }
 
-        /// <summary>
-        /// Gets the TileVisualizer component for advanced highlighting operations.
-        /// </summary>
-        public TileVisualizer GetTileVisualizer() {
-            return tileVisualizer;
-        }
-
+#region Tile Queries
         /// <summary>
         /// Gets the Map's Tile object currently under the cursor.
         /// Returns null if no tile is hovered.
         /// </summary>
         public Tile GetHoveredTile() {
-            if (tileVisualizer == null || map == null) return null;
+            if (tileVisualizer == null || mapManager == null || !mapManager.HasActiveMap) return null;
             
             Vector3Int hoveredCell = tileVisualizer.GetHoveredCell();
             
@@ -184,7 +169,7 @@ namespace NetFlower.UI {
             // Convert from tilemap coordinates to map array indices
             Vector2Int tilemapCoord = new Vector2Int(hoveredCell.x, hoveredCell.y);
             Vector2Int mapIndex = TilemapToMapIndex(tilemapCoord);
-            return map.GetTileAtPosition(mapIndex);
+            return mapManager.Map.GetTileAtPosition(mapIndex);
         }
 
         /// <summary>
@@ -192,9 +177,9 @@ namespace NetFlower.UI {
         /// Returns null if the position is out of bounds.
         /// </summary>
         public Tile GetTileAt(Vector2Int tilemapPosition) {
-            if (map == null) return null;
+            if (mapManager == null || !mapManager.HasActiveMap) return null;
             Vector2Int mapIndex = TilemapToMapIndex(tilemapPosition);
-            return map.GetTileAtPosition(mapIndex);
+            return mapManager.Map.GetTileAtPosition(mapIndex);
         }
 
         /// <summary>
@@ -204,6 +189,9 @@ namespace NetFlower.UI {
         public Tile GetTileAt(int x, int y) {
             return GetTileAt(new Vector2Int(x, y));
         }
+#endregion
+
+#region Tile Highlighting
 
         /// <summary>
         /// Highlights all tiles within movement range of the specified agent.
@@ -211,20 +199,20 @@ namespace NetFlower.UI {
         /// Returns the list of highlighted tile positions.
         /// </summary>
         public List<Vector3Int> HighlightMovementRange(Agent agent, Color highlightColor, float alpha = 0.6f) {
-            if (map == null || tileVisualizer == null || agent == null) {
+            if (mapManager == null || !mapManager.HasActiveMap || tileVisualizer == null || agent == null) {
                 Debug.LogWarning("GridMap: Cannot highlight movement range - map, visualizer, or agent is null");
                 return new List<Vector3Int>();
             }
 
             // Verify agent is on this map
-            Tile currentTile = map.GetCurrentTile(agent);
+            Tile currentTile = mapManager.Map.GetCurrentTile(agent);
             if (currentTile == null) {
                 Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
                 return new List<Vector3Int>();
             }
 
             // Get tiles within movement range
-            List<Tile> movableTiles = map.GetMovableTiles(agent);
+            List<Tile> movableTiles = mapManager.Map.GetMovableTiles(agent);
             List<Vector3Int> highlightPositions = new List<Vector3Int>();
 
             // Convert tile positions from map indices to tilemap coordinates for highlighting
@@ -242,8 +230,17 @@ namespace NetFlower.UI {
             return highlightPositions;
         }
 
+        /// <summary>
+        /// Clears all persistent tile highlights (keeps hover highlighting active).
+        /// </summary>
+        public void ClearHighlights() {
+            if (tileVisualizer != null) {
+                tileVisualizer.ClearAllHighlights();
+            }
+        }
+#endregion
 
-
+#region Coordinate Conversions
         /// <summary>
         /// Converts tilemap coordinates to Map array indices.
         /// </summary>
@@ -256,15 +253,6 @@ namespace NetFlower.UI {
         /// </summary>
         public Vector2Int MapIndexToTilemap(Vector2Int mapIndex) {
             return new Vector2Int(mapIndex.x + tilemapBoundsMin.x, mapIndex.y + tilemapBoundsMin.y);
-        }
-
-        /// <summary>
-        /// Clears all persistent tile highlights (keeps hover highlighting active).
-        /// </summary>
-        public void ClearHighlights() {
-            if (tileVisualizer != null) {
-                tileVisualizer.ClearAllHighlights();
-            }
         }
 
         /// <summary>
@@ -306,15 +294,17 @@ namespace NetFlower.UI {
             worldPos.z = z;
             return worldPos;
         }
+#endregion
 
+#region Agent Position Queries
         /// <summary>
         /// Registers an agent on the map at a specific tilemap grid position.
         /// Also sets the agent's GameObject position to match the grid position.
         /// </summary>
-        public void RegisterAgent(Agent agent, Vector2Int tilemapPosition) {
-            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+        public bool TryRegisterAgent(Agent agent, Vector2Int tilemapPosition) {
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) {
                 Debug.LogWarning("GridMap: Cannot register agent - map manager, map, or agent is null");
-                return;
+                return false;
             }
 
             // Convert tilemap coordinates to map array indices
@@ -323,28 +313,29 @@ namespace NetFlower.UI {
             // Register with the map
             if (!mapManager.PlaceAgent(agent, mapIndex)) {
                 Debug.LogWarning($"GridMap: Could not place {agent.Name} at map index {mapIndex}");
-                return;
+                return false;
             }
 
             // Update visual position using tilemap conversion
             agent.transform.position = GridToWorldPosition(tilemapPosition, agent.transform.position.z);
             Debug.Log($"Registered {agent.Name} at tilemap position {tilemapPosition} (map index {mapIndex})");
+            return true;
         }
 
         /// <summary>
         /// Registers an agent on the map using map array indices.
         /// Also sets the agent's GameObject position to match the grid position.
         /// </summary>
-        public void RegisterAgentByMapIndex(Agent agent, Vector2Int mapIndex) {
-            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+        public bool TryRegisterAgentByMapIndex(Agent agent, Vector2Int mapIndex) {
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) {
                 Debug.LogWarning("GridMap: Cannot register agent - map manager, map, or agent is null");
-                return;
+                return false;
             }
 
             // Register with the map manager
             if (!mapManager.PlaceAgent(agent, mapIndex)) {
                 Debug.LogWarning($"GridMap: Could not place {agent.Name} at map index {mapIndex}");
-                return;
+                return false;
             }
 
             // Update visual position
@@ -352,23 +343,24 @@ namespace NetFlower.UI {
             agent.transform.position = worldPos;
             Vector2Int tilemapCoord = MapIndexToTilemap(mapIndex);
             Debug.Log($"Registered {agent.Name} at map index {mapIndex} (tilemap coord {tilemapCoord}, world pos {worldPos})");
+            return true;
         }
 
         /// <summary>
         /// Moves an agent to a new tilemap grid position.
         /// Updates both the map data and the GameObject's visual position.
         /// </summary>
-        public void MoveAgent(Agent agent, Vector2Int newTilemapPosition) {
-            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+        public bool TryMoveAgent(Agent agent, Vector2Int newTilemapPosition) {
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) {
                 Debug.LogWarning("GridMap: Cannot move agent - map manager, map, or agent is null");
-                return;
+                return false;
             }
 
             // Verify agent is registered
-            Tile currentTile = mapManager.ActiveMap.GetCurrentTile(agent);
+            Tile currentTile = mapManager.Map.GetCurrentTile(agent);
             if (currentTile == null) {
                 Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
-                return;
+                return false;
             }
 
             // Convert tilemap coordinates to map array indices
@@ -377,35 +369,36 @@ namespace NetFlower.UI {
             // Update map data
             if (!mapManager.RequestMove(agent, mapIndex)) {
                 Debug.LogWarning($"GridMap: Could not move {agent.Name} to map index {mapIndex}");
-                return;
+                return false;
             }
 
             // Update visual position using tilemap conversion (keep original Z)
             agent.transform.position = GridToWorldPosition(newTilemapPosition, agent.transform.position.z);
             Debug.Log($"Moved {agent.Name} to tilemap position {newTilemapPosition} (map index {mapIndex})");
+            return true;
         }
 
         /// <summary>
         /// Moves an agent to a new position using map array indices.
         /// Updates both the map data and the GameObject's visual position.
         /// </summary>
-        public void MoveAgentByMapIndex(Agent agent, Vector2Int newMapIndex) {
-            if (mapManager == null || mapManager.ActiveMap == null || agent == null) {
+        public bool TryMoveAgentByMapIndex(Agent agent, Vector2Int newMapIndex) {
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) {
                 Debug.LogWarning("GridMap: Cannot move agent - map manager, map, or agent is null");
-                return;
+                return false;
             }
 
             // Verify agent is registered
-            Tile currentTile = mapManager.ActiveMap.GetCurrentTile(agent);
+            Tile currentTile = mapManager.Map.GetCurrentTile(agent);
             if (currentTile == null) {
                 Debug.LogWarning($"GridMap: Agent {agent.Name} is not registered on this map");
-                return;
+                return false;
             }
 
             // Update map data via map manager
             if (!mapManager.RequestMove(agent, newMapIndex)) {
                 Debug.LogWarning($"GridMap: Could not move {agent.Name} to map index {newMapIndex}");
-                return;
+                return false;
             }
 
             // Update visual position (keep original Z)
@@ -413,15 +406,16 @@ namespace NetFlower.UI {
             agent.transform.position = worldPos;
             Vector2Int tilemapCoord = MapIndexToTilemap(newMapIndex);
             Debug.Log($"Moved {agent.Name} to map index {newMapIndex} (tilemap coord {tilemapCoord}, world pos {worldPos})");
+            return true;
         }
 
         /// <summary>
         /// Gets the current tilemap grid position of an agent.
         /// </summary>
         public Vector2Int? GetAgentGridPosition(Agent agent) {
-            if (map == null || agent == null) return null;
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) return null;
             
-            Tile currentTile = map.GetCurrentTile(agent);
+            Tile currentTile = mapManager.Map.GetCurrentTile(agent);
             if (currentTile == null) return null;
             
             // Convert map index back to tilemap coordinates
@@ -432,23 +426,71 @@ namespace NetFlower.UI {
         /// Gets the current map array index of an agent.
         /// </summary>
         public Vector2Int? GetAgentMapIndex(Agent agent) {
-            if (map == null || agent == null) return null;
+            if (mapManager == null || !mapManager.HasActiveMap || agent == null) return null;
             
-            Tile currentTile = map.GetCurrentTile(agent);
+            Tile currentTile = mapManager.Map.GetCurrentTile(agent);
             return currentTile?.Position;
         }
+#endregion
+
+#region Map Dimension Queries
+        /// <summary>
+        /// Gets the dimensions of the active map in map-array indices.
+        /// Returns (0,0) if no active map exists.
+        /// </summary>
+        public Vector2Int GetMapDimensions() {
+            if (mapManager == null || !mapManager.HasActiveMap) return Vector2Int.zero;
+            return new Vector2Int(mapManager.MapWidth, mapManager.MapHeight);
+        }
+
+        /// <summary>
+        /// Returns true if the given map-array index is inside the active map bounds.
+        /// </summary>
+        public bool InBounds(Vector2Int mapIndex) {
+            return mapManager != null && mapManager.Map.InBounds(mapIndex);
+        }
+
+        /// <summary>
+        /// Returns true if the tile at map-array index is walkable.
+        /// </summary>
+        public bool IsWalkable(Vector2Int mapIndex) {
+            return mapManager != null && mapManager.Map.IsWalkable(mapIndex);
+        }
+
+        /// <summary>
+        /// Finds the first walkable tile in row-major order.
+        /// </summary>
+        public bool TryGetFirstWalkableTile(out Tile tile) {
+            tile = null;
+            if (mapManager == null || !mapManager.HasActiveMap) return false;
+
+            Map map = mapManager.Map;
+            for (int y = 0; y < map.Height; y++) {
+                for (int x = 0; x < map.Width; x++) {
+                    Tile currentTile = map.GetTileAtPosition(new Vector2Int(x, y));
+                    if (currentTile != null && currentTile.IsWalkable) {
+                        tile = currentTile;
+                        return true;
+                    }
+                }
+            }
+            return false;
+         }
+#endregion
 
         /// <summary>
         /// Draws gizmos showing the bounds of each tile in the map.
         /// Green for walkable tiles, red for unwalkable tiles.
         /// </summary>
         void OnDrawGizmos() {
-            if (!showMapBoundsGizmos || map == null || tilemap == null) return;
+            if (!showMapBoundsGizmos || mapManager == null || !mapManager.HasActiveMap || tilemap == null) return;
+
+            int mapWidth = mapManager.MapWidth;
+            int mapHeight = mapManager.MapHeight;
 
             // Draw each tile in the map
-            for (int y = 0; y < map.Height; y++) {
-                for (int x = 0; x < map.Width; x++) {
-                    Tile tile = map.Tiles[x, y];
+            for (int y = 0; y < mapHeight; y++) {
+                for (int x = 0; x < mapWidth; x++) {
                     Vector2Int mapIndex = new Vector2Int(x, y);
                     Vector2Int tilemapCoord = MapIndexToTilemap(mapIndex);
                     
@@ -458,7 +500,7 @@ namespace NetFlower.UI {
                     Vector3 cellSize = tilemap.cellSize;
                     
                     // Set color based on walkability
-                    Gizmos.color = tile.IsWalkable ? walkableColor : unwalkableColor;
+                    Gizmos.color = mapManager.Map.IsWalkable(mapIndex) ? walkableColor : unwalkableColor;
                     
                     // Draw wire cube to outline the tile
                     Gizmos.DrawWireCube(worldPos, new Vector3(cellSize.x, cellSize.y, 0.1f));

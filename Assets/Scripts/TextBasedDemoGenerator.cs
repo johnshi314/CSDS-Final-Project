@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using NetFlower;
 public class TextBasedDemoGenerator : MonoBehaviour {
-    private GameObject map;
+    private Map map;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start() {
         /*Generate a 2x1 Map with 2 tiles and spawnpoints at A and B
@@ -10,7 +10,7 @@ public class TextBasedDemoGenerator : MonoBehaviour {
          */
         bool[,] tiles = { { true, true }, { true, true } }; // Tiles (Where each entry in the outer array is a row of tiles represented by an array of bools)
         Vector2Int[] spawnpoints = { Vector2Int.CeilToInt(new Vector2(0,0)), Vector2Int.CeilToInt(new Vector2(1,0)) }; // Spawnpoints (Zero-indexed)
-        map = Map.NewMap(
+        map = new Map(
             "TextBasedDemo", // Name
             tiles, 
             spawnpoints); 

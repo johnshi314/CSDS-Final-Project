@@ -22,19 +22,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.99999857
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: 0.0017262893
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -46,7 +46,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
+      value: 0.198
+      objectReference: {fileID: 0}
+    - target: {fileID: 1670328504005014428, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: spawnPoints.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1670328504005014428, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: spawnPoints.Array.data[0].x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1670328504005014428, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: spawnPoints.Array.data[0].y
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2341521420116691055, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_IsActive
@@ -1220,6 +1232,10 @@ PrefabInstance:
       propertyPath: m_Tiles.Array.data[88].second.m_TileSpriteIndex
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: initialAgents.Array.size
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1228,17 +1244,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 6071826861009240263}
   m_SourcePrefab: {fileID: 100100000, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
---- !u!114 &567301929608366175 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
-  m_PrefabInstance: {fileID: 6686443194859413181}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1851586129582700408}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27a0b7e4bec821a85ba74ab32801c148, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GridUI
 --- !u!1 &1851586129582700408 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
@@ -1256,6 +1261,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f48f45bf8815871d8d9c5779555efea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VisualDemo
-  gridUI: {fileID: 567301929608366175}
+  gridMap: {fileID: 0}
   agent: {fileID: 0}
   moveInterval: 1

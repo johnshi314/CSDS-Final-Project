@@ -579,7 +579,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1857140809}
-  - component: {fileID: 1857140808}
   - component: {fileID: 1857140810}
   m_Layer: 0
   m_Name: Map
@@ -588,22 +587,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1857140808
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1857140807}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3512845aa0e970e4ea3c6d6368aad700, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameMap.Map
-  MapName: rofl
-  SpawnPoints:
-  - {x: 0, y: 0}
-  - {x: 1, y: 2}
 --- !u!4 &1857140809
 Transform:
   m_ObjectHideFlags: 0
@@ -631,7 +614,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4604b7af54dfc00418537ac45ad0b2bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager.MapManager
-  ActiveMap: {fileID: 1857140808}
+  mapName: New World
+  spawnPoints: []
 --- !u!1001 &2422125986759052130
 PrefabInstance:
   m_ObjectHideFlags: 0
