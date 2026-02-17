@@ -42,6 +42,9 @@ namespace NetFlower {
         // Track each agent's current tile
         private Dictionary<Agent, Tile> currentTiles = new Dictionary<Agent, Tile>();
 
+        // Reverse lookup: current occupant by tile position
+        private Dictionary<Vector2Int, Agent> agentsByPosition = new Dictionary<Vector2Int, Agent>();
+
         // Track each agent's full path
         private Dictionary<Agent, List<Tile>> paths = new Dictionary<Agent, List<Tile>>();
 
@@ -99,6 +102,12 @@ namespace NetFlower {
                     this.Tiles[x, y] = new Tile(this, new Vector2Int(x, y), tiles[x, y]);
                 }
             }
+
+            // Reset tracking structures for fresh map state
+            startTiles.Clear();
+            currentTiles.Clear();
+            agentsByPosition.Clear();
+            paths.Clear();
         }
         // ===================================================================== //
         // ======================= Public Map Methods ======================== //
@@ -106,8 +115,15 @@ namespace NetFlower {
         // Register agent with starting tile
         public void RegisterAgent(Agent agent, Vector2Int startPos) {
             Tile startTile = this.Tiles[startPos.x, startPos.y];
+
+            // Remove previous occupancy if re-registering same agent
+            if (currentTiles.TryGetValue(agent, out Tile previousTile)) {
+                agentsByPosition.Remove(previousTile.Position);
+            }
+
             startTiles[agent] = startTile;
             currentTiles[agent] = startTile;
+            agentsByPosition[startTile.Position] = agent;
 
             if (!paths.ContainsKey(agent)) {
                 paths[agent] = new List<Tile>();
@@ -119,8 +135,13 @@ namespace NetFlower {
         // Map Manager will validate move
         public void MoveAgent(Agent agent, Vector2Int tilePos) {
             if (!currentTiles.ContainsKey(agent)) return;
+
+            Tile previousTile = currentTiles[agent];
+            agentsByPosition.Remove(previousTile.Position);
+
             Tile movedToTile = this.Tiles[tilePos.x, tilePos.y];
             currentTiles[agent] = movedToTile;
+            agentsByPosition[movedToTile.Position] = agent;
             paths[agent].Add(movedToTile);
         }
 
@@ -150,12 +171,8 @@ namespace NetFlower {
 
         // Get the agent at a specific tile, if any
         public Agent GetAgentAtTile(Tile tile) {
-            foreach (var kvp in currentTiles) {
-                if (kvp.Value.Position == tile.Position) {
-                    return kvp.Key;
-                }
-            }
-            return null;
+            if (tile == null) return null;
+            return agentsByPosition.TryGetValue(tile.Position, out Agent agent) ? agent : null;
         }
 
         // Get agent at a specific tile position, if any
@@ -166,7 +183,7 @@ namespace NetFlower {
                 Debug.LogError($"Tile position {tilePos} is out of bounds for tile array of size ({Width}, {Height}).");
                 return null;
             }
-            return GetAgentAtTile(this.Tiles[x, y]);
+            return agentsByPosition.TryGetValue(tilePos, out Agent agent) ? agent : null;
         }
 
         public Tile GetTileAtPosition(Vector2Int tilePos) {
