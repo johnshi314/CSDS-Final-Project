@@ -11,10 +11,10 @@ namespace NetFlower {
     public class Map {
 
         // Meta Information
-        public string MapName;
+        public readonly string MapName;
 
         // Tile Data (walkable or blocked)
-        public Tile[,] Tiles;
+        public readonly Tile[,] Tiles;
         public int Width { 
             get {
                 if (Tiles != null)
@@ -33,7 +33,10 @@ namespace NetFlower {
             }}
 
         // Tile indices that are valid spawnpoints. Assigned using GridMap Component.
-        public Vector2Int[] SpawnPoints;
+        private List<Vector2Int> redSpawnPoints;
+        private List<Vector2Int> blueSpawnPoints;
+        public IReadOnlyList<Vector2Int> RedSpawnPoints => redSpawnPoints;
+        public IReadOnlyList<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
 
         // Player Tracking
         // Track each agent's start tile
@@ -49,48 +52,43 @@ namespace NetFlower {
         private Dictionary<Agent, List<Tile>> paths = new Dictionary<Agent, List<Tile>>();
 
         // ===================================================================== //
-        // ======================= Static Factory Method ======================= //
-
+        // ============================ Constructor ============================ //
         /// <summary>
         /// Factory method to create a new Map GameObject with specified properties.
         /// </summary>
         /// <param name="mapName">A unique identifier for the map.</param>
         /// <param name="tiles">Stores which tiles on the map is walkable and blocked.</param>
-        /// <param name="spawnPoints">Valid spawnpoint indices on the map.</param>
+        /// <param name="redSpawnPoints">Valid spawnpoint indices for the red team.</param>
+        /// <param name="blueSpawnPoints">Valid spawnpoint indices for the blue team.</param>
         public Map(string mapName,
                 bool[,] tiles = null,
-                Vector2Int[] spawnPoints = null) {
-            this.Initialize(mapName, tiles, spawnPoints);
-        }
-
-        /// <summary>
-        /// Initialize a map with the given properties.
-        /// </summary>
-        /// <param name="mapName">A unique name for the map.</param>
-        /// <param name="tiles">Stores which tiles on the map is walkable and blocked.</param>
-        /// <param name="spawnPoints">Valid spawnpoint indices on the map.</param>
-        public void Initialize(string mapName,
-                            bool[,] tiles,
-                            Vector2Int[] spawnPoints) {
+                IEnumerable<Vector2Int> redSpawnPoints = null,
+                IEnumerable<Vector2Int> blueSpawnPoints = null) {
             if (tiles == null) {
                 tiles = new bool[0, 0];
             }
-            if (spawnPoints == null) {
-                spawnPoints = new Vector2Int[0];
-            }
+            List<Vector2Int> redSpawnPointList = redSpawnPoints == null ? new List<Vector2Int>() : new List<Vector2Int>(redSpawnPoints);
+            List<Vector2Int> blueSpawnPointList     = blueSpawnPoints == null ? new List<Vector2Int>() : new List<Vector2Int>(blueSpawnPoints);
             if (string.IsNullOrEmpty(mapName)) {
                 mapName = "New World";
             }
             // Assert spawn points are within bounds of the tile array
             int width = tiles.GetLength(0);
             int height = tiles.GetLength(1);
-            foreach (Vector2Int pos in spawnPoints) {
+            foreach (Vector2Int pos in redSpawnPointList) {
                 if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) {
-                    Debug.LogError($"Spawn point {pos} is out of bounds for tile array of size ({width}, {height}).");
+                    Debug.LogError($"Red spawn point {pos} is out of bounds for tile array of size ({width}, {height}).");
                     return;
                 }
             }
-            this.SpawnPoints = spawnPoints;
+            foreach (Vector2Int pos in blueSpawnPointList) {
+                if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) {
+                    Debug.LogError($"Blue spawn point {pos} is out of bounds for tile array of size ({width}, {height}).");
+                    return;
+                }
+            }
+            this.redSpawnPoints = redSpawnPointList;
+            this.blueSpawnPoints = blueSpawnPointList;
 
             // Set map name
             this.MapName = mapName;
@@ -212,6 +210,30 @@ namespace NetFlower {
         /// </summary>
          public Vector2Int GetDimensions() {
             return new Vector2Int(this.Width, this.Height);
+         }
+
+        /// <summary>
+        /// Returns a 2D array of bools representing the walkability of each tile on the map.
+        /// True indicates walkable, false indicates blocked.
+        /// </summary>
+         public bool[,] GetWalkability() {
+            bool[,] walkability = new bool[this.Width, this.Height];
+            for (int x = 0; x < this.Width; x++) {
+                for (int y = 0; y < this.Height; y++) {
+                    walkability[x, y] = this.Tiles[x, y].IsWalkable;
+                }
+            }
+            return walkability;
+         }
+
+         public Tile TryGetFirstAvailableSpawnPoint(TeamColor team) {
+            var spawnPoints = team == TeamColor.Red ? this.redSpawnPoints : this.blueSpawnPoints;
+            foreach (Vector2Int pos in spawnPoints) {
+                if (IsWalkable(pos) && GetAgentAtPosition(pos) == null) {
+                    return GetTileAtPosition(pos);
+                }
+            }
+            return null;
          }
 
          public Tile TryGetFirstWalkableTile() {

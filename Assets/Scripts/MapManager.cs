@@ -6,6 +6,7 @@
 **********************************************************************/
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace NetFlower {
     public class MapManager {
@@ -16,28 +17,25 @@ namespace NetFlower {
         private string mapName = "New World";
         private List<Vector2Int> redSpawnPoints = new List<Vector2Int>();
         private List<Vector2Int> blueSpawnPoints = new List<Vector2Int>();
-        public List<Vector2Int> RedSpawnPoints => redSpawnPoints;
-        public List<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
+        public IReadOnlyList<Vector2Int> RedSpawnPoints => redSpawnPoints;
+        public IReadOnlyList<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
         public Map Map => activeMap;
         public string MapName => mapName;
         public bool HasActiveMap => activeMap != null;
         public int MapWidth => activeMap != null ? activeMap.Width : 0;
         public int MapHeight => activeMap != null ? activeMap.Height : 0;
-        
-        // Agents to initialize (For assigning in editor, use GridMap Component)
         private Team redTeam;
         private Team blueTeam;
-        
-        // ===================================================================== //
-        // ======================= Initialization Method ======================= //
+        public Team RedTeam => redTeam;
+        public Team BlueTeam => blueTeam;
 
         public MapManager(
-            string mapName,
-            bool[,] tiles,
             Team redTeam,
             Team blueTeam,
-            List<Vector2Int> redSpawnPoints = null,
-            List<Vector2Int> blueSpawnPoints = null
+            string mapName = "New World",
+            bool[,] tiles = null,
+            IEnumerable<Vector2Int> redSpawnPoints = null,
+            IEnumerable<Vector2Int> blueSpawnPoints = null
         ) {
 
             // Throw error if either redTeam or blueTeam is null or has no members
@@ -50,12 +48,17 @@ namespace NetFlower {
                 return;
             }
 
+            if (tiles == null) {
+                Debug.LogError("MapManager: Tiles data is null. Please provide valid walkability data for the map.");
+                return;
+            }
+
             this.redTeam = redTeam;
             this.blueTeam = blueTeam;
 
-            this.redSpawnPoints = redSpawnPoints ?? new List<Vector2Int>();
-            this.blueSpawnPoints = blueSpawnPoints ?? new List<Vector2Int>();
-            
+            this.redSpawnPoints = redSpawnPoints?.ToList() ?? new List<Vector2Int>();
+            this.blueSpawnPoints = blueSpawnPoints?.ToList() ?? new List<Vector2Int>();
+
             // Calculate how many spawn points are needed for each team based on team size and provided spawn points
             int redSpawnsNeeded = this.redTeam.Members.Count - this.redSpawnPoints.Count;
             int blueSpawnsNeeded = this.blueTeam.Members.Count - this.blueSpawnPoints.Count;
@@ -90,7 +93,8 @@ namespace NetFlower {
             this.activeMap = new Map(
                 mapName,
                 tiles,
-                combinedSpawnPoints.ToArray()
+                this.redSpawnPoints.ToArray(),
+                this.blueSpawnPoints.ToArray()
             );
             
              // Initialize map with agents
@@ -118,6 +122,8 @@ namespace NetFlower {
                 }
             }
         }
+
+        public MapManager(Team redTeam, Team blueTeam, Map map) : this(redTeam, blueTeam, map.MapName, map.GetWalkability(), map.RedSpawnPoints, map.BlueSpawnPoints) {}
 
         // ===================================================================== //
         // ======================= Agent Placement ============================= //
