@@ -12,22 +12,10 @@ namespace NetFlower {
     public class MapManager {
 
         // Map currently being managed
-        private Map activeMap;
-
-        private string mapName = "New World";
-        private List<Vector2Int> redSpawnPoints = new List<Vector2Int>();
-        private List<Vector2Int> blueSpawnPoints = new List<Vector2Int>();
-        public IReadOnlyList<Vector2Int> RedSpawnPoints => redSpawnPoints;
-        public IReadOnlyList<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
-        public Map Map => activeMap;
-        public string MapName => mapName;
-        public bool HasActiveMap => activeMap != null;
-        public int MapWidth => activeMap != null ? activeMap.Width : 0;
-        public int MapHeight => activeMap != null ? activeMap.Height : 0;
-        private Team redTeam;
-        private Team blueTeam;
-        public Team RedTeam => redTeam;
-        public Team BlueTeam => blueTeam;
+        public readonly Map ActiveMap;
+        public bool HasActiveMap => ActiveMap != null;
+        public readonly Team redTeam;
+        public readonly Team blueTeam;
 
         public MapManager(
             Team redTeam,
@@ -56,45 +44,45 @@ namespace NetFlower {
             this.redTeam = redTeam;
             this.blueTeam = blueTeam;
 
-            this.redSpawnPoints = redSpawnPoints?.ToList() ?? new List<Vector2Int>();
-            this.blueSpawnPoints = blueSpawnPoints?.ToList() ?? new List<Vector2Int>();
+            List<Vector2Int> rsp = redSpawnPoints?.ToList() ?? new List<Vector2Int>();
+            List<Vector2Int> bsp = blueSpawnPoints?.ToList() ?? new List<Vector2Int>();
 
             // Calculate how many spawn points are needed for each team based on team size and provided spawn points
-            int redSpawnsNeeded = this.redTeam.Members.Count - this.redSpawnPoints.Count;
-            int blueSpawnsNeeded = this.blueTeam.Members.Count - this.blueSpawnPoints.Count;
+            int redSpawnsNeeded = this.redTeam.Members.Count - rsp.Count;
+            int blueSpawnsNeeded = this.blueTeam.Members.Count - bsp.Count;
 
             // Default separate teams on opposite sides of the map if spawn points are not provided
             if (redSpawnsNeeded > 0) {
                 for (int i = 0; i < tiles.GetLength(0); i++) {
                     for (int j = 0; j < tiles.GetLength(1); j++) {
                         if (tiles[i, j]) { // If tile is walkable
-                            this.redSpawnPoints.Add(new Vector2Int(i, j));
-                            if (this.redSpawnPoints.Count >= redSpawnsNeeded) break;
+                            rsp.Add(new Vector2Int(i, j));
+                            if (rsp.Count >= redSpawnsNeeded) break;
                         }
                     }
-                    if (this.redSpawnPoints.Count >= redSpawnsNeeded) break;
+                    if (rsp.Count >= redSpawnsNeeded) break;
                 }
             }
             if (blueSpawnsNeeded > 0) {
                 for (int i = tiles.GetLength(0) - 1; i >= 0; i--) {
                     for (int j = tiles.GetLength(1) - 1; j >= 0; j--) {
-                        if (tiles[i, j] && !this.redSpawnPoints.Contains(new Vector2Int(i, j))) { // If tile is walkable and not already a spawn point
-                            this.blueSpawnPoints.Add(new Vector2Int(i, j));
-                            if (this.blueSpawnPoints.Count >= blueSpawnsNeeded) break;
+                        if (tiles[i, j] && !rsp.Contains(new Vector2Int(i, j))) { // If tile is walkable and not already a spawn point
+                            bsp.Add(new Vector2Int(i, j));
+                            if (bsp.Count >= blueSpawnsNeeded) break;
                         }
                     }
-                    if (this.blueSpawnPoints.Count >= blueSpawnsNeeded) break;
+                    if (bsp.Count >= blueSpawnsNeeded) break;
                 }
             }
             List<Vector2Int> combinedSpawnPoints = new List<Vector2Int>();
-            combinedSpawnPoints.AddRange(this.redSpawnPoints);
-            combinedSpawnPoints.AddRange(this.blueSpawnPoints);
+            combinedSpawnPoints.AddRange(rsp);
+            combinedSpawnPoints.AddRange(bsp);
 
-            this.activeMap = new Map(
+            this.ActiveMap = new Map(
                 mapName,
                 tiles,
-                this.redSpawnPoints.ToArray(),
-                this.blueSpawnPoints.ToArray()
+                rsp.ToArray(),
+                bsp.ToArray()
             );
             
              // Initialize map with agents
@@ -104,8 +92,8 @@ namespace NetFlower {
 
             // Register Red Team agents
             List<Agent> redMembers = new List<Agent>(this.redTeam.Members);
-            for (int i = 0; i < Mathf.Min(this.redSpawnPoints.Count, redMembers.Count); i++) {
-                Vector2Int spawnPoint = this.redSpawnPoints[i];
+            for (int i = 0; i < Mathf.Min(rsp.Count, redMembers.Count); i++) {
+                Vector2Int spawnPoint = rsp[i];
                 Agent agent = redMembers[i];
                 if (agent != null && !PlaceAgent(agent, spawnPoint)) {
                     Debug.LogWarning($"MapManager: Failed to place {agent.Name} at {spawnPoint}.");
@@ -114,8 +102,8 @@ namespace NetFlower {
 
             // Register Blue Team agents
             List<Agent> blueMembers = new List<Agent>(this.blueTeam.Members);
-            for (int i = 0; i < Mathf.Min(this.blueSpawnPoints.Count, blueMembers.Count); i++) {
-                Vector2Int spawnPoint = this.blueSpawnPoints[i];
+            for (int i = 0; i < Mathf.Min(bsp.Count, blueMembers.Count); i++) {
+                Vector2Int spawnPoint = bsp[i];
                 Agent agent = blueMembers[i];
                 if (agent != null && !PlaceAgent(agent, spawnPoint)) {
                     Debug.LogWarning($"MapManager: Failed to place {agent.Name} at {spawnPoint}.");
@@ -138,7 +126,7 @@ namespace NetFlower {
             }
 
             // Register agent on Map
-            activeMap.RegisterAgent(agent, tilePos);
+            ActiveMap.RegisterAgent(agent, tilePos);
 
             return true;
         }
@@ -154,9 +142,12 @@ namespace NetFlower {
             }
 
             // Update agent position in Map
-            activeMap.MoveAgent(agent, targetTile);
+            ActiveMap.MoveAgent(agent, targetTile);
 
             return true;
+        }
+        public bool CanMoveAgent(Agent agent, Vector2Int tilePos) {
+            return CanPlaceAgent(agent, tilePos) && IsRegistered(agent);
         }
 
         // ===================================================================== //
@@ -165,35 +156,21 @@ namespace NetFlower {
             if (!HasActiveMap || agent == null) return false;
 
             // Check bounds
-            if (!activeMap.InBounds(tilePos)) return false;
+            if (!ActiveMap.InBounds(tilePos)) return false;
 
             // Check walkability
-            if (!activeMap.Tiles[tilePos.x, tilePos.y].IsWalkable) return false;
+            if (!ActiveMap.Tiles[tilePos.x, tilePos.y].IsWalkable) return false;
 
             // Check occupancy
-            Agent occupant = activeMap.GetAgentAtPosition(tilePos);
+            Agent occupant = ActiveMap.GetAgentAtPosition(tilePos);
             if (occupant != null && occupant != agent) return false;
 
             return true;
         }
 
-        public bool CanMoveAgent(Agent agent, Vector2Int tilePos) {
+        private bool IsRegistered(Agent agent) {
             if (!HasActiveMap || agent == null) return false;
-
-            // Agent must already be registered to move
-            if (activeMap.GetCurrentTile(agent) == null) return false;
-
-            // Check bounds
-            if (!activeMap.InBounds(tilePos)) return false;
-
-            // Check walkability
-            if (!activeMap.Tiles[tilePos.x, tilePos.y].IsWalkable) return false;
-
-            // Check occupancy
-            Agent occupant = activeMap.GetAgentAtPosition(tilePos);
-            if (occupant != null && occupant != agent) return false;
-
-            return true;
+            return ActiveMap.GetCurrentTile(agent) != null;
         }
     }
 }
