@@ -36,8 +36,8 @@ namespace NetFlower {
         [Header("Base Stats")]
         [SerializeField] uint MaxHP = 20;       // Maximum health points
         [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
+        [SerializeField] Tunneling CanTunnel;   // How other agents can pass through this agent
         [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
-        [SerializeField] Tunneling CanTunnel;               // How other agents can pass through this agent
 
         [Header("Current Stats")]
         [SerializeField] uint HP;                   // Current health points
@@ -218,6 +218,10 @@ namespace NetFlower {
             currentCooldowns[ability] = (int)ability.Cooldown;
             
             return true;
+        }
+
+        public bool UseAbility(Ability ability, Map map, Vector2Int targetPos) {
+            return UseAbility(ability, map.GetTileAtPosition(targetPos));
         }
 
         /// <summary>

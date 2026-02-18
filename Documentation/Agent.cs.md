@@ -11,8 +11,8 @@ The `Agent` class represents the game entity that can do actions and have action
 | `AgentName` | `string` | Agent's display name |
 | `MaxHP` | `uint` | Maximum health points |
 | `MaxRange` | `uint` | Maximum movement range per turn |
+| `CanTunnel` | `Tunneling` | How other agents can pass through this agent |
 | `Abilities` | `uint[]` | Array of ability IDs |
-| `CanTunnel` | `Tunneling` | get/set | Defines how other agents can pass through this agent |
 | `HP` | `uint` | Current health points |
 
 ## Static Factory Method
