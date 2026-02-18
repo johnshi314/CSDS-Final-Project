@@ -14,14 +14,9 @@ namespace NetFlower.UI {
         [Header("Team Setup")]
         [SerializeField] private List<Agent> redAgents = new();
         [SerializeField] private List<Agent> blueAgents = new();
-        [SerializeField] private List<Vector2Int> redStartTiles = new();
-        [SerializeField] private List<Vector2Int> blueStartTiles = new();
+        [SerializeField] private List<Vector2Int> redSpawnPoints = new();
+        [SerializeField] private List<Vector2Int> blueSpawnPoints = new();
 
-        // Optional accessors if MapManager needs to read these from GridUI
-        public IReadOnlyList<Agent> RedAgents => redAgents;
-        public IReadOnlyList<Agent> BlueAgents => blueAgents;
-        public IReadOnlyList<Vector2Int> RedStartTiles => redStartTiles;
-        public IReadOnlyList<Vector2Int> BlueStartTiles => blueStartTiles;
 
         [Header("Map Definition")]
         [SerializeField] private Tilemap tilemap;
@@ -38,14 +33,19 @@ namespace NetFlower.UI {
         [SerializeField] private Color walkableColor = Color.green;
         [SerializeField] private Color unwalkableColor = Color.red;
 
-        // Cached references
-        public MapManager MapManager => mapManager;
+        // Internal state
         private TileVisualizer tileVisualizer;
-        public TileVisualizer TileVisualizer => tileVisualizer;
         private Vector2Int tilemapBoundsMin; // Offset for tilemap coordinates (could be negative)
         private bool IsMapReady => mapManager != null && mapManager.HasActiveMap;
         private Map ActiveMap => IsMapReady ? mapManager.Map : null;
 
+        // Cached references
+        public MapManager MapManager => mapManager;
+        public TileVisualizer TileVisualizer => tileVisualizer;
+        public IReadOnlyList<Agent> RedAgents => redAgents;
+        public IReadOnlyList<Agent> BlueAgents => blueAgents;
+        public IReadOnlyList<Vector2Int> RedSpawnPoints => redSpawnPoints;
+        public IReadOnlyList<Vector2Int> BlueSpawnPoints => blueSpawnPoints;
         private IEnumerable<Agent> ConfiguredAgents {
             get {
                 foreach (Agent agent in redAgents) {
@@ -104,12 +104,12 @@ namespace NetFlower.UI {
 
             // Build map manager and map data together
             mapManager = new MapManager(
-                mapName,
-                walkabilityData.Walkability,
                 redTeam,
                 blueTeam,
-                redStartTiles,
-                blueStartTiles
+                mapName,
+                walkabilityData.Walkability,
+                redSpawnPoints,
+                blueSpawnPoints
             );
 
             if (!IsMapReady) {
