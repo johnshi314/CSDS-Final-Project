@@ -40,17 +40,58 @@ namespace NetFlower {
         public List<AbilityEffect> Effects;     // List of effects this ability applies to targets
 
         /// <summary>
+        /// Checks if the Caster is even allowed to target the specified target with this ability based on the context.
+        /// </summary>
+        /// <param name="context">Context information for ability resolution.</param>
+        /// <returns>True if the context is valid, false otherwise.</returns>
+        public static bool IsValidContext(AbilityUseContext context) {
+            if (context.Ability == null || context.Caster == null)
+                return false;
+
+            // Check if the target tile is valid spot for the caster to use the ability
+            // Not based on range, simply target type (e.g., empty vs occupied)
+            var targetType = context.Ability.TargetType;
+            var targetTile = context.TargetTile;
+            var map = targetTile.Map;
+            var targetAgent = map.GetAgentAtTile(targetTile);
+
+            if (targetAgent == null) {
+                // Targeting an empty tile
+                if (!targetType.HasFlag(AbilityTargetType.Empty))
+                    return false;
+            } else {
+                // Targeting an occupied tile
+                // TODO: Implement teams checking
+                // bool isAlly = (targetAgent.Team == context.Caster.Team);
+                bool isAlly = (targetAgent == context.Caster);
+                if (isAlly && !targetType.HasFlag(AbilityTargetType.Ally))
+                    return false;
+                if (!isAlly && !targetType.HasFlag(AbilityTargetType.NonAlly))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Resolve all effects of this ability using the provided context.
         /// </summary>
         /// <param name="context">Context information for ability resolution.</param>
-        public void Resolve(AbilityUseContext context) {
-            if (Effects == null || Effects.Count == 0)
+        public static void Resolve(AbilityUseContext context) {
+            // Warn if context is invalid, but attempt to resolve anyway to avoid breaking the game (e.g., if UI passes in incomplete context)
+            if (!IsValidContext(context))
+                Debug.LogWarning("Resolving ability with invalid context");
+
+            // If there are no effects, nothing to resolve
+            if (context.Ability.Effects == null || context.Ability.Effects.Count == 0)
                 return;
             
-            foreach (var effect in Effects) {
-                List<Agent> validTargets = GetValidTargets(context);
+            // Get all targets in the area of effect based on the ability's shape
+            var targetAgents = GetTargetsInShape(context);
 
-                foreach (Agent target in validTargets) {
+            // Apply each effect to each target
+            foreach (var effect in context.Ability.Effects) {
+                foreach (Agent target in targetAgents) {
                     // Create an instance of the effect for this target
                     var effectInstance = new AbilityEffectInstance(effect, context.Caster);
 
@@ -66,47 +107,58 @@ namespace NetFlower {
         }
 
         /// <summary>
-        /// Get all agents affected by this ability based on its shape and targeting.
+        ///  Get all agents affected by the ability based on its shape and the target tile in the context.
         /// </summary>
-        /// <param name="context">Context information for ability resolution.</param>
-        /// <returns>List of agents affected by this ability.</returns>
-        private List<Agent> GetValidTargets(AbilityUseContext context) {
-            var targets = new List<Agent>();
-            var targetTile = context.TargetTile;
-            var map = targetTile.Map;
+        /// <param name="context">The ability use context.</param>
+        /// <returns>A list of agents affected by the ability.</returns>
+        public static List<Agent> GetTargetsInShape(AbilityUseContext context) {
+            return GetTargetsInShape(context.Ability.TargetShape, context.TargetTile.Map, context.TargetTile.Position);
+        }
+        public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Tile targetTile) {
+            return GetTargetsInShape(shape, targetTile.Map, targetTile.Position);
+        }
 
-            var affectedTiles = GetTargetsInShape(context);
+        public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
+            var agents = new List<Agent>();
+            var tiles = GetTilesInShape(shape, map, targetPos);
 
-            foreach (var tile in affectedTiles) {
-                var agent = map.GetAgentAtTile(tile);
-                if (agent != null && IsValidTarget(agent, context)) {
-                    targets.Add(agent);
+            foreach (var tile in tiles) {
+                var agent = tile.Map.GetAgentAtTile(tile);
+                if (agent != null) {
+                    agents.Add(agent);
                 }
             }
-
-            return targets;
+            return agents;
         }
 
         /// <summary>
         /// Get all tiles affected by the ability based on its shape.
         /// </summary>
-        /// <param name="context">Context information for ability resolution.</param>
+        /// <param name="shape">The shape of the ability's area of effect.</param>
+        /// <param name="map">The map to get tiles from.</param>
+        /// <param name="targetPos">The position of the target tile.</param>
         /// <returns>List of tiles affected by the ability.</returns>
-        private List<Tile> GetTargetsInShape(AbilityUseContext context) {
+        public static List<Tile> GetTilesInShape(AbilityUseContext context) {
+            return GetTilesInShape(context.Ability.TargetShape, context.TargetTile.Map, context.TargetTile.Position);
+        }
+
+        public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Tile targetTile) {
+            return GetTilesInShape(shape, targetTile.Map, targetTile.Position);
+        }
+        
+        public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
             var tiles = new List<Tile>();
-            var shape = context.Ability.TargetShape;
-            var targetPos = context.TargetTile.Position;
-            var map = context.TargetTile.Map;
+            Tile centerTile = map.GetTileAtPosition(targetPos);
 
             switch (shape) {
                 case AbilityTargetShape.Single:
-                    tiles.Add(context.TargetTile);
+                    tiles.Add(centerTile);
                     break;
                 case AbilityTargetShape.Circle:
-                    // _x_
-                    // xxx
-                    // _x_
-                    tiles.Add(context.TargetTile);
+                    //  _ x _
+                    //  x x x
+                    //  _ x _
+                    tiles.Add(centerTile);
                     Tile up = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y - 1));
                     if (up != null) tiles.Add(up);
                     Tile down = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y + 1));
@@ -117,10 +169,10 @@ namespace NetFlower {
                     if (right != null) tiles.Add(right);
                     break;
                 case AbilityTargetShape.Cross:
-                    // x_x
-                    // _x_
-                    // x_x
-                    tiles.Add(context.TargetTile);
+                    //  x _ x
+                    //  _ x _
+                    //  x _ x
+                    tiles.Add(centerTile);
                     Tile tl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y - 1));
                     if (tl != null) tiles.Add(tl);
                     Tile tr = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y - 1));
@@ -132,16 +184,16 @@ namespace NetFlower {
                     break;
                 case AbilityTargetShape.Line:
                     Debug.LogWarning("Line shape not yet implemented");
-                    tiles.Add(context.TargetTile);
+                    tiles.Add(centerTile);
                     break;
                 case AbilityTargetShape.Cone:
                     Debug.LogWarning("Cone shape not yet implemented");
-                    tiles.Add(context.TargetTile);
+                    tiles.Add(centerTile);
                     break;
                 case AbilityTargetShape.Square:
-                    // xxx
-                    // xxx
-                    // xxx
+                    //  x x x
+                    //  x x x
+                    //  x x x
                     for (int dx = -1; dx <= 1; dx++) {
                         for (int dy = -1; dy <= 1; dy++) {
                             int x = targetPos.x + dx;
@@ -156,31 +208,7 @@ namespace NetFlower {
                 case AbilityTargetShape.None:
                     break;
             }
-
             return tiles;
-        }
-
-        /// <summary>
-        /// Check if an agent is a valid target for this ability.
-        /// </summary>
-        /// <param name="agent">The agent to check.</param>
-        /// <param name="context">Context information for ability resolution.</param>
-        /// <returns>True if the agent is a valid target, false otherwise.</returns>
-        private bool IsValidTarget(Agent agent, AbilityUseContext context) {
-            var targetType = context.Ability.TargetType;
-            var caster = context.Caster;
-
-            if (agent.KOed())
-                return false;
-
-            bool isAlly = (agent == caster);
-
-            if (isAlly && !targetType.HasFlag(AbilityTargetType.Ally))
-                return false;
-            if (!isAlly && !targetType.HasFlag(AbilityTargetType.NonAlly))
-                return false;
-
-            return true;
         }
     }
 
