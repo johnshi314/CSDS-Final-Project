@@ -48,8 +48,139 @@ namespace NetFlower {
                 return;
             
             foreach (var effect in Effects) {
-                effect.Apply(context);
+                List<Agent> validTargets = GetValidTargets(context);
+
+                foreach (Agent target in validTargets) {
+                    // Create an instance of the effect for this target
+                    var effectInstance = new AbilityEffectInstance(effect, context.Caster);
+
+                    // Apply the effect immediately
+                    effectInstance.ApplyTo(target);
+
+                    // If the effect has a duration, add it to the target's active effects
+                    if (effect.Duration > 0) {
+                        target.AddEffect(effectInstance);
+                    }
+                }
             }
+        }
+
+        /// <summary>
+        /// Get all agents affected by this ability based on its shape and targeting.
+        /// </summary>
+        /// <param name="context">Context information for ability resolution.</param>
+        /// <returns>List of agents affected by this ability.</returns>
+        private List<Agent> GetValidTargets(AbilityUseContext context) {
+            var targets = new List<Agent>();
+            var targetTile = context.TargetTile;
+            var map = targetTile.Map;
+
+            var affectedTiles = GetTargetsInShape(context);
+
+            foreach (var tile in affectedTiles) {
+                var agent = map.GetAgentAtTile(tile);
+                if (agent != null && IsValidTarget(agent, context)) {
+                    targets.Add(agent);
+                }
+            }
+
+            return targets;
+        }
+
+        /// <summary>
+        /// Get all tiles affected by the ability based on its shape.
+        /// </summary>
+        /// <param name="context">Context information for ability resolution.</param>
+        /// <returns>List of tiles affected by the ability.</returns>
+        private List<Tile> GetTargetsInShape(AbilityUseContext context) {
+            var tiles = new List<Tile>();
+            var shape = context.Ability.TargetShape;
+            var targetPos = context.TargetTile.Position;
+            var map = context.TargetTile.Map;
+
+            switch (shape) {
+                case AbilityTargetShape.Single:
+                    tiles.Add(context.TargetTile);
+                    break;
+                case AbilityTargetShape.Circle:
+                    // _x_
+                    // xxx
+                    // _x_
+                    tiles.Add(context.TargetTile);
+                    Tile up = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y - 1));
+                    if (up != null) tiles.Add(up);
+                    Tile down = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y + 1));
+                    if (down != null) tiles.Add(down);
+                    Tile left = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y));
+                    if (left != null) tiles.Add(left);
+                    Tile right = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y));
+                    if (right != null) tiles.Add(right);
+                    break;
+                case AbilityTargetShape.Cross:
+                    // x_x
+                    // _x_
+                    // x_x
+                    tiles.Add(context.TargetTile);
+                    Tile tl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y - 1));
+                    if (tl != null) tiles.Add(tl);
+                    Tile tr = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y - 1));
+                    if (tr != null) tiles.Add(tr);
+                    Tile bl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y + 1));
+                    if (bl != null) tiles.Add(bl);
+                    Tile br = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y + 1));
+                    if (br != null) tiles.Add(br);
+                    break;
+                case AbilityTargetShape.Line:
+                    Debug.LogWarning("Line shape not yet implemented");
+                    tiles.Add(context.TargetTile);
+                    break;
+                case AbilityTargetShape.Cone:
+                    Debug.LogWarning("Cone shape not yet implemented");
+                    tiles.Add(context.TargetTile);
+                    break;
+                case AbilityTargetShape.Square:
+                    // xxx
+                    // xxx
+                    // xxx
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            int x = targetPos.x + dx;
+                            int y = targetPos.y + dy;
+                            Tile tile = map.GetTileAtPosition(new Vector2Int(x, y));
+                            if (tile != null) {
+                                tiles.Add(tile);
+                            }
+                        }
+                    }
+                    break;
+                case AbilityTargetShape.None:
+                    break;
+            }
+
+            return tiles;
+        }
+
+        /// <summary>
+        /// Check if an agent is a valid target for this ability.
+        /// </summary>
+        /// <param name="agent">The agent to check.</param>
+        /// <param name="context">Context information for ability resolution.</param>
+        /// <returns>True if the agent is a valid target, false otherwise.</returns>
+        private bool IsValidTarget(Agent agent, AbilityUseContext context) {
+            var targetType = context.Ability.TargetType;
+            var caster = context.Caster;
+
+            if (agent.KOed())
+                return false;
+
+            bool isAlly = (agent == caster);
+
+            if (isAlly && !targetType.HasFlag(AbilityTargetType.Ally))
+                return false;
+            if (!isAlly && !targetType.HasFlag(AbilityTargetType.NonAlly))
+                return false;
+
+            return true;
         }
     }
 
@@ -107,68 +238,57 @@ namespace NetFlower {
 
     [Serializable]
     public class AbilityEffect {
-        public AbilityEffectType EffectType; // Type of effect (e.g., damage, heal, buff)
-        public uint Amount; // Amount of effect (e.g., damage amount, heal amount)
-        public uint Duration; // Duration of effect (e.g., number of turns)
-        public Agent Source {get; private set;} // The agent that is the source of this effect (e.g., the caster)
+        [SerializeField] private AbilityEffectType effectType;
+        [SerializeField] private uint amount;    // Amount of effect (e.g., damage amount, heal amount)
+        [SerializeField] private uint duration;           // Duration of effect (e.g., number of turns)
+
+        public AbilityEffectType EffectType => effectType;
+        public uint Amount => amount;
+        public uint Duration => duration;
+
+        public AbilityEffect(AbilityEffectType effectType, uint amount, uint duration = 0) {
+            this.effectType = effectType;
+            this.amount = amount;
+            this.duration = duration;
+        }
 
         /// <summary>
         /// Create a copy of this effect.
         /// </summary>
         /// <returns>A new AbilityEffect with the same values.</returns>
         public AbilityEffect Clone() {
-            return new AbilityEffect {
-                Source = this.Source,
-                EffectType = this.EffectType,
-                Amount = this.Amount,
-                Duration = this.Duration
-            };
+            return new AbilityEffect(
+                effectType: this.EffectType,
+                amount: this.Amount,
+                duration: this.Duration);
+        }
+    }
+
+    public enum AbilityEffectType {
+        Damage = 0,
+        Heal = 1,
+        BuffRange = 2,
+        DebuffRange = 3,
+    }
+
+    public class AbilityEffectInstance {
+        public AbilityEffect Effect;
+        public Agent Source; // The agent that caused this effect (e.g., the caster of the ability)
+        public int Duration; // Number of turns remaining for this effect (0 for instant effects)
+
+        public AbilityEffectInstance(AbilityEffect effect, Agent source) {
+            Effect = effect.Clone(); // Clone to ensure each instance is independent
+            Source = source;
+            Duration = (int)effect.Duration;
         }
 
-        /// <summary>
-        /// Apply this effect to all valid targets based on the ability context.
-        /// </summary>
-        /// <param name="context">Context information for ability resolution.</param>
-        public void Apply(AbilityUseContext context) {
-            // Set the source of the effect to the caster if not already set
-            if (Source == null) {
-                Source = context.Caster;
-            }
-
-            // Get all targets affected by this ability
-            var targets = GetTargetsInShape(context);
-            
-            foreach (var target in targets) {
-                // TODO: Implement proper ally/non-ally checking when team system is in place
-                bool targetIsAlly = target == context.Caster;
-                
-                // Skip invalid targets based on ability's TargetType
-                if (targetIsAlly && !context.Ability.TargetType.HasFlag(AbilityTargetType.Ally))
-                    continue;
-                if (!targetIsAlly && !context.Ability.TargetType.HasFlag(AbilityTargetType.NonAlly))
-                    continue;
- 
-                // Apply immediately
-                ApplyToAgent(target);
-                
-                // If persistent effect, add to agent's active effects
-                if (Duration > 0) {
-                    target.AddEffect(this);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Apply the effect to a single agent immediately.
-        /// </summary>
-        /// <param name="agent">The agent to apply the effect to.</param>
-        public void ApplyToAgent(Agent agent) {
-            switch (EffectType) {
+        public void ApplyTo(Agent target) {
+            switch (Effect.EffectType) {
                 case AbilityEffectType.Damage:
-                    agent.TakeDamage((int)Amount);
+                    target.TakeDamage((int)Effect.Amount);
                     break;
                 case AbilityEffectType.Heal:
-                    agent.Heal((int)Amount);
+                    target.Heal((int)Effect.Amount);
                     break;
                 case AbilityEffectType.BuffRange:
                     // TODO: Implement buff system
@@ -180,147 +300,5 @@ namespace NetFlower {
                     break;
             }
         }
-
-        /// <summary>
-        /// Get all agents affected by this ability based on its shape and targeting.
-        /// </summary>
-        /// <param name="context">Context information for ability resolution.</param>
-        /// <returns>List of agents affected by this ability.</returns>
-        private List<Agent> GetTargetsInShape(AbilityUseContext context) {
-            var targets = new List<Agent>();
-            var ability = context.Ability;
-            var targetTile = context.TargetTile;
-            var map = targetTile.Map;
-
-            // Get all tiles affected by the ability's shape
-            var affectedTiles = GetAffectedTiles(context);
-
-            // For each affected tile, check if there's an agent and if it's a valid target
-            foreach (var tile in affectedTiles) {
-                var agent = map.GetAgentAtTile(tile);
-                if (agent != null && IsValidTarget(agent, context)) {
-                    targets.Add(agent);
-                }
-            }
-
-            return targets;
-        }
-
-        /// <summary>
-        /// Get all tiles affected by the ability based on its shape.
-        /// </summary>
-        /// <param name="context">Context information for ability resolution.</param>
-        /// <returns>List of tiles affected by the ability.</returns>
-        private List<Tile> GetAffectedTiles(AbilityUseContext context) {
-            var tiles = new List<Tile>();
-            var shape = context.Ability.TargetShape;
-            var targetPos = context.TargetTile.Position;
-            var map = context.TargetTile.Map;
-
-            switch (shape) {
-                case AbilityTargetShape.Single:
-                    tiles.Add(context.TargetTile);
-                    break;
-                case AbilityTargetShape.Circle:
-                    // _x_
-                    // xxx
-                    // _x_
-                    // Get center tile
-                    tiles.Add(context.TargetTile);
-                    // Get orthogonally adjacent tiles
-                    Tile up = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y - 1));
-                    if (up != null) tiles.Add(up);
-                    Tile down = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y + 1));
-                    if (down != null) tiles.Add(down);
-                    Tile left = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y));
-                    if (left != null) tiles.Add(left);
-                    Tile right = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y));
-                    if (right != null) tiles.Add(right);
-                    break;
-                case AbilityTargetShape.Cross:
-                    // x_x
-                    // _x_
-                    // x_x
-                    // Get the center tile
-                    tiles.Add(context.TargetTile);
-                    // Get top left corner
-                    Tile tl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y - 1));
-                    if (tl != null) tiles.Add(tl);
-                    // Get top right corner
-                    Tile tr = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y - 1));
-                    if (tr != null) tiles.Add(tr);
-                    // Get bottom left corner
-                    Tile bl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y + 1));
-                    if (bl != null) tiles.Add(bl);
-                    // Get bottom right corner
-                    Tile br = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y + 1));
-                    if (br != null) tiles.Add(br);
-                    break;
-                case AbilityTargetShape.Line:
-                    // TODO: Implement line shape
-                    Debug.LogWarning("Line shape not yet implemented");
-                    tiles.Add(context.TargetTile); // Placeholder: just target the center tile for now
-                    break;
-                case AbilityTargetShape.Cone:
-                    // TODO: Implement cone shape
-                    Debug.LogWarning("Cone shape not yet implemented");
-                    tiles.Add(context.TargetTile); // Placeholder: just target the center tile for now
-                    break;
-                case AbilityTargetShape.Square:
-                    // xxx
-                    // xxx
-                    // xxx
-                    // Get all tiles touching the target tile in a 3x3 square
-                    for (int dx = -1; dx <= 1; dx++) {
-                        for (int dy = -1; dy <= 1; dy++) {
-                            int x = targetPos.x + dx;
-                            int y = targetPos.y + dy;
-                            Tile tile = map.GetTileAtPosition(new Vector2Int(x, y));
-                            if (tile != null) {
-                                tiles.Add(tile);
-                            }
-                        }
-                    }
-                    break;
-                case AbilityTargetShape.None:
-                    // Shape determined by resolver, for now just return empty list
-                    break;
-            }
-            return tiles;
-        }
-
-        /// <summary>
-        /// Check if an agent is a valid target for this ability.
-        /// </summary>
-        /// <param name="agent">The agent to check.</param>
-        /// <param name="context">Context information for ability resolution.</param>
-        /// <returns>True if the agent is a valid target, false otherwise.</returns>
-        private bool IsValidTarget(Agent agent, AbilityUseContext context) {
-            var targetType = context.Ability.TargetType;
-            var caster = context.Caster;
-
-            // Check if agent is knocked out
-            if (agent.KOed())
-                return false;
-
-            // Determine if target is ally or non-ally
-            // TODO: Implement proper team checking when team system is in place
-            bool isAlly = (agent == caster); // Simplified: only caster is considered ally for now
-
-            // Check target type flags
-            if (isAlly && !targetType.HasFlag(AbilityTargetType.Ally))
-                return false;
-            if (!isAlly && !targetType.HasFlag(AbilityTargetType.NonAlly))
-                return false;
-
-            return true;
-        }
-    }
-
-    public enum AbilityEffectType {
-        Damage = 0,
-        Heal = 1,
-        BuffRange = 2,
-        DebuffRange = 3,
     }
 }
