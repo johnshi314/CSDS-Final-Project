@@ -212,7 +212,7 @@ namespace NetFlower {
             };
             
             // Resolve the ability's effects
-            ability.Resolve(context);
+            Ability.Resolve(context);
             
             // Set cooldown after successful use
             currentCooldowns[ability] = (int)ability.Cooldown;
@@ -228,7 +228,7 @@ namespace NetFlower {
         /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
         /// </summary>
         public void OnTurnStart() {
-            ReapplyAndDecrementEffects();
+            ReapplyEffects();
         }
 
         /// <summary>
@@ -267,17 +267,14 @@ namespace NetFlower {
         /// <summary>
         /// Reapply all active effects, decrement their durations, and remove expired effects.
         /// </summary>
-        private void ReapplyAndDecrementEffects() {
+        private void ReapplyEffects() {
             for (int i = activeEffects.Count - 1; i >= 0; i--) {
                 var effect = activeEffects[i];
-                
                 // Reapply the effect
                 effect.ApplyTo(this);
-                
                 // Decrement duration
                 effect.Duration--;
-                
-                // Remove if expired
+                // If the effect has expired, remove it from the list
                 if (effect.Duration <= 0) {
                     activeEffects.RemoveAt(i);
                 }
