@@ -22,6 +22,6 @@ MonoBehaviour:
   Cost: 0
   Cooldown: 0
   Effects:
-  - EffectType: 0
-    Amount: 3
-    Duration: 0
+  - effectType: 0
+    amount: 3
+    duration: 0

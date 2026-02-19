@@ -42,7 +42,7 @@ namespace NetFlower {
         [Header("Current Stats")]
         [SerializeField] uint HP;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
-        private List<AbilityEffect> activeEffects = new();  // List of active effects with duration
+        private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
         public uint MovementRange { get { return MaxRange; } }
 
@@ -241,12 +241,24 @@ namespace NetFlower {
         /// <summary>
         /// Add an active effect to this agent.
         /// </summary>
-        /// <param name="effect">The effect to add.</param>
-        public void AddEffect(AbilityEffect effect) {
-            if (effect == null) return;
-            // Create a copy of the effect to avoid modifying the original
-            var effectCopy = effect.Clone();
-            activeEffects.Add(effectCopy);
+        /// <param name="effectInstance">The effect instance to add.</param>
+        public void AddEffect(AbilityEffectInstance effectInstance) {
+            if (effectInstance == null || effectInstance.Effect == null)
+                return;
+
+            activeEffects.Add(effectInstance);
+        }
+
+        /// <summary>
+        /// Add an active effect template to this agent by creating a runtime instance.
+        /// </summary>
+        /// <param name="effect">The effect template to instantiate.</param>
+        /// <param name="source">The source agent of this effect instance.</param>
+        public void AddEffect(AbilityEffect effect, Agent source = null) {
+            if (effect == null)
+                return;
+
+            AddEffect(new AbilityEffectInstance(effect, source));
         }
 
         // ===================================================================== //
@@ -260,7 +272,7 @@ namespace NetFlower {
                 var effect = activeEffects[i];
                 
                 // Reapply the effect
-                effect.ApplyToAgent(this);
+                effect.ApplyTo(this);
                 
                 // Decrement duration
                 effect.Duration--;
