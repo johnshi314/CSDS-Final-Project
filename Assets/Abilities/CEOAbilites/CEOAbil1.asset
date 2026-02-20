@@ -16,12 +16,10 @@ MonoBehaviour:
   DisplayName: Loud Demand
   TargetType: 2
   TargetMode: 0
-  TargetShape: 0
+  TargetShape: 3
   RangeMax: 0
   RangeMin: 0
   Cost: 0
   Cooldown: 0
   Effects:
-  - EffectType: 0
-    Amount: 2
-    Duration: 0
+  - {fileID: 0}

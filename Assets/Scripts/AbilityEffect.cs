@@ -52,12 +52,13 @@ namespace NetFlower {
     }
 
     public enum StatusEffect {
-        Will = 0,
-        Momentum = 1,
-        PowerUp = 2,
-        PowerDown = 3,
-        Shield = 4,
-        MovementUp = 5,
-        MovementDown = 6,
+        None = 0,
+        Will = 1,
+        Momentum = 2,
+        PowerUp = 3,
+        PowerDown = 4,
+        Shield = 5,
+        MovementUp = 6,
+        MovementDown = 7,
     }
 }

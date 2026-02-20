@@ -22,9 +22,4 @@ MonoBehaviour:
   Cost: 0
   Cooldown: 0
   Effects:
-  - EffectType: 0
-    Amount: 3
-    Duration: 0
-  - EffectType: 2
-    Amount: 1
-    Duration: 0
+  - {fileID: 0}
