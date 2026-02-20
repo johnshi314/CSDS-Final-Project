@@ -100,7 +100,8 @@ namespace NetFlower {
 
                     // If the effect has a duration, add it to the target's active effects
                     if (effect.Duration > 0) {
-                        target.AddEffect(effectInstance);
+                        // target.AddEffect(effectInstance);
+                        //TODO: Fix how effects are added to agents
                     }
                 }
             }
@@ -263,42 +264,6 @@ namespace NetFlower {
         public int RangeMinDelta;
         public int DamageDelta;
     }
-
-    [Serializable]
-    public class AbilityEffect {
-        [SerializeField] private AbilityEffectType effectType;
-        [SerializeField] private uint amount;    // Amount of effect (e.g., damage amount, heal amount)
-        [SerializeField] private uint duration;           // Duration of effect (e.g., number of turns)
-
-        public AbilityEffectType EffectType => effectType;
-        public uint Amount => amount;
-        public uint Duration => duration;
-
-        public AbilityEffect(AbilityEffectType effectType, uint amount, uint duration = 0) {
-            this.effectType = effectType;
-            this.amount = amount;
-            this.duration = duration;
-        }
-
-        /// <summary>
-        /// Create a copy of this effect.
-        /// </summary>
-        /// <returns>A new AbilityEffect with the same values.</returns>
-        public AbilityEffect Clone() {
-            return new AbilityEffect(
-                effectType: this.EffectType,
-                amount: this.Amount,
-                duration: this.Duration);
-        }
-    }
-
-    public enum AbilityEffectType {
-        Damage = 0,
-        Heal = 1,
-        BuffRange = 2,
-        DebuffRange = 3,
-    }
-
     public class AbilityEffectInstance {
         public AbilityEffect Effect;
         public Agent Source; // The agent that caused this effect (e.g., the caster of the ability)
@@ -311,22 +276,22 @@ namespace NetFlower {
         }
 
         public void ApplyTo(Agent target) {
-            switch (Effect.EffectType) {
-                case AbilityEffectType.Damage:
-                    target.TakeDamage((int)Effect.Amount);
-                    break;
-                case AbilityEffectType.Heal:
-                    target.Heal((int)Effect.Amount);
-                    break;
-                case AbilityEffectType.BuffRange:
-                    // TODO: Implement buff system
-                    Debug.LogWarning("BuffRange effect not yet implemented");
-                    break;
-                case AbilityEffectType.DebuffRange:
-                    // TODO: Implement debuff system
-                    Debug.LogWarning("DebuffRange effect not yet implemented");
-                    break;
-            }
+            // switch (Effect.EffectType) {
+            //     case AbilityEffectType.Damage:
+            //         target.TakeDamage((int)Effect.Amount);
+            //         break;
+            //     case AbilityEffectType.Heal:
+            //         target.Heal((int)Effect.Amount);
+            //         break;
+            //     case AbilityEffectType.BuffRange:
+            //         // TODO: Implement buff system
+            //         Debug.LogWarning("BuffRange effect not yet implemented");
+            //         break;
+            //     case AbilityEffectType.DebuffRange:
+            //         // TODO: Implement debuff system
+            //         Debug.LogWarning("DebuffRange effect not yet implemented");
+            //         break;
+            // }
         }
     }
 }
