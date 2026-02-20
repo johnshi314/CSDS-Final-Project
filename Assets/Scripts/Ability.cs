@@ -37,7 +37,8 @@ namespace NetFlower {
         public uint Cooldown;                   // Number of turns before ability can be used again after use
 
         [Header("Effects")]
-        public List<AbilityEffect> Effects;     // List of effects this ability applies to targets
+        public List<AbilityEffect> TargetEffects;     // List of effects this ability applies to targets
+        public List<AbilityEffect> CasterEffects;     // List of effects this ability applies to the caster
 
         /// <summary>
         /// Checks if the Caster is even allowed to target the specified target with this ability based on the context.
