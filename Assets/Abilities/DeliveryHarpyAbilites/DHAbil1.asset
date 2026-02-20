@@ -10,18 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
-  m_Name: SampleGlobal
-  m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
-  Id: 4
-  DisplayName: Reply All
+  m_Name: DHAbil1
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  Id: 101
+  DisplayName: Intentional Shove
   TargetType: 2
-  TargetMode: 1
-  TargetShape: 6
+  TargetMode: 0
+  TargetShape: 0
   RangeMax: 0
   RangeMin: 0
-  Cost: 3
-  Cooldown: 2
+  Cost: 0
+  Cooldown: 0
   Effects:
-  - EffectType: 3
+  - EffectType: 0
+    Amount: 4
+    Duration: 0
+  - EffectType: 2
     Amount: 1
-    Duration: 1
+    Duration: 0

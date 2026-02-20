@@ -2165,8 +2165,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27a0b7e4bec821a85ba74ab32801c148, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridUI
-  mapManager: {fileID: 0}
-  initialAgents: []
+  mapName: New World
+  redAgents: []
+  blueAgents: []
+  redSpawnPoints: []
+  blueSpawnPoints: []
   tilemap: {fileID: 5143134723028469190}
   walkableTilemap: {fileID: 3721491440265615316}
   enableTileVisuals: 1
@@ -2174,5 +2177,5 @@ MonoBehaviour:
   tileHoverColor: {r: 0.8962264, g: 0.74677247, b: 0.47770557, a: 1}
   tileHoverAlpha: 0.5
   showMapBoundsGizmos: 1
-  walkableColor: {r: 0, g: 1, b: 0, a: 1}
+  walkableColor: {r: 1, g: 1, b: 1, a: 1}
   unwalkableColor: {r: 1, g: 0, b: 0, a: 1}

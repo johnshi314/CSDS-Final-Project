@@ -10,18 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
-  m_Name: SampleRanged
-  m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
-  Id: 2
-  DisplayName: Passive Agressive Email
-  TargetType: 3
+  m_Name: MCAbil1
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  Id: 101
+  DisplayName: Intentional Shove
+  TargetType: 2
   TargetMode: 0
   TargetShape: 0
-  RangeMax: 5
-  RangeMin: 1
-  Cost: 2
-  Cooldown: 1
+  RangeMax: 0
+  RangeMin: 0
+  Cost: 0
+  Cooldown: 0
   Effects:
   - EffectType: 0
     Amount: 4
+    Duration: 0
+  - EffectType: 2
+    Amount: 1
     Duration: 0

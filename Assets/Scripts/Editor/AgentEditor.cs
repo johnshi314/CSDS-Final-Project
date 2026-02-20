@@ -8,6 +8,10 @@ namespace NetFlower.Editor {
 
 [CustomEditor(typeof(Agent))]
 public class AgentEditor : UnityEditor.Editor {
+    private int selectedAbilityIndex = 0;
+    private int selectedTemplateIndex = 0;
+    private Agent selectedEffectSource;
+
     public override void OnInspectorGUI() {
         // Draw the default inspector
         DrawDefaultInspector();
@@ -78,7 +82,7 @@ public class AgentEditor : UnityEditor.Editor {
             EditorGUILayout.HelpBox("Could not find activeEffects field.", MessageType.Error);
             return;
         }
-        var activeEffects = activeEffectsField.GetValue(agent) as List<AbilityEffect>;
+        var activeEffects = activeEffectsField.GetValue(agent) as List<AbilityEffectInstance>;
         if (activeEffects == null) {
             EditorGUILayout.HelpBox("Active effects list is null.", MessageType.Warning);
             return;
@@ -86,10 +90,10 @@ public class AgentEditor : UnityEditor.Editor {
 
         int removeIndex = -1;
         for (int i = 0; i < activeEffects.Count; i++) {
-            var effect = activeEffects[i];
-            if (effect == null) continue;
+            var effectInstance = activeEffects[i];
+            if (effectInstance == null || effectInstance.Effect == null) continue;
 
-            string sourceName = effect.Source != null ? effect.Source.Name : "Unknown Source";
+            string sourceName = effectInstance.Source != null ? effectInstance.Source.Name : "Unknown Source";
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
@@ -105,34 +109,27 @@ public class AgentEditor : UnityEditor.Editor {
 
             // Effect Type
             EditorGUI.BeginChangeCheck();
-            var newEffectType = (AbilityEffectType)EditorGUILayout.EnumPopup("Effect Type", effect.EffectType);
-            if (EditorGUI.EndChangeCheck()) {
-                effect.EffectType = newEffectType;
-                EditorUtility.SetDirty(agent);
-            }
+            EditorGUILayout.EnumPopup("Effect Type", effectInstance.Effect.EffectType);
+            EditorGUI.EndChangeCheck();
 
             // Amount
             EditorGUI.BeginChangeCheck();
-            uint newAmount = (uint)Mathf.Max(0, EditorGUILayout.IntField("Amount", (int)effect.Amount));
-            if (EditorGUI.EndChangeCheck()) {
-                effect.Amount = newAmount;
-                EditorUtility.SetDirty(agent);
-            }
+            EditorGUILayout.IntField("Amount", (int)effectInstance.Effect.Amount);
+            EditorGUI.EndChangeCheck();
 
             // Duration
             EditorGUI.BeginChangeCheck();
-            uint newDuration = (uint)Mathf.Max(0, EditorGUILayout.IntField("Duration", (int)effect.Duration));
+            int newDuration = Mathf.Max(0, EditorGUILayout.IntField("Remaining Duration", effectInstance.Duration));
             if (EditorGUI.EndChangeCheck()) {
-                effect.Duration = newDuration;
+                effectInstance.Duration = newDuration;
                 EditorUtility.SetDirty(agent);
             }
 
             // Source (drag-and-drop Agent field)
             EditorGUI.BeginChangeCheck();
-            var newSource = (Agent)EditorGUILayout.ObjectField("Source", effect.Source, typeof(Agent), true);
+            var newSource = (Agent)EditorGUILayout.ObjectField("Source", effectInstance.Source, typeof(Agent), true);
             if (EditorGUI.EndChangeCheck()) {
-                PropertyInfo sourceProp = typeof(AbilityEffect).GetProperty("Source", BindingFlags.Public | BindingFlags.Instance);
-                sourceProp.SetValue(effect, newSource);
+                effectInstance.Source = newSource;
                 EditorUtility.SetDirty(agent);
             }
 
@@ -146,9 +143,66 @@ public class AgentEditor : UnityEditor.Editor {
             EditorUtility.SetDirty(agent);
         }
 
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Add Active Effect", EditorStyles.boldLabel);
+
+        selectedAbilityIndex = Mathf.Clamp(selectedAbilityIndex, 0, Mathf.Max(0, abilities.Count - 1));
+
+        var abilityOptions = new string[abilities.Count];
+        for (int i = 0; i < abilities.Count; i++) {
+            var ability = abilities[i];
+            string name = ability != null && !string.IsNullOrEmpty(ability.DisplayName) ? ability.DisplayName : "Unknown Ability";
+            bool hasEffects = ability != null && ability.TargetEffects != null && ability.TargetEffects.Count > 0;
+            abilityOptions[i] = hasEffects ? name : $"{name} (No Effects)";
+        }
+
+        selectedAbilityIndex = EditorGUILayout.Popup("From Ability", selectedAbilityIndex, abilityOptions);
+
+        var selectedAbilityForTemplate = abilities[selectedAbilityIndex];
+        bool selectedAbilityHasEffects = selectedAbilityForTemplate != null
+            && selectedAbilityForTemplate.TargetEffects != null
+            && selectedAbilityForTemplate.TargetEffects.Count > 0;
+
+        if (selectedAbilityHasEffects) {
+            selectedTemplateIndex = Mathf.Clamp(selectedTemplateIndex, 0, selectedAbilityForTemplate.TargetEffects.Count - 1);
+
+            var templateOptions = new string[selectedAbilityForTemplate.TargetEffects.Count];
+            for (int i = 0; i < selectedAbilityForTemplate.TargetEffects.Count; i++) {
+                var effect = selectedAbilityForTemplate.TargetEffects[i];
+                if (effect == null) {
+                    templateOptions[i] = $"Template {i}: <null>";
+                } else {
+                    templateOptions[i] = $"{effect.EffectType} | Amt {effect.Amount} | Dur {effect.Duration}";
+                }
+            }
+
+            selectedTemplateIndex = EditorGUILayout.Popup("Template", selectedTemplateIndex, templateOptions);
+        } else {
+            EditorGUILayout.HelpBox("Selected ability has no effect templates.", MessageType.Info);
+        }
+
+        Agent sourceToShow = selectedEffectSource != null ? selectedEffectSource : agent;
+        selectedEffectSource = (Agent)EditorGUILayout.ObjectField("Source", sourceToShow, typeof(Agent), true);
+
         // Add button
         if (GUILayout.Button("Add Effect")) {
-            activeEffects.Add(new AbilityEffect());
+            var selectedAbility = abilities[selectedAbilityIndex];
+            if (selectedAbility == null || selectedAbility.TargetEffects == null || selectedAbility.TargetEffects.Count == 0) {
+                EditorGUILayout.HelpBox("Selected ability has no effects.", MessageType.Warning);
+                return;
+            }
+
+            var selectedTemplate = selectedAbility.TargetEffects[selectedTemplateIndex];
+            if (selectedTemplate == null) {
+                EditorGUILayout.HelpBox("Selected template is null.", MessageType.Warning);
+                return;
+            }
+
+            var source = selectedEffectSource != null ? selectedEffectSource : agent;
+
+            Undo.RecordObject(agent, "Add Active Effect");
+            activeEffects.Add(new AbilityEffectInstance(selectedTemplate, source));
+
             EditorUtility.SetDirty(agent);
         }
 

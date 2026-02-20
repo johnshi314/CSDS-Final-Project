@@ -1,3 +1,4 @@
+using UnityEngine;
 using System;
 
 namespace NetFlower {
@@ -5,30 +6,29 @@ namespace NetFlower {
     [System.Serializable]
     public class MatchupStats {
 
-        // Primary Key
-        public int matchupId;
-
         // Foreign Keys
         public int matchId;
-        public int characterAId;
-        public int characterBId;
+        public string characterAId;
+        public string characterBId;
 
         // Outcome
-        public int winnerCharacterId;
+        public string winnerCharacterId;
 
 
         public MatchupStats(
-            int matchupId,
             int matchId,
-            int characterAId,
-            int characterBId
+            string characterAId,
+            string characterBId
         ) {
-            this.matchupId = matchupId;
             this.matchId = matchId;
             this.characterAId = characterAId;
             this.characterBId = characterBId;
 
-            winnerCharacterId = -1;
+            winnerCharacterId = "-1";
+        }
+
+        public string ToJson() {
+            return JsonUtility.ToJson(this);
         }
     }
 }

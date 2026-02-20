@@ -1,14 +1,16 @@
+using UnityEngine;
+using System;
+
 namespace NetFlower {
 
     [System.Serializable]
     public class PlayerMatchStats {
 
-        // Identifiers
-        public int matchPlayerId;   
+        // Identifiers  
         public int matchId;         
         public int playerId;        
-        public int characterId;     
-        public int teamId;          
+        public string characterId;     
+        public string teamId;          
 
         // metrics
         public int damageDealt;
@@ -18,13 +20,11 @@ namespace NetFlower {
         public bool disconnected;
 
         public PlayerMatchStats(
-            int matchPlayerId,
             int matchId,
             int playerId,
-            int characterId,
-            int teamId
+            string characterId,
+            string teamId
         ) {
-            this.matchPlayerId = matchPlayerId;
             this.matchId = matchId;
             this.playerId = playerId;
             this.characterId = characterId;
@@ -35,6 +35,10 @@ namespace NetFlower {
             turnsTaken = 0;
             won = false;
             disconnected = false;
+        }
+
+        public string ToJson() {
+            return JsonUtility.ToJson(this);
         }
     }
 }

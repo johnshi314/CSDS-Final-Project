@@ -10,18 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
-  m_Name: SampleAOE
-  m_EditorClassIdentifier: Assembly-CSharp::GameData.Ability
-  Id: 3
-  DisplayName: Union Meeting
-  TargetType: -1
+  m_Name: MCAbil2
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  Id: 102
+  DisplayName: Close Competition
+  TargetType: 2
   TargetMode: 0
   TargetShape: 3
-  RangeMax: 4
-  RangeMin: 2
-  Cost: 2
-  Cooldown: 2
+  RangeMax: 2
+  RangeMin: 1
+  Cost: 0
+  Cooldown: 0
   Effects:
+  - EffectType: 0
+    Amount: 2
+    Duration: 0
   - EffectType: 2
     Amount: 1
+    Duration: 0
+  - EffectType: 2
+    Amount: 2
     Duration: 1
