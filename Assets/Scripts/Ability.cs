@@ -84,14 +84,14 @@ namespace NetFlower {
                 Debug.LogWarning("Resolving ability with invalid context");
 
             // If there are no effects, nothing to resolve
-            if (context.Ability.Effects == null || context.Ability.Effects.Count == 0)
+            if (context.Ability.TargetEffects == null || context.Ability.TargetEffects.Count == 0)
                 return;
             
             // Get all targets in the area of effect based on the ability's shape
             var targetAgents = GetTargetsInShape(context);
 
             // Apply each effect to each target
-            foreach (var effect in context.Ability.Effects) {
+            foreach (var effect in context.Ability.TargetEffects) {
                 foreach (Agent target in targetAgents) {
                     // Create an instance of the effect for this target
                     var effectInstance = new AbilityEffectInstance(effect, context.Caster);
