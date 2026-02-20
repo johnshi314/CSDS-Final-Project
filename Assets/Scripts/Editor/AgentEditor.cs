@@ -152,7 +152,7 @@ public class AgentEditor : UnityEditor.Editor {
         for (int i = 0; i < abilities.Count; i++) {
             var ability = abilities[i];
             string name = ability != null && !string.IsNullOrEmpty(ability.DisplayName) ? ability.DisplayName : "Unknown Ability";
-            bool hasEffects = ability != null && ability.Effects != null && ability.Effects.Count > 0;
+            bool hasEffects = ability != null && ability.TargetEffects != null && ability.TargetEffects.Count > 0;
             abilityOptions[i] = hasEffects ? name : $"{name} (No Effects)";
         }
 
@@ -160,15 +160,15 @@ public class AgentEditor : UnityEditor.Editor {
 
         var selectedAbilityForTemplate = abilities[selectedAbilityIndex];
         bool selectedAbilityHasEffects = selectedAbilityForTemplate != null
-            && selectedAbilityForTemplate.Effects != null
-            && selectedAbilityForTemplate.Effects.Count > 0;
+            && selectedAbilityForTemplate.TargetEffects != null
+            && selectedAbilityForTemplate.TargetEffects.Count > 0;
 
         if (selectedAbilityHasEffects) {
-            selectedTemplateIndex = Mathf.Clamp(selectedTemplateIndex, 0, selectedAbilityForTemplate.Effects.Count - 1);
+            selectedTemplateIndex = Mathf.Clamp(selectedTemplateIndex, 0, selectedAbilityForTemplate.TargetEffects.Count - 1);
 
-            var templateOptions = new string[selectedAbilityForTemplate.Effects.Count];
-            for (int i = 0; i < selectedAbilityForTemplate.Effects.Count; i++) {
-                var effect = selectedAbilityForTemplate.Effects[i];
+            var templateOptions = new string[selectedAbilityForTemplate.TargetEffects.Count];
+            for (int i = 0; i < selectedAbilityForTemplate.TargetEffects.Count; i++) {
+                var effect = selectedAbilityForTemplate.TargetEffects[i];
                 if (effect == null) {
                     templateOptions[i] = $"Template {i}: <null>";
                 } else {
@@ -187,12 +187,12 @@ public class AgentEditor : UnityEditor.Editor {
         // Add button
         if (GUILayout.Button("Add Effect")) {
             var selectedAbility = abilities[selectedAbilityIndex];
-            if (selectedAbility == null || selectedAbility.Effects == null || selectedAbility.Effects.Count == 0) {
+            if (selectedAbility == null || selectedAbility.TargetEffects == null || selectedAbility.TargetEffects.Count == 0) {
                 EditorGUILayout.HelpBox("Selected ability has no effects.", MessageType.Warning);
                 return;
             }
 
-            var selectedTemplate = selectedAbility.Effects[selectedTemplateIndex];
+            var selectedTemplate = selectedAbility.TargetEffects[selectedTemplateIndex];
             if (selectedTemplate == null) {
                 EditorGUILayout.HelpBox("Selected template is null.", MessageType.Warning);
                 return;

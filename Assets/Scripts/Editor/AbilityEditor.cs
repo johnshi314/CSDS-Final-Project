@@ -39,6 +39,8 @@ public class AbilityEditor: UnityEditor.Editor {
         var targetTypeProp = serializedObject.FindProperty("TargetType");
         var targetModeProp = serializedObject.FindProperty("TargetMode");
         var targetShapeProp = serializedObject.FindProperty("TargetShape");
+        var shapeRangeMaxProp = serializedObject.FindProperty("ShapeRangeMax");
+        var shapeRangeMinProp = serializedObject.FindProperty("ShapeRangeMin");
         var rangeMaxProp = serializedObject.FindProperty("RangeMax");
         var rangeMinProp = serializedObject.FindProperty("RangeMin");
 
@@ -108,7 +110,8 @@ public class AbilityEditor: UnityEditor.Editor {
         } else {
             EditorGUILayout.PropertyField(targetShapeProp);
         }
-        
+        EditorGUILayout.PropertyField(shapeRangeMaxProp);
+        EditorGUILayout.PropertyField(shapeRangeMinProp);
         EditorGUILayout.PropertyField(rangeMaxProp);
         EditorGUILayout.PropertyField(rangeMinProp);
         EditorGUI.EndDisabledGroup();
@@ -123,17 +126,27 @@ public class AbilityEditor: UnityEditor.Editor {
 
         EditorGUILayout.Space();
 
-        // Draw Effects fields
-        var effectsProp = serializedObject.FindProperty("Effects");
-        if (effectsProp != null) {
-            EditorGUILayout.PropertyField(effectsProp, true);
-        } else {
-            EditorGUILayout.HelpBox("Effects property not found. Ensure Ability has a public List<AbilityEffect> Effects field.", MessageType.Error);
-        }
+        // Draw Target Effects list with add button
+        DrawEffectsListWithAddButton(
+            serializedObject.FindProperty("TargetEffects"),
+            "Target Effects",
+            ability
+        );
+
+        EditorGUILayout.Space();
+
+        // Draw Caster Effects list with add button
+        DrawEffectsListWithAddButton(
+            serializedObject.FindProperty("CasterEffects"),
+            "Caster Effects",
+            ability
+        );
 
         // Set values to None/0 when Global mode is active
         if (isGlobalMode) {
             targetShapeProp.enumValueIndex = (int)AbilityTargetShape.None;
+            shapeRangeMaxProp.intValue = 0;
+            shapeRangeMinProp.intValue = 0;
             rangeMinProp.intValue = 0;
             rangeMaxProp.intValue = 0;
         }
@@ -141,6 +154,57 @@ public class AbilityEditor: UnityEditor.Editor {
         if (serializedObject.ApplyModifiedProperties()) {
             EditorUtility.SetDirty(ability);
         }
+    }
+
+    /// <summary>
+    /// Draw an effects list with an "Add New Effect" button that creates a new AbilityEffect ScriptableObject.
+    /// </summary>
+    private void DrawEffectsListWithAddButton(SerializedProperty listProp, string label, Ability ability) {
+        if (listProp == null) {
+            EditorGUILayout.HelpBox($"{label} property not found.", MessageType.Error);
+            return;
+        }
+
+        // Draw the list header and elements
+        EditorGUILayout.PropertyField(listProp, new GUIContent(label), true);
+
+        // Add button to create and append a new AbilityEffect
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button($"+ Create New Effect", GUILayout.Width(150))) {
+            CreateAndAddEffect(listProp, label, ability);
+        }
+        EditorGUILayout.EndHorizontal();
+    }
+
+    /// <summary>
+    /// Create a new AbilityEffect ScriptableObject and add it to the specified list.
+    /// </summary>
+    private void CreateAndAddEffect(SerializedProperty listProp, string label, Ability ability) {
+        // Get the directory of the current ability asset
+        string abilityPath = AssetDatabase.GetAssetPath(ability);
+        string directory = System.IO.Path.GetDirectoryName(abilityPath);
+        
+        // Generate a unique name for the new effect
+        string effectType = label.Contains("Target") ? "Target" : "Caster";
+        string baseName = $"{ability.name}_{effectType}Effect";
+        string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{directory}/{baseName}.asset");
+
+        // Create the new AbilityEffect ScriptableObject
+        AbilityEffect newEffect = ScriptableObject.CreateInstance<AbilityEffect>();
+        AssetDatabase.CreateAsset(newEffect, assetPath);
+        AssetDatabase.SaveAssets();
+
+        // Add to the list
+        int newIndex = listProp.arraySize;
+        listProp.InsertArrayElementAtIndex(newIndex);
+        listProp.GetArrayElementAtIndex(newIndex).objectReferenceValue = newEffect;
+
+        // Apply changes and ping the new asset
+        serializedObject.ApplyModifiedProperties();
+        EditorGUIUtility.PingObject(newEffect);
+        
+        Debug.Log($"Created new AbilityEffect at: {assetPath}");
     }
 }
 

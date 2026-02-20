@@ -29,15 +29,18 @@ namespace NetFlower {
         public AbilityTargetType TargetType;    // Type of targets allowed
         public AbilityTargetMode TargetMode;    // If this is point-select or global
         public AbilityTargetShape TargetShape;  // Shape of area affected
-        public uint RangeMax;                   // Max range from caster
-        public uint RangeMin;                   // Min range from caster (0 will allow self-targeting)
+        public uint ShapeRangeMax = 1;          // Size of area shape (e.g., radius for circle, length for line)
+        public uint ShapeRangeMin = 0;          // Minimum size of area shape (e.g., minimum radius for circle, minimum length for line)
+        public uint RangeMax = 1;               // Max range from caster
+        public uint RangeMin = 0;               // Min range from caster (0 will allow self-targeting)
 
         [Header("Costs")]
         public uint Cost;                       // Resource cost to use ability (e.g., mana, stamina)
         public uint Cooldown;                   // Number of turns before ability can be used again after use
 
         [Header("Effects")]
-        public List<AbilityEffect> Effects;     // List of effects this ability applies to targets
+        public List<AbilityEffect> TargetEffects;     // List of effects this ability applies to targets
+        public List<AbilityEffect> CasterEffects;     // List of effects this ability applies to the caster
 
         /// <summary>
         /// Checks if the Caster is even allowed to target the specified target with this ability based on the context.
@@ -83,14 +86,14 @@ namespace NetFlower {
                 Debug.LogWarning("Resolving ability with invalid context");
 
             // If there are no effects, nothing to resolve
-            if (context.Ability.Effects == null || context.Ability.Effects.Count == 0)
+            if (context.Ability.TargetEffects == null || context.Ability.TargetEffects.Count == 0)
                 return;
             
             // Get all targets in the area of effect based on the ability's shape
             var targetAgents = GetTargetsInShape(context);
 
             // Apply each effect to each target
-            foreach (var effect in context.Ability.Effects) {
+            foreach (var effect in context.Ability.TargetEffects) {
                 foreach (Agent target in targetAgents) {
                     // Create an instance of the effect for this target
                     var effectInstance = new AbilityEffectInstance(effect, context.Caster);
@@ -100,7 +103,8 @@ namespace NetFlower {
 
                     // If the effect has a duration, add it to the target's active effects
                     if (effect.Duration > 0) {
-                        target.AddEffect(effectInstance);
+                        // target.AddEffect(effectInstance);
+                        //TODO: Fix how effects are added to agents
                     }
                 }
             }
@@ -263,42 +267,6 @@ namespace NetFlower {
         public int RangeMinDelta;
         public int DamageDelta;
     }
-
-    [Serializable]
-    public class AbilityEffect {
-        [SerializeField] private AbilityEffectType effectType;
-        [SerializeField] private uint amount;    // Amount of effect (e.g., damage amount, heal amount)
-        [SerializeField] private uint duration;           // Duration of effect (e.g., number of turns)
-
-        public AbilityEffectType EffectType => effectType;
-        public uint Amount => amount;
-        public uint Duration => duration;
-
-        public AbilityEffect(AbilityEffectType effectType, uint amount, uint duration = 0) {
-            this.effectType = effectType;
-            this.amount = amount;
-            this.duration = duration;
-        }
-
-        /// <summary>
-        /// Create a copy of this effect.
-        /// </summary>
-        /// <returns>A new AbilityEffect with the same values.</returns>
-        public AbilityEffect Clone() {
-            return new AbilityEffect(
-                effectType: this.EffectType,
-                amount: this.Amount,
-                duration: this.Duration);
-        }
-    }
-
-    public enum AbilityEffectType {
-        Damage = 0,
-        Heal = 1,
-        BuffRange = 2,
-        DebuffRange = 3,
-    }
-
     public class AbilityEffectInstance {
         public AbilityEffect Effect;
         public Agent Source; // The agent that caused this effect (e.g., the caster of the ability)
@@ -311,22 +279,22 @@ namespace NetFlower {
         }
 
         public void ApplyTo(Agent target) {
-            switch (Effect.EffectType) {
-                case AbilityEffectType.Damage:
-                    target.TakeDamage((int)Effect.Amount);
-                    break;
-                case AbilityEffectType.Heal:
-                    target.Heal((int)Effect.Amount);
-                    break;
-                case AbilityEffectType.BuffRange:
-                    // TODO: Implement buff system
-                    Debug.LogWarning("BuffRange effect not yet implemented");
-                    break;
-                case AbilityEffectType.DebuffRange:
-                    // TODO: Implement debuff system
-                    Debug.LogWarning("DebuffRange effect not yet implemented");
-                    break;
-            }
+            // switch (Effect.EffectType) {
+            //     case AbilityEffectType.Damage:
+            //         target.TakeDamage((int)Effect.Amount);
+            //         break;
+            //     case AbilityEffectType.Heal:
+            //         target.Heal((int)Effect.Amount);
+            //         break;
+            //     case AbilityEffectType.BuffRange:
+            //         // TODO: Implement buff system
+            //         Debug.LogWarning("BuffRange effect not yet implemented");
+            //         break;
+            //     case AbilityEffectType.DebuffRange:
+            //         // TODO: Implement debuff system
+            //         Debug.LogWarning("DebuffRange effect not yet implemented");
+            //         break;
+            // }
         }
     }
 }

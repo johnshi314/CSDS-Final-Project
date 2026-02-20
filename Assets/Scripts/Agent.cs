@@ -228,7 +228,7 @@ namespace NetFlower {
         /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
         /// </summary>
         public void OnTurnStart() {
-            ReapplyEffects();
+            
         }
 
         /// <summary>
@@ -236,29 +236,6 @@ namespace NetFlower {
         /// </summary>
         public void OnTurnEnd() {
             DecrementCooldowns();
-        }
-
-        /// <summary>
-        /// Add an active effect to this agent.
-        /// </summary>
-        /// <param name="effectInstance">The effect instance to add.</param>
-        public void AddEffect(AbilityEffectInstance effectInstance) {
-            if (effectInstance == null || effectInstance.Effect == null)
-                return;
-
-            activeEffects.Add(effectInstance);
-        }
-
-        /// <summary>
-        /// Add an active effect template to this agent by creating a runtime instance.
-        /// </summary>
-        /// <param name="effect">The effect template to instantiate.</param>
-        /// <param name="source">The source agent of this effect instance.</param>
-        public void AddEffect(AbilityEffect effect, Agent source = null) {
-            if (effect == null)
-                return;
-
-            AddEffect(new AbilityEffectInstance(effect, source));
         }
 
         /// <summary>
@@ -289,23 +266,6 @@ namespace NetFlower {
 
         // ===================================================================== //
         // ======================= Private Agent Methods ======================= //
-
-        /// <summary>
-        /// Reapply all active effects, decrement their durations, and remove expired effects.
-        /// </summary>
-        private void ReapplyEffects() {
-            for (int i = activeEffects.Count - 1; i >= 0; i--) {
-                var effect = activeEffects[i];
-                // Reapply the effect
-                effect.ApplyTo(this);
-                // Decrement duration
-                effect.Duration--;
-                // If the effect has expired, remove it from the list
-                if (effect.Duration <= 0) {
-                    activeEffects.RemoveAt(i);
-                }
-            }
-        }
 
         /// <summary>
         /// Decrement all active cooldowns by 1.
