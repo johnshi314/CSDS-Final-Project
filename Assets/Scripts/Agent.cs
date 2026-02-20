@@ -261,6 +261,32 @@ namespace NetFlower {
             AddEffect(new AbilityEffectInstance(effect, source));
         }
 
+        /// <summary>
+        /// Get the name of the parent GameObject as a string.
+        /// Returns null if there is no parent.
+        /// </summary>
+        public string ParentName {
+            get {
+                return this.transform.parent != null ? this.transform.parent.name : null;
+            }
+        }
+
+        /// <summary>
+        /// Stores data about each player and their agent in a match
+        /// Returns PlayerMatchStats object
+        /// </summary>
+        public PlayerMatchStats RegisterPlayer(
+            int matchId
+        ) {
+            var stats = new PlayerMatchStats(
+                matchId: matchId,
+                playerId: this.Player.Id,
+                characterId: this.AgentName,
+                teamId: this.ParentName);
+
+            return stats;
+        }
+
         // ===================================================================== //
         // ======================= Private Agent Methods ======================= //
 
@@ -291,5 +317,6 @@ namespace NetFlower {
                     currentCooldowns[key]--;
             }
         }
+
     }
 }
