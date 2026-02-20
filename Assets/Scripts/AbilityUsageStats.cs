@@ -1,12 +1,13 @@
+using UnityEngine;
+using System;
+
 namespace NetFlower {
 
     [System.Serializable]
     public class AbilityUsageStats {
 
         // Identifiers 
-        public int abilityId;
-        public int characterId;
-        public int usageId;          
+        public int characterId;      
         public int matchPlayerId;    
 
         // Metrics 
@@ -14,18 +15,18 @@ namespace NetFlower {
         public float downtime;       
 
         public AbilityUsageStats(
-            int abilityId,
             int characterId,
-            int usageId,
             int matchPlayerId
         ) {
-            this.abilityId = abilityId;
             this.characterId = characterId;
-            this.usageId = usageId;
             this.matchPlayerId = matchPlayerId;
 
             damageDone = 0;
             downtime = 0f;
+        }
+
+        public string ToJson() {
+            return JsonUtility.ToJson(this);
         }
     }
 }
