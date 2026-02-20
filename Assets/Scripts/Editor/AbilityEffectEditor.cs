@@ -30,7 +30,6 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         var durationProp = serializedObject.FindProperty("duration");
 
         // ===== Effect Type Header =====
-        EditorGUILayout.LabelField("Effect Type", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(effectTypeProp);
 
         // Draw Status Effect (only relevant when effectType is Status)
@@ -58,14 +57,12 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         EditorGUILayout.Space();
 
         // ===== Amount Header =====
-        EditorGUILayout.LabelField("Amount", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(amountSourceProp);
         DrawValueField(amountProp, amountSourceProp, "Amount", "Fixed");
 
         EditorGUILayout.Space();
 
         // ===== Duration Header =====
-        EditorGUILayout.LabelField("Duration", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(durationSourceProp);
         DrawValueField(durationProp, durationSourceProp, "Duration", "Turns");
 
