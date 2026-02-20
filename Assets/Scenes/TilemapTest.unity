@@ -128,14 +128,6 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: redAgents.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: blueAgents.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: 'redAgents.Array.data[0]'
       value: 
       objectReference: {fileID: 1464626123}
@@ -143,34 +135,6 @@ PrefabInstance:
       propertyPath: 'blueAgents.Array.data[0]'
       value: 
       objectReference: {fileID: 1157199908}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: redStartTiles.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: blueStartTiles.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: 'initialAgents.Array.data[0]'
-      value: 
-      objectReference: {fileID: 1464626123}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: redStartTiles.Array.data[0].x
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: redStartTiles.Array.data[0].y
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: blueStartTiles.Array.data[0].x
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
-      propertyPath: blueStartTiles.Array.data[0].y
-      value: 7
-      objectReference: {fileID: 0}
     - target: {fileID: 1851586129582700408, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: m_Name
       value: GameMapDemo

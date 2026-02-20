@@ -22,19 +22,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.99999857
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.0017262893
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -46,7 +46,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0.198
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1670328504005014428, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: spawnPoints.Array.size
@@ -1233,8 +1233,40 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: redAgents.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: blueAgents.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: initialAgents.Array.size
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: redSpawnPoints.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: blueSpawnPoints.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: redSpawnPoints.Array.data[0].x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: redSpawnPoints.Array.data[0].y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: blueSpawnPoints.Array.data[0].x
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      propertyPath: blueSpawnPoints.Array.data[0].y
+      value: 7
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

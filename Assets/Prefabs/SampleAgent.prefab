@@ -275,10 +275,10 @@ MonoBehaviour:
   AgentName: 007
   MaxHP: 20
   MaxRange: 3
+  CanTunnel: 1
   Abilities:
   - {fileID: 11400000, guid: 5397ee43543396c0783e847289484161, type: 2}
   - {fileID: 11400000, guid: fed65551f78fa5c2d9a170ca7b86eb75, type: 2}
   - {fileID: 11400000, guid: 22e6f8edf72be685ea3edb31a0393964, type: 2}
   - {fileID: 11400000, guid: 981ea2a51d31e370391c6996160047a0, type: 2}
-  CanTunnel: -1
   HP: 0

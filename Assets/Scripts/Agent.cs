@@ -36,13 +36,13 @@ namespace NetFlower {
         [Header("Base Stats")]
         [SerializeField] uint MaxHP = 20;       // Maximum health points
         [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
+        [SerializeField] Tunneling CanTunnel;   // How other agents can pass through this agent
         [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
-        [SerializeField] Tunneling CanTunnel;               // How other agents can pass through this agent
 
         [Header("Current Stats")]
         [SerializeField] uint HP;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
-        private List<AbilityEffect> activeEffects = new();  // List of active effects with duration
+        private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
         public uint MovementRange { get { return MaxRange; } }
 
@@ -212,7 +212,7 @@ namespace NetFlower {
             };
             
             // Resolve the ability's effects
-            ability.Resolve(context);
+            Ability.Resolve(context);
             
             // Set cooldown after successful use
             currentCooldowns[ability] = (int)ability.Cooldown;
@@ -220,11 +220,15 @@ namespace NetFlower {
             return true;
         }
 
+        public bool UseAbility(Ability ability, Map map, Vector2Int targetPos) {
+            return UseAbility(ability, map.GetTileAtPosition(targetPos));
+        }
+
         /// <summary>
         /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
         /// </summary>
         public void OnTurnStart() {
-            ReapplyAndDecrementEffects();
+            ReapplyEffects();
         }
 
         /// <summary>
@@ -237,12 +241,50 @@ namespace NetFlower {
         /// <summary>
         /// Add an active effect to this agent.
         /// </summary>
-        /// <param name="effect">The effect to add.</param>
-        public void AddEffect(AbilityEffect effect) {
-            if (effect == null) return;
-            // Create a copy of the effect to avoid modifying the original
-            var effectCopy = effect.Clone();
-            activeEffects.Add(effectCopy);
+        /// <param name="effectInstance">The effect instance to add.</param>
+        public void AddEffect(AbilityEffectInstance effectInstance) {
+            if (effectInstance == null || effectInstance.Effect == null)
+                return;
+
+            activeEffects.Add(effectInstance);
+        }
+
+        /// <summary>
+        /// Add an active effect template to this agent by creating a runtime instance.
+        /// </summary>
+        /// <param name="effect">The effect template to instantiate.</param>
+        /// <param name="source">The source agent of this effect instance.</param>
+        public void AddEffect(AbilityEffect effect, Agent source = null) {
+            if (effect == null)
+                return;
+
+            AddEffect(new AbilityEffectInstance(effect, source));
+        }
+
+        /// <summary>
+        /// Get the name of the parent GameObject as a string.
+        /// Returns null if there is no parent.
+        /// </summary>
+        public string ParentName {
+            get {
+                return this.transform.parent != null ? this.transform.parent.name : null;
+            }
+        }
+
+        /// <summary>
+        /// Stores data about each player and their agent in a match
+        /// Returns PlayerMatchStats object
+        /// </summary>
+        public PlayerMatchStats RegisterPlayer(
+            int matchId
+        ) {
+            var stats = new PlayerMatchStats(
+                matchId: matchId,
+                playerId: this.Player.Id,
+                characterId: this.AgentName,
+                teamId: this.ParentName);
+
+            return stats;
         }
 
         // ===================================================================== //
@@ -251,17 +293,14 @@ namespace NetFlower {
         /// <summary>
         /// Reapply all active effects, decrement their durations, and remove expired effects.
         /// </summary>
-        private void ReapplyAndDecrementEffects() {
+        private void ReapplyEffects() {
             for (int i = activeEffects.Count - 1; i >= 0; i--) {
                 var effect = activeEffects[i];
-                
                 // Reapply the effect
-                effect.ApplyToAgent(this);
-                
+                effect.ApplyTo(this);
                 // Decrement duration
                 effect.Duration--;
-                
-                // Remove if expired
+                // If the effect has expired, remove it from the list
                 if (effect.Duration <= 0) {
                     activeEffects.RemoveAt(i);
                 }
@@ -278,5 +317,6 @@ namespace NetFlower {
                     currentCooldowns[key]--;
             }
         }
+
     }
 }

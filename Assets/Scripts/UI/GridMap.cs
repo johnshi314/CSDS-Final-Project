@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.Tilemaps;
-using NetFlower;
 
 namespace NetFlower.UI {
 
@@ -14,14 +13,9 @@ namespace NetFlower.UI {
         [Header("Team Setup")]
         [SerializeField] private List<Agent> redAgents = new();
         [SerializeField] private List<Agent> blueAgents = new();
-        [SerializeField] private List<Vector2Int> redStartTiles = new();
-        [SerializeField] private List<Vector2Int> blueStartTiles = new();
+        [SerializeField] private List<Vector2Int> redSpawnPoints = new();
+        [SerializeField] private List<Vector2Int> blueSpawnPoints = new();
 
-        // Optional accessors if MapManager needs to read these from GridUI
-        public IReadOnlyList<Agent> RedAgents => redAgents;
-        public IReadOnlyList<Agent> BlueAgents => blueAgents;
-        public IReadOnlyList<Vector2Int> RedStartTiles => redStartTiles;
-        public IReadOnlyList<Vector2Int> BlueStartTiles => blueStartTiles;
 
         [Header("Map Definition")]
         [SerializeField] private Tilemap tilemap;
@@ -38,14 +32,19 @@ namespace NetFlower.UI {
         [SerializeField] private Color walkableColor = Color.green;
         [SerializeField] private Color unwalkableColor = Color.red;
 
-        // Cached references
-        public MapManager MapManager => mapManager;
+        // Internal state
         private TileVisualizer tileVisualizer;
-        public TileVisualizer TileVisualizer => tileVisualizer;
         private Vector2Int tilemapBoundsMin; // Offset for tilemap coordinates (could be negative)
         private bool IsMapReady => mapManager != null && mapManager.HasActiveMap;
-        private Map ActiveMap => IsMapReady ? mapManager.Map : null;
+        private Map ActiveMap => IsMapReady ? mapManager.ActiveMap : null;
 
+        // Cached references
+        public MapManager MapManager => mapManager;
+        public TileVisualizer TileVisualizer => tileVisualizer;
+        public IReadOnlyList<Agent> RedAgents => IsMapReady ? mapManager.redTeam.Members : redAgents;
+        public IReadOnlyList<Agent> BlueAgents => IsMapReady ? mapManager.blueTeam.Members : blueAgents;
+        public IReadOnlyList<Vector2Int> RedSpawnPoints => IsMapReady ? mapManager.ActiveMap.RedSpawnPoints : redSpawnPoints;
+        public IReadOnlyList<Vector2Int> BlueSpawnPoints => IsMapReady ? mapManager.ActiveMap.BlueSpawnPoints : blueSpawnPoints;
         private IEnumerable<Agent> ConfiguredAgents {
             get {
                 foreach (Agent agent in redAgents) {
@@ -104,12 +103,12 @@ namespace NetFlower.UI {
 
             // Build map manager and map data together
             mapManager = new MapManager(
-                mapName,
-                walkabilityData.Walkability,
                 redTeam,
                 blueTeam,
-                redStartTiles,
-                blueStartTiles
+                mapName,
+                walkabilityData.Walkability,
+                redSpawnPoints,
+                blueSpawnPoints
             );
 
             if (!IsMapReady) {
@@ -366,7 +365,7 @@ namespace NetFlower.UI {
         /// </summary>
         public bool TryMoveAgentByMapIndex(Agent agent, Vector2Int newMapIndex) {
             // Is this GridMap initialized properly?
-            if (mapManager == null || !mapManager.HasActiveMap || agent == null) {
+            if (!IsMapReady || agent == null) {
                 Debug.LogWarning("GridMap: Cannot move agent - map manager, map, or agent is null");
                 return false;
             }
@@ -466,26 +465,21 @@ namespace NetFlower.UI {
         /// </summary>
         void OnDrawGizmos() {
             if (!showMapBoundsGizmos || !IsMapReady || tilemap == null) return;
-
-            int mapWidth = mapManager.MapWidth;
-            int mapHeight = mapManager.MapHeight;
-
             // Draw each tile in the map
-            for (int y = 0; y < mapHeight; y++) {
-                for (int x = 0; x < mapWidth; x++) {
+            for (int y = 0; y < ActiveMap.Height; y++) {
+                for (int x = 0; x < ActiveMap.Width; x++) {
                     Vector2Int mapIndex = new Vector2Int(x, y);
                     Vector2Int tilemapCoord = MapIndexToTilemap(mapIndex);
                     
                     // Get the world position and size of this tile
                     Vector3Int cellPosition = new Vector3Int(tilemapCoord.x, tilemapCoord.y, 0);
                     Vector3 worldPos = tilemap.GetCellCenterWorld(cellPosition);
-                    Vector3 cellSize = tilemap.cellSize;
                     
                     // Set color based on walkability
                     Gizmos.color = ActiveMap.IsWalkable(mapIndex) ? walkableColor : unwalkableColor;
                     
                     // Draw wire cube to outline the tile
-                    Gizmos.DrawWireCube(worldPos, new Vector3(cellSize.x, cellSize.y, 0.1f));
+                    Gizmos.DrawWireSphere(worldPos, 0.1f); // Using a sphere for better visibility, adjust size as needed
                 }
             }
         }

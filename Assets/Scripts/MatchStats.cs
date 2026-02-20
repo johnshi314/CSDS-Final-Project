@@ -1,11 +1,12 @@
 using System;
+using UnityEngine;
 
 namespace NetFlower {
 
     [System.Serializable]
-    public class MatchData {
+    public class MatchStats {
 
-        // Primary Key
+        // PK
         public int matchId;
 
         // Timing
@@ -15,25 +16,23 @@ namespace NetFlower {
         public float queueTime;     
 
         // Outcome
-        public int winnerTeamId;
+        public string winnerTeamId;
 
-        public MatchData(
+        public MatchStats(
             int matchId,
             float queueTime = 0f
         ) {
             this.matchId = matchId;
             this.queueTime = queueTime;
 
-            startTime = DateTime.UtcNow;
+            startTime = default;
             endTime = default;
             duration = 0f;
-            winnerTeamId = -1; 
+            winnerTeamId = "-1"; 
         }
 
-        public void EndMatch(int winnerTeamId) {
-            this.winnerTeamId = winnerTeamId;
-            endTime = DateTime.UtcNow;
-            duration = (float)(endTime - startTime).TotalSeconds;
+        public string ToJson() {
+            return JsonUtility.ToJson(this);
         }
     }
 }
