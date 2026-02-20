@@ -12,7 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dedfbbadc4b47b7b6a0a14d258491cdb, type: 3}
   m_Name: AbilityEffect 1
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
-  effectType: 0
-  statusEffect: 0
-  amount: 0
-  duration: 0
+  effectType: 2
+  statusEffect: 8
+  amountSource: 0
+  amount: 1
+  durationSource: 101
+  duration: 50

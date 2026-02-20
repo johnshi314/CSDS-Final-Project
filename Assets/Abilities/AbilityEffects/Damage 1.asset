@@ -14,5 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
   effectType: 0
   statusEffect: 0
-  amount: 0
+  amountSource: 0
+  amount: 1
+  durationSource: 0
   duration: 0

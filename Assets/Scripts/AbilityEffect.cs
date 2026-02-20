@@ -14,34 +14,23 @@ namespace NetFlower {
     /// </summary>
     [CreateAssetMenu(fileName = "AbilityEffect", menuName = "Scriptable Objects/AbilityEffect")]
     public class AbilityEffect: ScriptableObject {
+        [Header("Effect Type")]
         [SerializeField] private AbilityEffectType effectType;
         [SerializeField] private StatusEffect statusEffect;
-        [SerializeField] private uint amount;    // Amount of effect (e.g., damage amount, heal amount)
-        [SerializeField] private uint duration;           // Duration of effect (e.g., number of turns)
+        [Header("Amount")]
+        [SerializeField] private ValueSource amountSource;
+        [SerializeField] private int amount;    // Amount of effect (e.g., damage amount, heal amount)
+        
+        [Header("Duration")]
+        [SerializeField] private ValueSource durationSource;
+        [SerializeField] private int duration;  // Duration of effect (e.g., number of turns)
 
         public AbilityEffectType EffectType => effectType;
         public StatusEffect StatusEffect => statusEffect;
-        public uint Amount => amount;
-        public uint Duration => duration;
-
-        public AbilityEffect(AbilityEffectType effectType, StatusEffect statusEffect, uint amount, uint duration = 0) {
-            this.effectType = effectType;
-            this.statusEffect = statusEffect;
-            this.amount = amount;
-            this.duration = duration;
-        }
-
-        /// <summary>
-        /// Create a copy of this effect.
-        /// </summary>
-        /// <returns>A new AbilityEffect with the same values.</returns>
-        public AbilityEffect Clone() {
-            return new AbilityEffect(
-                effectType: this.EffectType,
-                statusEffect: this.StatusEffect,
-                amount: this.Amount,
-                duration: this.Duration);
-        }
+        public ValueSource AmountSource => amountSource;
+        public int Amount => amount;
+        public ValueSource DurationSource => durationSource;
+        public int Duration => duration;
     }
 
 
@@ -60,5 +49,23 @@ namespace NetFlower {
         Shield = 5,
         MovementUp = 6,
         MovementDown = 7,
+        Poison = 8,
+        Regen = 9,
+    }
+
+    public enum ValueSource {
+        Fixed = 0,
+        TargetHP = 101,
+        TargetMovement = 102,
+        TargetWill = 103,
+        TargetMomentum = 104,
+        TargetPower = 105,
+        TargetShield = 106,
+        CasterHP = 201,
+        CasterMovement = 202,
+        CasterWill = 203,
+        CasterMomentum = 204,
+        CasterPower = 205,
+        CasterShield = 206,
     }
 }

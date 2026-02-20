@@ -273,9 +273,9 @@ namespace NetFlower {
         public int Duration; // Number of turns remaining for this effect (0 for instant effects)
 
         public AbilityEffectInstance(AbilityEffect effect, Agent source) {
-            Effect = effect.Clone(); // Clone to ensure each instance is independent
-            Source = source;
-            Duration = (int)effect.Duration;
+            // Effect = effect.Clone(); // Clone to ensure each instance is independent
+            // Source = source;
+            // Duration = (int)effect.Duration;
         }
 
         public void ApplyTo(Agent target) {

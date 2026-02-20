@@ -142,6 +142,11 @@ public class AbilityEditor: UnityEditor.Editor {
             ability
         );
 
+        EditorGUILayout.Space();
+
+        // Draw Effects Summary
+        DrawEffectsSummary(ability);
+
         // Set values to None/0 when Global mode is active
         if (isGlobalMode) {
             targetShapeProp.enumValueIndex = (int)AbilityTargetShape.None;
@@ -205,6 +210,91 @@ public class AbilityEditor: UnityEditor.Editor {
         EditorGUIUtility.PingObject(newEffect);
         
         Debug.Log($"Created new AbilityEffect at: {assetPath}");
+    }
+
+    /// <summary>
+    /// Draw a visual summary of all effects at the bottom of the inspector.
+    /// </summary>
+    private void DrawEffectsSummary(Ability ability) {
+        EditorGUILayout.LabelField("Effects Summary", EditorStyles.boldLabel);
+
+        // Draw box background
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        bool hasAnyEffects = false;
+
+        // Target Effects
+        if (ability.TargetEffects != null && ability.TargetEffects.Count > 0) {
+            hasAnyEffects = true;
+            EditorGUILayout.LabelField("On Target:", EditorStyles.miniBoldLabel);
+            EditorGUI.indentLevel++;
+            foreach (var effect in ability.TargetEffects) {
+                if (effect != null) {
+                    EditorGUILayout.LabelField(FormatEffectSummary(effect), EditorStyles.wordWrappedLabel);
+                } else {
+                    EditorGUILayout.LabelField("• (null)", EditorStyles.wordWrappedLabel);
+                }
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        // Caster Effects
+        if (ability.CasterEffects != null && ability.CasterEffects.Count > 0) {
+            if (hasAnyEffects) EditorGUILayout.Space(4);
+            hasAnyEffects = true;
+            EditorGUILayout.LabelField("On Caster:", EditorStyles.miniBoldLabel);
+            EditorGUI.indentLevel++;
+            foreach (var effect in ability.CasterEffects) {
+                if (effect != null) {
+                    EditorGUILayout.LabelField(FormatEffectSummary(effect), EditorStyles.wordWrappedLabel);
+                } else {
+                    EditorGUILayout.LabelField("• (null)", EditorStyles.wordWrappedLabel);
+                }
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        if (!hasAnyEffects) {
+            EditorGUILayout.LabelField("No effects configured.", EditorStyles.miniLabel);
+        }
+
+        EditorGUILayout.EndVertical();
+    }
+
+    /// <summary>
+    /// Format a single effect into a readable summary string.
+    /// </summary>
+    private string FormatEffectSummary(AbilityEffect effect) {
+        string effectName = effect.EffectType.ToString();
+        
+        // For Status effects, include the status type
+        if (effect.EffectType == AbilityEffectType.Status && effect.StatusEffect != StatusEffect.None) {
+            effectName = $"Status ({effect.StatusEffect})";
+        }
+
+        // Format amount
+        string amountStr = FormatValueWithSource(effect.Amount, effect.AmountSource);
+
+        // Format duration
+        string durationStr = "";
+        if (effect.Duration > 0 || effect.DurationSource != ValueSource.Fixed) {
+            durationStr = ", " + FormatValueWithSource(effect.Duration, effect.DurationSource, "turns");
+        }
+
+        return $"• {effectName}: {amountStr}{durationStr}";
+    }
+
+    /// <summary>
+    /// Format a value with its source (Fixed vs percentage of stat).
+    /// </summary>
+    private string FormatValueWithSource(int value, ValueSource source, string fixedSuffix = "") {
+        if (source == ValueSource.Fixed) {
+            return fixedSuffix != "" ? $"{value} {fixedSuffix}" : value.ToString();
+        } else {
+            // Format as percentage of the source stat
+            string sourceName = source.ToString();
+            return $"{value}% of {sourceName}";
+        }
     }
 }
 
