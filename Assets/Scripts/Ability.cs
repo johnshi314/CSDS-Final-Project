@@ -29,8 +29,10 @@ namespace NetFlower {
         public AbilityTargetType TargetType;    // Type of targets allowed
         public AbilityTargetMode TargetMode;    // If this is point-select or global
         public AbilityTargetShape TargetShape;  // Shape of area affected
-        public uint RangeMax;                   // Max range from caster
-        public uint RangeMin;                   // Min range from caster (0 will allow self-targeting)
+        public uint ShapeRangeMax = 1;          // Size of area shape (e.g., radius for circle, length for line)
+        public uint ShapeRangeMin = 0;          // Minimum size of area shape (e.g., minimum radius for circle, minimum length for line)
+        public uint RangeMax = 1;               // Max range from caster
+        public uint RangeMin = 0;               // Min range from caster (0 will allow self-targeting)
 
         [Header("Costs")]
         public uint Cost;                       // Resource cost to use ability (e.g., mana, stamina)
