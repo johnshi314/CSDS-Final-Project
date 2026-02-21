@@ -24,4 +24,7 @@ MonoBehaviour:
   Cost: 0
   Cooldown: 3
   TargetEffects: []
-  CasterEffects: []
+  CasterEffects:
+  - {fileID: 11400000, guid: 2bb48520cce643449988df6fe9e9d61e, type: 2}
+  - {fileID: 11400000, guid: 59b78acf8f69fe84096366211363c0ef, type: 2}
+  - {fileID: 11400000, guid: d9ca2d8905cc2ee45a09bccdd9186e26, type: 2}

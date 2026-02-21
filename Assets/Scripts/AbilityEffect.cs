@@ -65,7 +65,7 @@ namespace NetFlower {
             } else {
                 // When EffectType is Status: statusEffect cannot be None
                 if (statusEffect == StatusEffect.None) {
-                    statusEffect = StatusEffect.Will; // Default to first non-None
+                    statusEffect = StatusEffect.WillUp; // Default to first non-None
                 }
             }
             
@@ -116,11 +116,11 @@ namespace NetFlower {
 
     public enum StatusEffect {
         None = 0,
-        Will = 1,
-        Momentum = 2,
+        WillUp = 1,
+        MomentumUp = 2,
         PowerUp = 3,
         PowerDown = 4,
-        Shield = 5,
+        ShieldUp = 5,
         MovementUp = 6,
         MovementDown = 7,
         Targeted = 8,

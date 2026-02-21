@@ -14,9 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 104
   DisplayName: Stolid Ground
-  TargetType: 4
+  TargetType: -1
   TargetMode: 0
   TargetShape: 5
+  ShapeRangeMax: 2
+  ShapeRangeMin: 2
   RangeMax: 4
   RangeMin: 1
   ShapeRangeMax: 1
@@ -24,6 +26,5 @@ MonoBehaviour:
   SelectCount: 3
   Cost: 0
   Cooldown: 7
-  TargetEffects:
-  - {fileID: 11400000, guid: 62f70e36d34c08bf684f8213994270f1, type: 2}
+  TargetEffects: []
   CasterEffects: []

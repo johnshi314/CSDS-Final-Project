@@ -412,7 +412,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
 
     private StatusEffect GetCurrentStatusEffect(SerializedProperty prop) {
         var current = (StatusEffect)prop.enumValueIndex;
-        return current == StatusEffect.None ? StatusEffect.Will : current;
+        return current == StatusEffect.None ? StatusEffect.WillUp : current;
     }
 
     private string FormatStatusEffect(StatusEffect effect) {
