@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
   effectType: 2
   statusEffect: 1
+  terrainEffect: 0
+  targetType: 31
   amountSource: 0
   amount: 1
-  durationSource: 0
-  duration: 0
+  delayConditions: []
+  durationConditions: []

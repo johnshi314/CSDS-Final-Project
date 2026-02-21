@@ -115,20 +115,31 @@ namespace NetFlower {
     }
 
     public enum StatusEffect {
+        // States
         None = 0,
-        WillUp = 1,
-        MomentumUp = 2,
-        PowerUp = 3,
-        PowerDown = 4,
-        ShieldUp = 5,
-        MovementUp = 6,
-        MovementDown = 7,
-        Targeted = 8,
-        Targeting = 9,
-        CanOnlyBeHealedBySourceOfThisEffect = 10,
-        Poison = 11,
-        Regen = 12,
-        PopOnDeath = 13,
+        Targeted = 1,
+        Targeting = 2,
+        SpecializedMaintinence = 3,
+
+        // Up effects (buffs)
+        WillUp = 101,
+        MomentumUp = 102,
+        PowerUp = 103,
+        PoisonUp = 104,
+        RegenUp = 105,
+        ShieldUp = 106,
+        MovementUp = 107,
+        ExplosionUp = 108,
+
+        // Down effects (debuffs)
+        WillDown = 201,
+        MomentumDown = 202,
+        PowerDown = 203,
+        PoisonDown = 204,
+        RegenDown = 205,
+        ShieldDown = 206,
+        MovementDown = 207,
+        ExplosionDown = 208,
     }
     public enum TerrainEffect {
         None = 0,
@@ -139,8 +150,11 @@ namespace NetFlower {
     }
 
     public enum ValueSource {
+        // Fixed
         Fixed = 0,
         TargetCount = 100,
+
+        // Values Derived from Target of AbilityEffect
         TargetHP = 101,
         TargetMovement = 102,
         TargetWill = 103,
@@ -148,6 +162,8 @@ namespace NetFlower {
         TargetPower = 105,
         TargetShield = 106,
         TargetMaxHP = 107,
+
+        // Values Derived from Caster of AbilityEffect
         CasterHP = 201,
         CasterMovement = 202,
         CasterWill = 203,
