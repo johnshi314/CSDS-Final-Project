@@ -17,11 +17,12 @@ MonoBehaviour:
   TargetType: 1
   TargetMode: 0
   TargetShape: 3
-  RangeMax: 2
-  RangeMin: 1
+  ShapeRangeMax: 2
+  ShapeRangeMin: 1
+  RangeMax: 0
+  RangeMin: 0
   Cost: 0
   Cooldown: 2
-  Effects:
-  - EffectType: 3
-    Amount: 2
-    Duration: 0
+  TargetEffects: []
+  CasterEffects:
+  - {fileID: 11400000, guid: c5787192da08e774d9563d3f0d2b8ee4, type: 2}

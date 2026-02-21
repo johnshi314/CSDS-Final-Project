@@ -47,7 +47,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
             var currentStatus = (StatusEffect)statusEffectProp.enumValueIndex;
             if (currentStatus == StatusEffect.None) {
                 // Default to first non-None value (Will)
-                statusEffectProp.enumValueIndex = (int)StatusEffect.Will;
+                statusEffectProp.enumValueIndex = (int)StatusEffect.WillUp;
             }
             
             // Draw custom dropdown excluding None

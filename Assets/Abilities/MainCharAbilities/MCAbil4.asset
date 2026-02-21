@@ -13,15 +13,17 @@ MonoBehaviour:
   m_Name: MCAbil4
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 104
-  DisplayName: 
+  DisplayName: Competitive Inspiration
   TargetType: 2
   TargetMode: 0
   TargetShape: 3
-  RangeMax: 2
-  RangeMin: 1
+  ShapeRangeMax: 2
+  ShapeRangeMin: 1
+  RangeMax: 0
+  RangeMin: 0
   Cost: 0
   Cooldown: 3
-  Effects:
-  - EffectType: 2
-    Amount: 0
-    Duration: 0
+  TargetEffects: []
+  CasterEffects:
+  - {fileID: 11400000, guid: bbf0f7be974e77a4d9d1a0bb35d125fb, type: 2}
+  - {fileID: 11400000, guid: bbf0f7be974e77a4d9d1a0bb35d125fb, type: 2}

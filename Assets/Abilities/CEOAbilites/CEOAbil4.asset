@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 104
   DisplayName: Stolid Ground
-  TargetType: 4
+  TargetType: -1
   TargetMode: 0
   TargetShape: 5
-  RangeMax: 2
+  ShapeRangeMax: 2
+  ShapeRangeMin: 2
+  RangeMax: 4
   RangeMin: 1
   Cost: 0
-  Cooldown: 3
-  Effects:
-  - EffectType: 2
-    Amount: 0
-    Duration: 0
+  Cooldown: 7
+  TargetEffects: []
+  CasterEffects: []

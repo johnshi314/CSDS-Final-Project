@@ -42,15 +42,18 @@ namespace NetFlower {
 
     public enum StatusEffect {
         None = 0,
-        Will = 1,
-        Momentum = 2,
+        WillUp = 1,
+        MomentumUp = 2,
         PowerUp = 3,
         PowerDown = 4,
-        Shield = 5,
+        ShieldUp = 5,
         MovementUp = 6,
         MovementDown = 7,
-        Poison = 8,
-        Regen = 9,
+        PoisonUp = 8,
+        RegenUp = 9,
+        WillDown = 10,
+        MomentumDown = 11,
+        ShieldDown = 12,
     }
 
     public enum ValueSource {
@@ -61,6 +64,7 @@ namespace NetFlower {
         TargetMomentum = 104,
         TargetPower = 105,
         TargetShield = 106,
+        NumberOfTargets = 107,
         CasterHP = 201,
         CasterMovement = 202,
         CasterWill = 203,
