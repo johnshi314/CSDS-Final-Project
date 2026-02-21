@@ -13,15 +13,16 @@ MonoBehaviour:
   m_Name: R&DAbil3
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 103
-  DisplayName: 
+  DisplayName: Enemy Pops On Death
   TargetType: 2
   TargetMode: 0
   TargetShape: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
   RangeMax: 3
   RangeMin: 1
-  Cost: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
+  Cost: 1
   Cooldown: 3
   TargetEffects:
   - {fileID: 11400000, guid: f416a950cbcf64b9ea41ede3616d848f, type: 2}

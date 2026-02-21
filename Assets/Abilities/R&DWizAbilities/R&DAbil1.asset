@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 101
   DisplayName: Target
-  TargetType: 3
+  TargetType: 2
   TargetMode: 0
   TargetShape: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
   RangeMax: 5
   RangeMin: 1
-  Cost: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
+  Cost: 1
   Cooldown: 0
   TargetEffects:
   - {fileID: 11400000, guid: 48ed8462d1d6c4a38b6d30de8fca0413, type: 2}

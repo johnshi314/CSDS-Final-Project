@@ -17,12 +17,13 @@ MonoBehaviour:
   TargetType: 1
   TargetMode: 1
   TargetShape: 6
-  ShapeRangeMax: 0
-  ShapeRangeMin: 0
   RangeMax: 0
   RangeMin: 0
-  Cost: 0
-  Cooldown: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
+  Cost: 1
+  Cooldown: 6
   TargetEffects:
   - {fileID: 11400000, guid: 465130612a9b94c698b4d2539768bdf4, type: 2}
   - {fileID: 11400000, guid: f434b7c7664264cefa679697bc4100e6, type: 2}

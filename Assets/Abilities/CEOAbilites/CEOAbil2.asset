@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 102
   DisplayName: Scheduled Disicipline
-  TargetType: 2
+  TargetType: -1
   TargetMode: 0
   TargetShape: 5
+  ShapeRangeMax: 1
+  ShapeRangeMin: 0
   RangeMax: 5
   RangeMin: 1
-  Cost: 0
+  Cost: 1
   Cooldown: 0
-  Effects:
-  - EffectType: 3
-    Amount: 1
-    Duration: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: 222c6049b73b3ae95a4a040b8a677ffa, type: 2}
+  CasterEffects: []

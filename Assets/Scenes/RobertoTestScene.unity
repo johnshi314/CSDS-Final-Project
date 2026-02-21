@@ -129,20 +129,28 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: redAgents.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: blueAgents.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: 'redAgents.Array.data[0]'
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1812428006}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: 'redAgents.Array.data[1]'
+      value: 
+      objectReference: {fileID: 656669079}
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: 'blueAgents.Array.data[0]'
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 567039748}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: 'blueAgents.Array.data[1]'
+      value: 
+      objectReference: {fileID: 748486242}
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: redStartTiles.Array.size
       value: 1
@@ -150,6 +158,14 @@ PrefabInstance:
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: blueStartTiles.Array.size
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: redSpawnPoints.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: blueSpawnPoints.Array.size
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: 'initialAgents.Array.data[0]'
@@ -170,6 +186,22 @@ PrefabInstance:
     - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: blueStartTiles.Array.data[0].y
       value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: redSpawnPoints.Array.data[1].x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: redSpawnPoints.Array.data[1].y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: blueSpawnPoints.Array.data[1].x
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 567301929608366175, guid: 20f6777601e01e832af773b071f24d19, type: 3}
+      propertyPath: blueSpawnPoints.Array.data[1].y
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 1851586129582700408, guid: 20f6777601e01e832af773b071f24d19, type: 3}
       propertyPath: m_Name
@@ -374,6 +406,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bb223c987d50db64992334d4722199ec, type: 3}
+--- !u!114 &567039748 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6655209070973501525, guid: bb223c987d50db64992334d4722199ec, type: 3}
+  m_PrefabInstance: {fileID: 567039747}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab87432699ce5acb2a55c97cbbecd0dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameData.Agent
 --- !u!1001 &656669078
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -451,6 +494,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bb223c987d50db64992334d4722199ec, type: 3}
+--- !u!114 &656669079 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6655209070973501525, guid: bb223c987d50db64992334d4722199ec, type: 3}
+  m_PrefabInstance: {fileID: 656669078}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab87432699ce5acb2a55c97cbbecd0dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameData.Agent
 --- !u!1 &671841337
 GameObject:
   m_ObjectHideFlags: 0
@@ -661,6 +715,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bb223c987d50db64992334d4722199ec, type: 3}
+--- !u!114 &748486242 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6655209070973501525, guid: bb223c987d50db64992334d4722199ec, type: 3}
+  m_PrefabInstance: {fileID: 748486241}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab87432699ce5acb2a55c97cbbecd0dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameData.Agent
 --- !u!1 &845355790
 GameObject:
   m_ObjectHideFlags: 0
@@ -1790,15 +1855,26 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bb223c987d50db64992334d4722199ec, type: 3}
+--- !u!114 &1812428006 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6655209070973501525, guid: bb223c987d50db64992334d4722199ec, type: 3}
+  m_PrefabInstance: {fileID: 1812428005}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab87432699ce5acb2a55c97cbbecd0dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameData.Agent
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 671841340}
   - {fileID: 59559688}
+  - {fileID: 656669078}
   - {fileID: 1673219696}
   - {fileID: 1812428005}
-  - {fileID: 656669078}
   - {fileID: 567039747}
   - {fileID: 748486241}
   - {fileID: 228482464}

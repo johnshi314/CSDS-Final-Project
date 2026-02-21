@@ -17,14 +17,11 @@ MonoBehaviour:
   TargetType: 2
   TargetMode: 0
   TargetShape: 0
+  ShapeRangeMax: 1
+  ShapeRangeMin: 0
   RangeMax: 0
   RangeMin: 0
   Cost: 0
   Cooldown: 0
-  Effects:
-  - EffectType: 0
-    Amount: 4
-    Duration: 0
-  - EffectType: 2
-    Amount: 1
-    Duration: 0
+  TargetEffects: []
+  CasterEffects: []

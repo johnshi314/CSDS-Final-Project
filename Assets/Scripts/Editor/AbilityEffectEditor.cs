@@ -5,132 +5,504 @@
 * Description   :
 
     Custom editor for the AbilityEffect ScriptableObject.
+    Uses UI Toolkit for modern, retained-mode UI.
 
-    When AmountSource or DurationSource is not Fixed, the respective
-    input field shows a "%" suffix and enforces values between 0-100.
+    Amount: Fixed shows "Fixed", TargetCount+ shows "Multiplier"
+    Delay/Duration: Condition lists (Fixed source = turns, others = compared values)
 
 **********************************************************************/
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.UIElements;
+using UnityEngine.UIElements;
+using System.Collections.Generic;
 using NetFlower;
 
 namespace NetFlower.Editor {
 
 [CustomEditor(typeof(AbilityEffect))]
 public class AbilityEffectEditor : UnityEditor.Editor {
+    
+    private static readonly Dictionary<int, AbilityTargetType> LastValidTargetType = new();
+    
+    // UI Elements we need to update dynamically
+    private VisualElement _statusEffectContainer;
+    private VisualElement _terrainEffectContainer;
+    private VisualElement _amountFieldContainer;
+    private VisualElement _delayConditionsContainer;
+    private VisualElement _durationConditionsContainer;
 
-    public override void OnInspectorGUI() {
-        serializedObject.Update();
+    public override VisualElement CreateInspectorGUI() {
+        var root = new VisualElement();
+        
+        // Load stylesheet
+        var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
+            "Assets/Scripts/Editor/UI/NetFlowerEditor.uss");
+        if (styleSheet != null) {
+            root.styleSheets.Add(styleSheet);
+        }
 
+        // ===== Effect Type Section =====
+        var effectTypeSection = new VisualElement();
+        effectTypeSection.AddToClassList("section-container");
+        
+        var effectTypeProp = serializedObject.FindProperty("effectType");
+        var effectTypeField = new PropertyField(effectTypeProp, "Effect Type");
+        effectTypeSection.Add(effectTypeField);
+
+        // Status Effect (shown conditionally)
+        _statusEffectContainer = new VisualElement();
+        BuildStatusEffectField();
+        effectTypeSection.Add(_statusEffectContainer);
+        
+        // Terrain Effect (shown conditionally)
+        _terrainEffectContainer = new VisualElement();
+        BuildTerrainEffectField();
+        effectTypeSection.Add(_terrainEffectContainer);
+        
+        root.Add(effectTypeSection);
+
+        // Track effectType changes to show/hide status/terrain effect
+        effectTypeField.RegisterValueChangeCallback(evt => {
+            BuildStatusEffectField();
+            BuildTerrainEffectField();
+        });
+
+        // ===== Effect Targeting Section =====
+        root.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
+        
+        var targetingSection = new VisualElement();
+        targetingSection.AddToClassList("section-container");
+        
+        var targetTypeProp = serializedObject.FindProperty("targetType");
+        var targetTypeField = CreateTargetTypeField(targetTypeProp);
+        targetingSection.Add(targetTypeField);
+        
+        root.Add(targetingSection);
+
+        // ===== Amount Section =====
+        root.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
+        
+        var amountSection = new VisualElement();
+        amountSection.AddToClassList("section-container");
+        
+        var amountSourceProp = serializedObject.FindProperty("amountSource");
+        var amountSourceField = new PropertyField(amountSourceProp, "Amount Source");
+        amountSection.Add(amountSourceField);
+
+        _amountFieldContainer = new VisualElement();
+        BuildValueField(_amountFieldContainer, "amount", "amountSource", "Amount", "Fixed");
+        amountSection.Add(_amountFieldContainer);
+        
+        root.Add(amountSection);
+
+        // Track amountSource changes
+        amountSourceField.RegisterValueChangeCallback(evt => {
+            BuildValueField(_amountFieldContainer, "amount", "amountSource", "Amount", "Fixed");
+        });
+
+        // ===== Timing Section (Delay & Duration) =====
+        root.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
+        
+        var timingSection = new VisualElement();
+        timingSection.AddToClassList("section-container");
+        
+        _delayConditionsContainer = new VisualElement();
+        BuildConditionsList(_delayConditionsContainer, "delayConditions", "Delay Conditions", "No delay - effect activates immediately");
+        timingSection.Add(_delayConditionsContainer);
+        
+        timingSection.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
+        
+        _durationConditionsContainer = new VisualElement();
+        BuildConditionsList(_durationConditionsContainer, "durationConditions", "Duration Conditions", "No duration limit - effect is permanent");
+        timingSection.Add(_durationConditionsContainer);
+        
+        root.Add(timingSection);
+
+        return root;
+    }
+
+    /// <summary>
+    /// Build the status effect field based on current effect type.
+    /// </summary>
+    private void BuildStatusEffectField() {
+        _statusEffectContainer.Clear();
+        
         var effectTypeProp = serializedObject.FindProperty("effectType");
         var statusEffectProp = serializedObject.FindProperty("statusEffect");
-        var amountSourceProp = serializedObject.FindProperty("amountSource");
-        var amountProp = serializedObject.FindProperty("amount");
-        var durationSourceProp = serializedObject.FindProperty("durationSource");
-        var durationProp = serializedObject.FindProperty("duration");
-
-        // ===== Effect Type Header =====
-        EditorGUILayout.PropertyField(effectTypeProp);
-
-        // Draw Status Effect (only relevant when effectType is Status)
         var currentEffectType = (AbilityEffectType)effectTypeProp.enumValueIndex;
         bool isStatusEffect = currentEffectType == AbilityEffectType.Status;
-        
+
         if (!isStatusEffect) {
-            // Force StatusEffect to None when EffectType is not Status
-            statusEffectProp.enumValueIndex = (int)StatusEffect.None;
-            EditorGUI.BeginDisabledGroup(true);
-            EditorGUILayout.PropertyField(statusEffectProp);
-            EditorGUI.EndDisabledGroup();
+            // Show disabled field
+            var disabledField = new PropertyField(statusEffectProp, "Status Effect");
+            disabledField.SetEnabled(false);
+            disabledField.AddToClassList("disabled-field");
+            _statusEffectContainer.Add(disabledField);
         } else {
-            // When EffectType is Status, prevent None from being selected
-            var currentStatus = (StatusEffect)statusEffectProp.enumValueIndex;
-            if (currentStatus == StatusEffect.None) {
-                // Default to first non-None value (Will)
-                statusEffectProp.enumValueIndex = (int)StatusEffect.Will;
-            }
+            // Build custom dropdown excluding None
+            var dropdown = new PopupField<StatusEffect>(
+                "Status Effect",
+                GetValidStatusEffects(),
+                GetCurrentStatusEffect(statusEffectProp),
+                FormatStatusEffect,
+                FormatStatusEffect
+            );
+            dropdown.AddToClassList("unity-base-field__aligned");
             
-            // Draw custom dropdown excluding None
-            DrawStatusEffectDropdown(statusEffectProp);
+            dropdown.RegisterValueChangedCallback(evt => {
+                statusEffectProp.enumValueIndex = (int)evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            
+            _statusEffectContainer.Add(dropdown);
         }
-
-        EditorGUILayout.Space();
-
-        // ===== Amount Header =====
-        EditorGUILayout.PropertyField(amountSourceProp);
-        DrawValueField(amountProp, amountSourceProp, "Amount", "Fixed");
-
-        EditorGUILayout.Space();
-
-        // ===== Duration Header =====
-        EditorGUILayout.PropertyField(durationSourceProp);
-        DrawValueField(durationProp, durationSourceProp, "Duration", "Turns");
-
-        serializedObject.ApplyModifiedProperties();
     }
 
     /// <summary>
-    /// Draw a StatusEffect dropdown that excludes None.
+    /// Build the terrain effect field based on current effect type.
     /// </summary>
-    private void DrawStatusEffectDropdown(SerializedProperty statusEffectProp) {
-        var allValues = System.Enum.GetValues(typeof(StatusEffect));
-        var validOptions = new System.Collections.Generic.List<StatusEffect>();
+    private void BuildTerrainEffectField() {
+        _terrainEffectContainer.Clear();
         
-        foreach (StatusEffect value in allValues) {
-            if (value != StatusEffect.None) {
-                validOptions.Add(value);
-            }
-        }
+        var effectTypeProp = serializedObject.FindProperty("effectType");
+        var terrainEffectProp = serializedObject.FindProperty("terrainEffect");
+        var currentEffectType = (AbilityEffectType)effectTypeProp.enumValueIndex;
+        bool isTerrainEffect = currentEffectType == AbilityEffectType.Terrain;
 
-        var currentStatus = (StatusEffect)statusEffectProp.enumValueIndex;
-        int currentIndex = validOptions.IndexOf(currentStatus);
-        if (currentIndex < 0) currentIndex = 0;
-
-        var optionNames = new string[validOptions.Count];
-        for (int i = 0; i < validOptions.Count; i++) {
-            optionNames[i] = validOptions[i].ToString();
-        }
-
-        int newIndex = EditorGUILayout.Popup("Status Effect", currentIndex, optionNames);
-        if (newIndex >= 0 && newIndex < validOptions.Count) {
-            statusEffectProp.enumValueIndex = (int)validOptions[newIndex];
+        if (!isTerrainEffect) {
+            // Show disabled field
+            var disabledField = new PropertyField(terrainEffectProp, "Terrain Effect");
+            disabledField.SetEnabled(false);
+            disabledField.AddToClassList("disabled-field");
+            _terrainEffectContainer.Add(disabledField);
+        } else {
+            // Build custom dropdown excluding None
+            var dropdown = new PopupField<TerrainEffect>(
+                "Terrain Effect",
+                GetValidTerrainEffects(),
+                GetCurrentTerrainEffect(terrainEffectProp),
+                FormatTerrainEffect,
+                FormatTerrainEffect
+            );
+            dropdown.AddToClassList("unity-base-field__aligned");
+            
+            dropdown.RegisterValueChangedCallback(evt => {
+                terrainEffectProp.enumValueIndex = (int)evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            
+            _terrainEffectContainer.Add(dropdown);
         }
     }
 
     /// <summary>
-    /// Draw a value field with optional "%" suffix and 0-100 clamping when source is not Fixed.
+    /// Build a value field for Amount section.
+    /// Fixed = "Fixed", TargetCount+ = "Multiplier"
     /// </summary>
-    /// <param name="valueProp">The serialized property for the value.</param>
-    /// <param name="sourceProp">The serialized property for the value source.</param>
-    /// <param name="baseLabel">The base label for the field (e.g., "Amount" or "Duration").</param>
-    /// <param name="fixedLabel">The label to show when source is Fixed (e.g., "Fixed" or "Turns").</param>
-    private void DrawValueField(SerializedProperty valueProp, SerializedProperty sourceProp, string baseLabel, string fixedLabel) {
-        var source = (ValueSource)sourceProp.enumValueIndex;
-        bool isPercentage = source != ValueSource.Fixed;
+    private void BuildValueField(VisualElement container, string valuePropName, string sourcePropName, string baseLabel, string fixedLabel) {
+        container.Clear();
+        
+        var sourceProp = serializedObject.FindProperty(sourcePropName);
+        var valueProp = serializedObject.FindProperty(valuePropName);
+        var source = (ValueSource)sourceProp.intValue;
+        bool isMultiplier = source != ValueSource.Fixed;
 
-        // Build the label with the type indicator
-        string label = isPercentage ? $"{baseLabel} (Percent)" : $"{baseLabel} ({fixedLabel})";
+        string label = isMultiplier ? $"{baseLabel} (Multiplier)" : $"{baseLabel} ({fixedLabel})";
 
-        EditorGUILayout.BeginHorizontal();
+        var field = new PropertyField(valueProp, label);
+        field.Bind(serializedObject);
+        container.Add(field);
+    }
 
-        EditorGUILayout.PrefixLabel(label);
+    /// <summary>
+    /// Build a list of conditions for Delay/Duration.
+    /// Fixed source = turns, other sources = compared values.
+    /// </summary>
+    private void BuildConditionsList(VisualElement container, string conditionsPropName, string headerLabel, string emptyMessage) {
+        container.Clear();
+        
+        var conditionsProp = serializedObject.FindProperty(conditionsPropName);
+        
+        // Header with Add button
+        var headerRow = new VisualElement();
+        headerRow.style.flexDirection = FlexDirection.Row;
+        headerRow.style.justifyContent = Justify.SpaceBetween;
+        headerRow.style.alignItems = Align.Center;
+        headerRow.style.marginTop = 8;
+        headerRow.style.marginBottom = 4;
+        
+        var headerLabelElem = new Label(headerLabel);
+        headerLabelElem.style.unityFontStyleAndWeight = FontStyle.Bold;
+        headerRow.Add(headerLabelElem);
+        
+        var addButton = new Button(() => {
+            conditionsProp.arraySize++;
+            var newElement = conditionsProp.GetArrayElementAtIndex(conditionsProp.arraySize - 1);
+            // Set defaults - Fixed with 0 value is a sensible default for "only on this turn" duration
+            newElement.FindPropertyRelative("Source").intValue = (int)ValueSource.Fixed;
+            newElement.FindPropertyRelative("Type").enumValueIndex = (int)ConditionType.EQ;
+            newElement.FindPropertyRelative("Value").intValue = 0;
+            newElement.FindPropertyRelative("ValueType").enumValueIndex = (int)ConditionValueType.Fixed;
+            newElement.FindPropertyRelative("ConnectorToNext").enumValueIndex = (int)ConditionConnector.AND;
+            serializedObject.ApplyModifiedProperties();
+            BuildConditionsList(container, conditionsPropName, headerLabel, emptyMessage);
+        }) { text = "+" };
+        addButton.style.width = 24;
+        addButton.style.height = 20;
+        headerRow.Add(addButton);
+        
+        container.Add(headerRow);
+        
+        // List of conditions
+        for (int i = 0; i < conditionsProp.arraySize; i++) {
+            int capturedIndex = i; // Capture by value for closure
+            var conditionElement = conditionsProp.GetArrayElementAtIndex(i);
+            var conditionRow = BuildConditionRow(conditionElement, i, conditionsProp.arraySize, () => {
+                conditionsProp.DeleteArrayElementAtIndex(capturedIndex);
+                serializedObject.ApplyModifiedProperties();
+                BuildConditionsList(container, conditionsPropName, headerLabel, emptyMessage);
+            });
+            container.Add(conditionRow);
+        }
+        
+        if (conditionsProp.arraySize == 0) {
+            var emptyLabel = new Label(emptyMessage);
+            emptyLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
+            emptyLabel.style.marginLeft = 4;
+            emptyLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
+            container.Add(emptyLabel);
+        }
+    }
 
-        if (isPercentage) {
-            EditorGUI.BeginChangeCheck();
-            int newValue = EditorGUILayout.IntField(valueProp.intValue);
-            if (EditorGUI.EndChangeCheck()) {
-                // Clamp to 0-100 for percentage values
-                valueProp.intValue = Mathf.Clamp(newValue, 0, 100);
-            }
+    /// <summary>
+    /// Build a single condition row with all fields inline.
+    /// Fixed source shows "Turns" label, other sources show ValueType dropdown.
+    /// </summary>
+    private VisualElement BuildConditionRow(SerializedProperty conditionProp, int index, int totalCount, System.Action onDelete) {
+        var row = new VisualElement();
+        row.style.flexDirection = FlexDirection.Row;
+        row.style.alignItems = Align.Center;
+        row.style.marginBottom = 2;
+        row.style.paddingLeft = 8;
+        row.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
+        row.style.borderBottomLeftRadius = 4;
+        row.style.borderBottomRightRadius = 4;
+        row.style.borderTopLeftRadius = 4;
+        row.style.borderTopRightRadius = 4;
+        row.style.paddingTop = 4;
+        row.style.paddingBottom = 4;
+        
+        // Source dropdown - use PopupField to exclude TargetCount (not valid for conditions)
+        var sourceProp = conditionProp.FindPropertyRelative("Source");
+        var validSources = GetValidConditionSources();
+        var currentSource = (ValueSource)sourceProp.intValue;
+        if (!validSources.Contains(currentSource)) {
+            currentSource = ValueSource.Fixed;
+        }
+        
+        // Container for ValueType dropdown or "Turns" label (declared early for callback)
+        var valueTypeContainer = new VisualElement();
+        valueTypeContainer.style.width = 80;
+        valueTypeContainer.style.marginLeft = 2;
+        
+        var valueTypeProp = conditionProp.FindPropertyRelative("ValueType");
+        
+        // Function to update the valueType container based on source
+        void UpdateValueTypeDisplay() {
+            valueTypeContainer.Clear();
+            var src = (ValueSource)sourceProp.intValue;
             
-            // Draw "%" label
-            GUILayout.Label("%", GUILayout.Width(15));
-        } else {
-            // Draw normal int field without restrictions
-            EditorGUILayout.PropertyField(valueProp, GUIContent.none);
+            // Fixed shows "Turns" label
+            if (src == ValueSource.Fixed) {
+                // Show "Turns" label for Fixed source
+                var turnsLabel = new Label("Turns");
+                turnsLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+                turnsLabel.style.paddingLeft = 4;
+                valueTypeContainer.Add(turnsLabel);
+            } else {
+                // Show ValueType dropdown for other sources
+                var valueTypeField = new EnumField((ConditionValueType)valueTypeProp.enumValueIndex);
+                valueTypeField.style.width = 80;
+                valueTypeField.RegisterValueChangedCallback(evt => {
+                    valueTypeProp.enumValueIndex = (int)(ConditionValueType)evt.newValue;
+                    serializedObject.ApplyModifiedProperties();
+                });
+                valueTypeContainer.Add(valueTypeField);
+            }
+        }
+        
+        var sourceField = new PopupField<ValueSource>(
+            validSources,
+            currentSource,
+            FormatValueSource,
+            FormatValueSource
+        );
+        sourceField.style.width = 110;
+        sourceField.RegisterValueChangedCallback(evt => {
+            sourceProp.intValue = (int)evt.newValue;
+            serializedObject.ApplyModifiedProperties();
+            UpdateValueTypeDisplay();
+        });
+        row.Add(sourceField);
+        
+        // Condition type dropdown
+        var typeProp = conditionProp.FindPropertyRelative("Type");
+        var typeField = new EnumField((ConditionType)typeProp.enumValueIndex);
+        typeField.style.width = 80;
+        typeField.RegisterValueChangedCallback(evt => {
+            typeProp.enumValueIndex = (int)(ConditionType)evt.newValue;
+            serializedObject.ApplyModifiedProperties();
+        });
+        row.Add(typeField);
+        
+        // Value field
+        var valueProp = conditionProp.FindPropertyRelative("Value");
+        var valueField = new IntegerField();
+        valueField.value = valueProp.intValue;
+        valueField.style.width = 50;
+        // Right-align the text in the input field
+        var inputElement = valueField.Q<UnityEngine.UIElements.TextElement>();
+        if (inputElement != null) {
+            inputElement.style.unityTextAlign = TextAnchor.MiddleRight;
+        }
+        valueField.RegisterValueChangedCallback(evt => {
+            valueProp.intValue = evt.newValue;
+            serializedObject.ApplyModifiedProperties();
+        });
+        row.Add(valueField);
+        
+        // Add the valueTypeContainer (already declared above)
+        row.Add(valueTypeContainer);
+        
+        // Initial update
+        UpdateValueTypeDisplay();
+        
+        // Connector (only if not last)
+        if (index < totalCount - 1) {
+            var connectorProp = conditionProp.FindPropertyRelative("ConnectorToNext");
+            var connectorField = new EnumField((ConditionConnector)connectorProp.enumValueIndex);
+            connectorField.style.width = 60;
+            connectorField.RegisterValueChangedCallback(evt => {
+                connectorProp.enumValueIndex = (int)(ConditionConnector)evt.newValue;
+                serializedObject.ApplyModifiedProperties();
+            });
+            row.Add(connectorField);
+        }
+        
+        // Delete button
+        var deleteButton = new Button(onDelete) { text = "×" };
+        deleteButton.style.width = 20;
+        deleteButton.style.height = 20;
+        deleteButton.style.marginLeft = 4;
+        row.Add(deleteButton);
+        
+        return row;
+    }
+
+    private System.Collections.Generic.List<StatusEffect> GetValidStatusEffects() {
+        var list = new System.Collections.Generic.List<StatusEffect>();
+        foreach (StatusEffect value in System.Enum.GetValues(typeof(StatusEffect))) {
+            if (value != StatusEffect.None) {
+                list.Add(value);
+            }
+        }
+        return list;
+    }
+
+    private StatusEffect GetCurrentStatusEffect(SerializedProperty prop) {
+        var current = (StatusEffect)prop.enumValueIndex;
+        return current == StatusEffect.None ? StatusEffect.Will : current;
+    }
+
+    private string FormatStatusEffect(StatusEffect effect) {
+        return effect.ToString();
+    }
+
+    private System.Collections.Generic.List<TerrainEffect> GetValidTerrainEffects() {
+        var list = new System.Collections.Generic.List<TerrainEffect>();
+        foreach (TerrainEffect value in System.Enum.GetValues(typeof(TerrainEffect))) {
+            if (value != TerrainEffect.None) {
+                list.Add(value);
+            }
+        }
+        return list;
+    }
+
+    private TerrainEffect GetCurrentTerrainEffect(SerializedProperty prop) {
+        var current = (TerrainEffect)prop.enumValueIndex;
+        return current == TerrainEffect.None ? TerrainEffect.Difficult : current;
+    }
+
+    private string FormatTerrainEffect(TerrainEffect effect) {
+        return effect.ToString();
+    }
+
+    /// <summary>
+    /// Get valid ValueSource options for conditions (excludes TargetCount).
+    /// </summary>
+    private List<ValueSource> GetValidConditionSources() {
+        var list = new List<ValueSource>();
+        foreach (ValueSource value in System.Enum.GetValues(typeof(ValueSource))) {
+            if (value != ValueSource.TargetCount) {
+                list.Add(value);
+            }
+        }
+        return list;
+    }
+
+    private string FormatValueSource(ValueSource source) {
+        return source.ToString();
+    }
+
+    /// <summary>
+    /// Create a target type flags field that prevents empty selection.
+    /// Shows only base flags (Ally, NonAlly, Empty), hiding composite values.
+    /// </summary>
+    private VisualElement CreateTargetTypeField(SerializedProperty prop) {
+        int effectId = target.GetInstanceID();
+        
+        // Ensure not empty
+        if (prop.intValue == 0) {
+            if (LastValidTargetType.TryGetValue(effectId, out var last) && last != 0) {
+                prop.intValue = (int)last;
+            } else {
+                prop.intValue = (int)AbilityTargetType.Everything;
+            }
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        EditorGUILayout.EndHorizontal();
+        var field = new EnumFlagsField("Target Type", (AbilityTargetType)prop.intValue);
+        field.AddToClassList("unity-base-field__aligned");
+        field.RegisterValueChangedCallback(evt => {
+            var newValue = (AbilityTargetType)System.Convert.ToInt32(evt.newValue);
+            if (newValue == 0) {
+                // Restore last valid
+                if (LastValidTargetType.TryGetValue(effectId, out var last) && last != 0) {
+                    field.SetValueWithoutNotify(last);
+                    prop.intValue = (int)last;
+                } else {
+                    field.SetValueWithoutNotify(AbilityTargetType.Everything);
+                    prop.intValue = (int)AbilityTargetType.Everything;
+                }
+            } else {
+                prop.intValue = (int)newValue;
+                LastValidTargetType[effectId] = newValue;
+            }
+            serializedObject.ApplyModifiedProperties();
+        });
+        
+        return field;
+    }
+}
+
+/// <summary>
+/// Extension methods for VisualElement fluent API.
+/// </summary>
+public static class VisualElementExtensions {
+    public static T WithClass<T>(this T element, string className) where T : VisualElement {
+        element.AddToClassList(className);
+        return element;
     }
 }
 

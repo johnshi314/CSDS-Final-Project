@@ -14,12 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 101
   DisplayName: Loud Demand
-  TargetType: 2
+  TargetType: 18
   TargetMode: 0
-  TargetShape: 3
-  RangeMax: 0
-  RangeMin: 0
-  Cost: 0
+  TargetShape: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  RangeMax: 3
+  RangeMin: 1
+  Cost: 1
   Cooldown: 0
-  Effects:
-  - {fileID: 0}
+  TargetEffects:
+  - {fileID: 11400000, guid: c40823cb43d63c93eade8b708d64b7dd, type: 2}
+  CasterEffects: []

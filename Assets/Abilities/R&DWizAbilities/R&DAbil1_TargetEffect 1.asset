@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: R&DAbil1_TargetEffect 1
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
   effectType: 2
-  statusEffect: 0
+  statusEffect: 8
+  amountSource: 0
   amount: 1
-  duration: 999
+  durationSource: 0
+  duration: -1

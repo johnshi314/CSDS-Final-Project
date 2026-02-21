@@ -14,5 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
   effectType: 2
   statusEffect: 3
+  targetType: 8
+  amountSource: 0
   amount: 1
-  duration: 1
+  delayConditions: []
+  durationConditions:
+  - ConnectorToNext: 0
+    Type: 0
+    Source: 0
+    Value: 0
+    ValueType: 0
