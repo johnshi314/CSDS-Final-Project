@@ -65,6 +65,8 @@ public class AbilityEffectEditor : UnityEditor.Editor {
 
         // Track effectType changes to show/hide status/terrain effect
         effectTypeField.RegisterValueChangeCallback(evt => {
+            // Update serialized object to get latest values from OnValidate
+            serializedObject.Update();
             BuildStatusEffectField();
             BuildTerrainEffectField();
             BuildTargetTypeField();
@@ -126,7 +128,8 @@ public class AbilityEffectEditor : UnityEditor.Editor {
 
     /// <summary>
     /// Build target type field based on current effect type.
-    /// Terrain effects force Empty target type.
+    /// Non-terrain effects cannot have Empty flag.
+    /// Terrain effects can have any combination (tile is main target, flags determine occupant types allowed).
     /// </summary>
     private void BuildTargetTypeField() {
         _targetTypeContainer.Clear();
@@ -136,20 +139,18 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         bool isTerrainEffect = (AbilityEffectType)effectTypeProp.enumValueIndex == AbilityEffectType.Terrain;
 
         if (isTerrainEffect) {
-            if (targetTypeProp.intValue != (int)AbilityTargetType.Empty) {
-                targetTypeProp.intValue = (int)AbilityTargetType.Empty;
+            // Terrain effects: allow any flags except None (0)
+            // The value should already be restored by OnValidate, just display it
+            if (targetTypeProp.intValue == 0) {
+                targetTypeProp.intValue = (int)AbilityTargetType.Agents;
                 serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
-
-            var disabledField = new EnumFlagsField("Target Type", AbilityTargetType.Empty);
-            disabledField.SetEnabled(false);
-            disabledField.AddToClassList("unity-base-field__aligned");
-            disabledField.AddToClassList("disabled-field");
-            _targetTypeContainer.Add(disabledField);
+            _targetTypeContainer.Add(CreateTargetTypeField(targetTypeProp, isTerrainEffect: true));
             return;
         }
 
-        _targetTypeContainer.Add(CreateTargetTypeField(targetTypeProp));
+        // Non-terrain effects: prevent Empty flag
+        _targetTypeContainer.Add(CreateTargetTypeField(targetTypeProp, isTerrainEffect: false));
     }
 
     /// <summary>
@@ -499,11 +500,41 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Create a target type flags field that prevents empty selection.
     /// Shows only base flags (Ally, NonAlly, Empty), hiding composite values.
     /// </summary>
-    private VisualElement CreateTargetTypeField(SerializedProperty prop) {
+    private VisualElement CreateTargetTypeField(SerializedProperty prop, bool isTerrainEffect = false) {
         int effectId = target.GetInstanceID();
-
-        // Non-terrain effects cannot include Empty
         var initialValue = (AbilityTargetType)prop.intValue;
+
+        if (isTerrainEffect) {
+            // Terrain effects: allow any flags except None (0)
+            if (initialValue == 0) {
+                prop.intValue = (int)AbilityTargetType.Agents;
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                initialValue = AbilityTargetType.Agents;
+            }
+
+            var targetTypeField = new EnumFlagsField("Target Type", initialValue);
+            targetTypeField.AddToClassList("unity-base-field__aligned");
+            targetTypeField.RegisterValueChangedCallback(evt => {
+                var newValue = (AbilityTargetType)System.Convert.ToInt32(evt.newValue);
+                if (newValue == 0) {
+                    // Prevent None, restore to previous or default
+                    if (LastValidTargetType.TryGetValue(effectId, out var last) && last != 0) {
+                        targetTypeField.SetValueWithoutNotify(last);
+                        prop.intValue = (int)last;
+                    } else {
+                        targetTypeField.SetValueWithoutNotify(AbilityTargetType.Agents);
+                        prop.intValue = (int)AbilityTargetType.Agents;
+                    }
+                } else {
+                    prop.intValue = (int)newValue;
+                    LastValidTargetType[effectId] = newValue;
+                }
+                serializedObject.ApplyModifiedProperties();
+            });
+            return targetTypeField;
+        }
+
+        // Non-terrain effects: cannot include Empty flag
         var initialNonEmptyValue = initialValue & ~AbilityTargetType.Empty;
         
         // Ensure valid initial value for non-terrain effects
