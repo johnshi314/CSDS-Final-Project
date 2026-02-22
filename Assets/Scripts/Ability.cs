@@ -39,6 +39,8 @@ namespace NetFlower {
         [Header("Costs")]
         public uint Cost = 1;                   // Resource cost to use ability (e.g., mana, stamina)
         public uint Cooldown = 0;               // Number of turns before ability can be used again after use
+        [Tooltip("If true, ability is on cooldown from turn 0 (becomes available at turn Cooldown).")]
+        public bool StartsOnCooldown = true;
 
         // [Header("Effects")]
         public List<AbilityEffect> TargetEffects;     // List of effects this ability applies to targets
@@ -89,6 +91,7 @@ namespace NetFlower {
         /// <param name="context">Context information for ability resolution.</param>
         /// <returns>True if the context is valid, false otherwise.</returns>
         public static bool IsValidContext(AbilityUseContext context) {
+            if (context == null) return false;
             if (context.Ability == null || context.Caster == null)
                 return false;
 
@@ -130,24 +133,38 @@ namespace NetFlower {
             // If there are no effects, nothing to resolve
             if (context.Ability.TargetEffects == null || context.Ability.TargetEffects.Count == 0)
                 return;
-            
-            // Get all targets in the area of effect based on the ability's shape
-            var targetAgents = GetTargetsInShape(context);
 
-            // Apply each effect to each target
+
+            // Apply each effect to each tile; agent-bound effects follow the occupant, tile-bound effects stay on the tile
             foreach (var effect in context.Ability.TargetEffects) {
-                foreach (Agent target in targetAgents) {
-                    // Create an instance of the effect for this target
-                    var effectInstance = new AbilityEffectInstance(effect, context.Caster);
-
-                    // Apply the effect immediately
-                    effectInstance.ApplyTo(target);
-
-                    // // If the effect has a duration, add it to the target's active effects
-                    // if (effect.Duration > 0) {
-                    //     // target.AddEffect(effectInstance);
-                    //     //TODO: Fix how effects are added to agents
-                    // }
+                if (effect.IsTileBound) {
+                    var tiles = GetTilesInShape(context);
+                    var map = context.TargetTile.Map;
+                    foreach (Tile tile in tiles) {
+                        var instance = new AbilityEffectInstance(
+                            effect: effect,
+                            source:context.Caster,
+                            targetTile: tile,
+                            turnApplied: context.TurnNumber);
+                        instance.Apply();
+                        if (instance.HasDuration && map != null) {
+                            map.AddEffect(tile, instance);
+                        }
+                    }
+                } else {
+                    var agents = GetTargetsInShape(context);
+                    foreach (Agent agent in agents) {
+                        // TODO: Check if the effect can be applied to the agent
+                        var instance = new AbilityEffectInstance(
+                            effect: effect,
+                            source: context.Caster,
+                            targetAgent: agent,
+                            turnApplied: context.TurnNumber);
+                        instance.Apply();
+                        if (instance.HasDuration) {
+                            context.Caster.AddEffect(instance);
+                        }
+                    }
                 }
             }
         }
@@ -301,6 +318,8 @@ namespace NetFlower {
         public Ability Ability;
         public Agent Caster;
         public Tile TargetTile;
+        /// <summary>Current turn number when the ability is used (for effect expiry and cooldowns). Use 0 if unknown.</summary>
+        public int TurnNumber;
     }
 
     /// <summary>
@@ -312,34 +331,79 @@ namespace NetFlower {
         public int RangeMinDelta;
         public int DamageDelta;
     }
+    /// <summary>
+    /// Runtime instance of an ability effect. Turn order decides when to call Apply and when to remove expired instances.
+    /// Agent-bound (Damage, Heal, Status): stored on the agent, follows that agent. Tile-bound (Terrain): stored on the map by tile, lingers on the tile.
+    /// </summary>
     public class AbilityEffectInstance {
         public AbilityEffect Effect;
-        public Agent Source; // The agent that caused this effect (e.g., the caster of the ability)
-        public int Duration; // Number of turns remaining for this effect (0 for instant effects)
+        public Agent Source;       // The agent that caused this effect (e.g., the caster)
+        public Tile TargetTile;    // Tile at application time; for tile-bound (Terrain) this is where the effect lingers
+        public Agent TargetAgent;  // For agent-bound (Damage, Heal, Status): the agent this effect follows; null for Terrain
+        /// <summary>Turn number when this effect was applied (used for expiry with current turn).</summary>
+        public int TurnApplied;
+        public List<ValueCondition> DurationConditions {
+            get {
+                if (Effect == null) return new List<ValueCondition>();
+                if (Effect.DurationConditions == null) return new List<ValueCondition>();
+                return Effect.DurationConditions;
+            }
+        }
+        [Obsolete("Use DurationConditions instead")]
+        public int Duration = 1; // TODO: Depricate this and use DurationConditions instead
 
-        public AbilityEffectInstance(AbilityEffect effect, Agent source) {
-            // Effect = effect.Clone(); // Clone to ensure each instance is independent
-            // Source = source;
-            // Duration = (int)effect.Duration;
+        public AbilityEffectInstance(AbilityEffect effect,
+                                    Agent source,
+                                    Tile targetTile = null,
+                                    Agent targetAgent = null,
+                                    int turnApplied = 0) {
+            if (effect == null || source == null)
+                throw new Exception("AbilityEffectInstance: Effect and source cannot be null");
+            if (effect.IsTileBound && targetTile == null)
+                throw new Exception("AbilityEffectInstance: Tile-bound effect must have a target tile");
+            if (!effect.IsTileBound && targetAgent == null)
+                throw new Exception("AbilityEffectInstance: Agent-bound effect must have a target agent");
+            Effect = effect;
+            Source = source;
+            TargetTile = targetTile;
+            TargetAgent = targetAgent;
+            TurnApplied = turnApplied;
         }
 
-        public void ApplyTo(Agent target) {
-            // switch (Effect.EffectType) {
-            //     case AbilityEffectType.Damage:
-            //         target.TakeDamage((int)Effect.Amount);
-            //         break;
-            //     case AbilityEffectType.Heal:
-            //         target.Heal((int)Effect.Amount);
-            //         break;
-            //     case AbilityEffectType.BuffRange:
-            //         // TODO: Implement buff system
-            //         Debug.LogWarning("BuffRange effect not yet implemented");
-            //         break;
-            //     case AbilityEffectType.DebuffRange:
-            //         // TODO: Implement debuff system
-            //         Debug.LogWarning("DebuffRange effect not yet implemented");
-            //         break;
-            // }
+        /// <summary>
+        /// True if this effect has duration conditions (should be tracked and ticked by turn order).
+        /// </summary>
+        public bool HasDuration => Effect != null && Effect.DurationConditions != null && Effect.DurationConditions.Count > 0;
+
+        /// <summary>
+        /// True if this effect is tile-bound (Terrain). Otherwise agent-bound (Damage, Heal, Status). Delegates to Effect.
+        /// </summary>
+        public bool IsTileBound => Effect != null && Effect.IsTileBound;
+
+        /// <summary>
+        /// Apply this effect once. Agent-bound: apply to TargetAgent (or occupant at TargetTile). Tile-bound: apply to TargetTile.
+        /// </summary>
+        public void Apply() {
+            if (Effect == null) return;
+            int amount = (int)Effect.Amount;
+            switch (Effect.EffectType) {
+                case AbilityEffectType.Damage:
+                case AbilityEffectType.Heal:
+                case AbilityEffectType.Status:
+                    Agent agent = TargetAgent ?? (TargetTile?.Map != null ? TargetTile.Map.GetAgentAtTile(TargetTile) : null);
+                    if (agent != null) {
+                        if (Effect.EffectType == AbilityEffectType.Damage) agent.TakeDamage(amount);
+                        else if (Effect.EffectType == AbilityEffectType.Heal) agent.Heal(amount);
+                        else { /* TODO: status */ Debug.LogWarning("Status effect not yet implemented"); }
+                    }
+                    break;
+                case AbilityEffectType.Terrain:
+                    // TODO: apply terrain to tile state when we have tile modifiers
+                    if (TargetTile != null) { /* tile modifier */ }
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }

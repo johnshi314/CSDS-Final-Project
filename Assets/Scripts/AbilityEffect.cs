@@ -32,6 +32,8 @@ namespace NetFlower {
         [SerializeField] private List<ValueCondition> durationConditions = new(); // Conditions that end the effect (Fixed = turns)
 
         public AbilityEffectType EffectType => effectType;
+        /// <summary>True if this effect is tile-bound (Terrain). Otherwise agent-bound (Damage, Heal, Status).</summary>
+        public bool IsTileBound => effectType == AbilityEffectType.Terrain;
         public StatusEffect StatusEffect => statusEffect;
         public TerrainEffect TerrainEffect => terrainEffect;
         public AbilityTargetType TargetType => targetType;

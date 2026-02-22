@@ -15,6 +15,7 @@ namespace NetFlower {
     /// </summary>
     public class Agent : MonoBehaviour {
 
+
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         public void Start() {
             // Initialize current HP to max HP at the start
@@ -22,6 +23,9 @@ namespace NetFlower {
 
             // Initialize cooldowns for all abilities to 0 (available)
             foreach (var ability in Abilities) {
+                if (ability.StartsOnCooldown)
+                    currentCooldowns[ability] = (int) ability.Cooldown;
+                else
                 currentCooldowns[ability] = 0;
             }
         }
@@ -45,6 +49,24 @@ namespace NetFlower {
         private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
         public uint MovementRange { get { return MaxRange; } }
+
+        /// <summary>
+        /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
+        /// </summary>
+        public void AddEffect(AbilityEffectInstance instance) {
+            if (instance != null && !instance.IsTileBound) activeEffects.Add(instance);
+        }
+
+        /// <summary>
+        /// Called by turn order each turn: remove agent-bound effects expired at the given turn number.
+        /// </summary>
+        /// <param name="currentTurn">Current turn number (used for expiry: effect expires when currentTurn >= TurnApplied + duration).</param>
+        public void TickEffects(int currentTurn) {
+            for (int i = activeEffects.Count - 1; i >= 0; i--) {
+                // TODO: Implement effect expiration
+                // if (activeEffects[i].IsExpired(currentTurn)) activeEffects.RemoveAt(i);
+            }
+        }
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -215,7 +237,7 @@ namespace NetFlower {
             ability.Resolve(context);
             
             // Set cooldown after successful use
-            currentCooldowns[ability] = (int)ability.Cooldown;
+            currentCooldowns[ability] = (int) ability.Cooldown;
             
             return true;
         }

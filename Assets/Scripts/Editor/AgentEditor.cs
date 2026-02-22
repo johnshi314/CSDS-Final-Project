@@ -201,7 +201,9 @@ public class AgentEditor : UnityEditor.Editor {
             var source = selectedEffectSource != null ? selectedEffectSource : agent;
 
             Undo.RecordObject(agent, "Add Active Effect");
-            activeEffects.Add(new AbilityEffectInstance(selectedTemplate, source));
+            // Agent-bound effects need targetAgent (the agent who has the effect); we're adding to this agent's list so target = agent. Tile-bound use null targetAgent.
+            Agent targetAgent = selectedTemplate.IsTileBound ? null : agent;
+            activeEffects.Add(new AbilityEffectInstance(selectedTemplate, source, targetTile: null, targetAgent, turnApplied: 0));
 
             EditorUtility.SetDirty(agent);
         }
