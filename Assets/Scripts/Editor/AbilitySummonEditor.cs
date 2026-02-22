@@ -133,11 +133,11 @@ public class AbilitySummonEditor : AbilityEditor {
         BuildEffectsSummary(ability);
         root.Add(_summaryContainer);
 
-        // Schedule periodic refresh
+        // Schedule periodic refresh (reduced frequency to limit unnecessary redraws)
         root.schedule.Execute(() => {
             BuildSummonPreview(ability);
             BuildEffectsSummary(ability);
-        }).Every(500);
+        }).Every(2000);
 
         return root;
     }

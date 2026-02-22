@@ -126,6 +126,12 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return root;
     }
 
+    private void OnDisable() {
+        if (target != null) {
+            LastValidTargetType.Remove(target.GetInstanceID());
+        }
+    }
+
     /// <summary>
     /// Build target type field based on current effect type.
     /// Non-terrain effects cannot have Empty flag.

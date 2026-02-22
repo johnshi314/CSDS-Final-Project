@@ -100,9 +100,15 @@ public class AbilityEditor : UnityEditor.Editor {
         root.Add(_summaryContainer);
 
         // Schedule periodic summary refresh (since we can't easily track nested object changes)
-        root.schedule.Execute(() => BuildEffectsSummary(ability)).Every(500);
+        root.schedule.Execute(() => BuildEffectsSummary(ability)).Every(5000);
 
         return root;
+    }
+
+    private void OnDisable() {
+        if (target != null) {
+            LastValidTargetType.Remove(target.GetInstanceID());
+        }
     }
 
     /// <summary>
