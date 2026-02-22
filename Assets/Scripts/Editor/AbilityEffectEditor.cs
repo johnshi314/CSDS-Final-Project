@@ -30,6 +30,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     private VisualElement _terrainEffectContainer;
     private VisualElement _targetTypeContainer;
     private VisualElement _amountFieldContainer;
+    private PropertyField _amountSourceField;
     private VisualElement _delayConditionsContainer;
     private VisualElement _durationConditionsContainer;
 
@@ -63,13 +64,14 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         
         root.Add(effectTypeSection);
 
-        // Track effectType changes to show/hide status/terrain effect
+        // Track effectType changes to show/hide status/terrain effect and amount state
         effectTypeField.RegisterValueChangeCallback(evt => {
             // Update serialized object to get latest values from OnValidate
             serializedObject.Update();
             BuildStatusEffectField();
             BuildTerrainEffectField();
             BuildTargetTypeField();
+            UpdateAmountSectionEnabledState();
         });
 
         // ===== Effect Targeting Section =====
@@ -89,21 +91,19 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         
         var amountSection = new VisualElement();
         amountSection.AddToClassList("section-container");
-        
+        amountSection.AddToClassList("amount-section"); // For USS: keep disabled inputs visible
+
         var amountSourceProp = serializedObject.FindProperty("amountSource");
-        var amountSourceField = new PropertyField(amountSourceProp, "Amount Source");
-        amountSection.Add(amountSourceField);
+        _amountSourceField = new PropertyField(amountSourceProp, "Amount Source");
+        var amountProp = serializedObject.FindProperty("amount");
+        amountSection.Add(_amountSourceField);
 
         _amountFieldContainer = new VisualElement();
-        BuildValueField(_amountFieldContainer, "amount", "amountSource", "Amount", "Fixed");
+        _amountFieldContainer.Add(new PropertyField(amountProp, "Amount"));
         amountSection.Add(_amountFieldContainer);
-        
-        root.Add(amountSection);
 
-        // Track amountSource changes
-        amountSourceField.RegisterValueChangeCallback(evt => {
-            BuildValueField(_amountFieldContainer, "amount", "amountSource", "Amount", "Fixed");
-        });
+        root.Add(amountSection);
+        UpdateAmountSectionEnabledState();
 
         // ===== Timing Section (Delay & Duration) =====
         root.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
@@ -131,7 +131,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Non-terrain effects cannot have Empty flag.
     /// Terrain effects can have any combination (tile is main target, flags determine occupant types allowed).
     /// </summary>
-    private void BuildTargetTypeField() {
+    void BuildTargetTypeField() {
         _targetTypeContainer.Clear();
 
         var effectTypeProp = serializedObject.FindProperty("effectType");
@@ -139,13 +139,13 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         bool isTerrainEffect = (AbilityEffectType)effectTypeProp.enumValueIndex == AbilityEffectType.Terrain;
 
         if (isTerrainEffect) {
-            // Terrain effects: allow any flags except None (0)
-            // The value should already be restored by OnValidate, just display it
-            if (targetTypeProp.intValue == 0) {
-                targetTypeProp.intValue = (int)AbilityTargetType.Agents;
-                serializedObject.ApplyModifiedPropertiesWithoutUndo();
-            }
-            _targetTypeContainer.Add(CreateTargetTypeField(targetTypeProp, isTerrainEffect: true));
+            // Terrain effects: always Everything, show disabled field
+            targetTypeProp.intValue = (int)AbilityTargetType.Everything;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            var field = new EnumFlagsField("Target Type", AbilityTargetType.Everything);
+            field.SetEnabled(false);
+            field.AddToClassList("unity-base-field__aligned");
+            _targetTypeContainer.Add(field);
             return;
         }
 
@@ -156,7 +156,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// <summary>
     /// Build the status effect field based on current effect type.
     /// </summary>
-    private void BuildStatusEffectField() {
+    void BuildStatusEffectField() {
         _statusEffectContainer.Clear();
         
         var effectTypeProp = serializedObject.FindProperty("effectType");
@@ -186,6 +186,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
             dropdown.RegisterValueChangedCallback(evt => {
                 statusEffectProp.intValue = (int)evt.newValue;
                 serializedObject.ApplyModifiedProperties();
+                UpdateAmountSectionEnabledState();
             });
             
             _statusEffectContainer.Add(dropdown);
@@ -193,9 +194,29 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     }
 
     /// <summary>
+    /// Amount is disabled for state status (Status + statusEffect &lt; 101) or state terrain (Terrain + terrainEffect &lt; 101).
+    /// Enabled for Damage, Heal, and for Status/Terrain when the effect is an Up/Down (e.g. WillUp, DifficultUp).
+    /// </summary>
+    void UpdateAmountSectionEnabledState() {
+        serializedObject.Update();
+        var effectTypeProp = serializedObject.FindProperty("effectType");
+        var statusEffectProp = serializedObject.FindProperty("statusEffect");
+        var terrainEffectProp = serializedObject.FindProperty("terrainEffect");
+        var effectType = (AbilityEffectType)effectTypeProp.enumValueIndex;
+        int statusEffectValue = statusEffectProp.intValue;
+        int terrainEffectValue = terrainEffectProp.intValue;
+        bool isAmountLocked = (effectType == AbilityEffectType.Status && statusEffectValue < 101)
+            || (effectType == AbilityEffectType.Terrain && terrainEffectValue < 101);
+
+        _amountSourceField.SetEnabled(!isAmountLocked);
+        foreach (var child in _amountFieldContainer.Children())
+            child.SetEnabled(!isAmountLocked);
+    }
+
+    /// <summary>
     /// Build the terrain effect field based on current effect type.
     /// </summary>
-    private void BuildTerrainEffectField() {
+    void BuildTerrainEffectField() {
         _terrainEffectContainer.Clear();
         
         var effectTypeProp = serializedObject.FindProperty("effectType");
@@ -225,6 +246,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
             dropdown.RegisterValueChangedCallback(evt => {
                 terrainEffectProp.intValue = (int)evt.newValue;
                 serializedObject.ApplyModifiedProperties();
+                UpdateAmountSectionEnabledState();
             });
             
             _terrainEffectContainer.Add(dropdown);
@@ -235,7 +257,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Build a value field for Amount section.
     /// Fixed = "Fixed", TargetCount+ = "Multiplier"
     /// </summary>
-    private void BuildValueField(VisualElement container, string valuePropName, string sourcePropName, string baseLabel, string fixedLabel) {
+    void BuildValueField(VisualElement container, string valuePropName, string sourcePropName, string baseLabel, string fixedLabel) {
         container.Clear();
         
         var sourceProp = serializedObject.FindProperty(sourcePropName);
@@ -243,7 +265,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         var source = (ValueSource)sourceProp.intValue;
         bool isMultiplier = source != ValueSource.Fixed;
 
-        string label = isMultiplier ? $"{baseLabel} (Multiplier)" : $"{baseLabel} ({fixedLabel})";
+        string label = isMultiplier ? $"{baseLabel} (Scaled)" : $"{baseLabel} ({fixedLabel})";
 
         var field = new PropertyField(valueProp, label);
         field.Bind(serializedObject);
@@ -254,30 +276,27 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Build a list of conditions for Delay/Duration.
     /// Fixed source = turns, other sources = compared values.
     /// </summary>
-    private void BuildConditionsList(VisualElement container, string conditionsPropName, string headerLabel, string emptyMessage) {
+    void BuildConditionsList(VisualElement container, string conditionsPropName, string headerLabel, string emptyMessage) {
         container.Clear();
-        
         var conditionsProp = serializedObject.FindProperty(conditionsPropName);
-        
+
         // Header with Add button
         var headerRow = new VisualElement();
-        headerRow.style.flexDirection = FlexDirection.Row;
         headerRow.style.justifyContent = Justify.SpaceBetween;
         headerRow.style.alignItems = Align.Center;
         headerRow.style.marginTop = 8;
         headerRow.style.marginBottom = 4;
-        
+
         var headerLabelElem = new Label(headerLabel);
-        headerLabelElem.style.unityFontStyleAndWeight = FontStyle.Bold;
         headerRow.Add(headerLabelElem);
-        
+
         var addButton = new Button(() => {
             conditionsProp.arraySize++;
             var newElement = conditionsProp.GetArrayElementAtIndex(conditionsProp.arraySize - 1);
             // Set defaults - Fixed with 0 value is a sensible default for "only on this turn" duration
             newElement.FindPropertyRelative("Source").intValue = (int)ValueSource.Fixed;
             newElement.FindPropertyRelative("Type").enumValueIndex = (int)ConditionType.EQ;
-            newElement.FindPropertyRelative("Value").intValue = 0;
+            newElement.FindPropertyRelative("Value").doubleValue = 0.0;
             newElement.FindPropertyRelative("ValueType").enumValueIndex = (int)ConditionValueType.Fixed;
             newElement.FindPropertyRelative("ConnectorToNext").enumValueIndex = (int)ConditionConnector.AND;
             serializedObject.ApplyModifiedProperties();
@@ -286,9 +305,9 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         addButton.style.width = 24;
         addButton.style.height = 20;
         headerRow.Add(addButton);
-        
+
         container.Add(headerRow);
-        
+
         // List of conditions
         for (int i = 0; i < conditionsProp.arraySize; i++) {
             int capturedIndex = i; // Capture by value for closure
@@ -300,7 +319,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
             });
             container.Add(conditionRow);
         }
-        
+
         if (conditionsProp.arraySize == 0) {
             var emptyLabel = new Label(emptyMessage);
             emptyLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
@@ -314,7 +333,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Build a single condition row with all fields inline.
     /// Fixed source shows "Turns" label, other sources show ValueType dropdown.
     /// </summary>
-    private VisualElement BuildConditionRow(SerializedProperty conditionProp, int index, int totalCount, System.Action onDelete) {
+    VisualElement BuildConditionRow(SerializedProperty conditionProp, int index, int totalCount, System.Action onDelete) {
         var row = new VisualElement();
         row.style.flexDirection = FlexDirection.Row;
         row.style.alignItems = Align.Center;
@@ -391,10 +410,10 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         });
         row.Add(typeField);
         
-        // Value field
+        // Value field (ValueCondition.Value is double)
         var valueProp = conditionProp.FindPropertyRelative("Value");
-        var valueField = new IntegerField();
-        valueField.value = valueProp.intValue;
+        var valueField = new DoubleField();
+        valueField.value = valueProp.doubleValue;
         valueField.style.width = 50;
         // Right-align the text in the input field
         var inputElement = valueField.Q<UnityEngine.UIElements.TextElement>();
@@ -402,7 +421,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
             inputElement.style.unityTextAlign = TextAnchor.MiddleRight;
         }
         valueField.RegisterValueChangedCallback(evt => {
-            valueProp.intValue = evt.newValue;
+            valueProp.doubleValue = evt.newValue;
             serializedObject.ApplyModifiedProperties();
         });
         row.Add(valueField);
@@ -435,7 +454,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return row;
     }
 
-    private System.Collections.Generic.List<StatusEffect> GetValidStatusEffects() {
+    System.Collections.Generic.List<StatusEffect> GetValidStatusEffects() {
         var list = new System.Collections.Generic.List<StatusEffect>();
         foreach (StatusEffect value in System.Enum.GetValues(typeof(StatusEffect))) {
             if (value != StatusEffect.None) {
@@ -445,7 +464,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return list;
     }
 
-    private StatusEffect GetCurrentStatusEffect(SerializedProperty prop) {
+    StatusEffect GetCurrentStatusEffect(SerializedProperty prop) {
         var current = (StatusEffect)prop.intValue;
         if (current == StatusEffect.None || !System.Enum.IsDefined(typeof(StatusEffect), current)) {
             return StatusEffect.WillUp;
@@ -453,11 +472,11 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return current;
     }
 
-    private string FormatStatusEffect(StatusEffect effect) {
+    string FormatStatusEffect(StatusEffect effect) {
         return effect.ToString();
     }
 
-    private System.Collections.Generic.List<TerrainEffect> GetValidTerrainEffects() {
+    System.Collections.Generic.List<TerrainEffect> GetValidTerrainEffects() {
         var list = new System.Collections.Generic.List<TerrainEffect>();
         foreach (TerrainEffect value in System.Enum.GetValues(typeof(TerrainEffect))) {
             if (value != TerrainEffect.None) {
@@ -467,22 +486,22 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return list;
     }
 
-    private TerrainEffect GetCurrentTerrainEffect(SerializedProperty prop) {
+    TerrainEffect GetCurrentTerrainEffect(SerializedProperty prop) {
         var current = (TerrainEffect)prop.intValue;
         if (current == TerrainEffect.None || !System.Enum.IsDefined(typeof(TerrainEffect), current)) {
-            return TerrainEffect.Difficult;
+            return TerrainEffect.DifficultUp;
         }
         return current;
     }
 
-    private string FormatTerrainEffect(TerrainEffect effect) {
+    string FormatTerrainEffect(TerrainEffect effect) {
         return effect.ToString();
     }
 
     /// <summary>
     /// Get valid ValueSource options for conditions (excludes TargetCount).
     /// </summary>
-    private List<ValueSource> GetValidConditionSources() {
+    List<ValueSource> GetValidConditionSources() {
         var list = new List<ValueSource>();
         foreach (ValueSource value in System.Enum.GetValues(typeof(ValueSource))) {
             if (value != ValueSource.TargetCount) {
@@ -492,7 +511,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         return list;
     }
 
-    private string FormatValueSource(ValueSource source) {
+    string FormatValueSource(ValueSource source) {
         return source.ToString();
     }
 
@@ -500,7 +519,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     /// Create a target type flags field that prevents empty selection.
     /// Shows only base flags (Ally, NonAlly, Empty), hiding composite values.
     /// </summary>
-    private VisualElement CreateTargetTypeField(SerializedProperty prop, bool isTerrainEffect = false) {
+    VisualElement CreateTargetTypeField(SerializedProperty prop, bool isTerrainEffect = false) {
         int effectId = target.GetInstanceID();
         var initialValue = (AbilityTargetType)prop.intValue;
 
@@ -580,6 +599,8 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     }
 }
 
+}
+
 /// <summary>
 /// Extension methods for VisualElement fluent API.
 /// </summary>
@@ -588,6 +609,4 @@ public static class VisualElementExtensions {
         element.AddToClassList(className);
         return element;
     }
-}
-
 }

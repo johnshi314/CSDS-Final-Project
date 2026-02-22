@@ -14,6 +14,7 @@ namespace NetFlower {
     /// </summary>
     [CreateAssetMenu(fileName = "AbilityEffect", menuName = "Scriptable Objects/AbilityEffect")]
     public class AbilityEffect: ScriptableObject {
+        [SerializeField, HideInInspector] private uint version = 2; // For future use in data migration if needed
         [Header("Effect Type")]
         [SerializeField] private AbilityEffectType effectType;
         [SerializeField] private StatusEffect statusEffect;
@@ -24,7 +25,7 @@ namespace NetFlower {
         
         [Header("Amount")]
         [SerializeField] private ValueSource amountSource;
-        [SerializeField] private int amount;    // Amount of effect (e.g., damage amount, heal amount)
+        [SerializeField] private double amount;    // Amount of effect (e.g., damage amount, heal amount)
         
         [Header("Timing")]
         [SerializeField] private List<ValueCondition> delayConditions = new(); // Conditions that trigger the effect (Fixed = turns)
@@ -35,20 +36,25 @@ namespace NetFlower {
         public TerrainEffect TerrainEffect => terrainEffect;
         public AbilityTargetType TargetType => targetType;
         public ValueSource AmountSource => amountSource;
-        public int Amount => amount;
+        public double Amount => amount;
         public List<ValueCondition> DelayConditions => delayConditions;
         public List<ValueCondition> DurationConditions => durationConditions;
         
-        [SerializeField, HideInInspector] private StatusEffect prevSE;
-        [SerializeField, HideInInspector] private TerrainEffect prevTE;
-        [SerializeField, HideInInspector] private AbilityTargetType prevATT;
-        public string Duration {
+        [NonSerialized, HideInInspector] private StatusEffect prevSE;
+        [NonSerialized, HideInInspector] private TerrainEffect prevTE;
+        [NonSerialized, HideInInspector] private AbilityTargetType prevATT;  // Last target type when in non-terrain mode
+        [NonSerialized, HideInInspector] private AbilityEffectType prevEffectType;
+        [NonSerialized, HideInInspector] private double prevAmount = 1;      // Last amount when amount is free (not state status)
+        [NonSerialized, HideInInspector] private ValueSource prevAmountSource = ValueSource.Fixed;
+        [NonSerialized, HideInInspector] private bool prevWasStateEffect;    // True when last run was Status + state effect (amount locked to 1)
+        public uint Version => version;
+        public string DurationDescription {
             get {
                 if (durationConditions.Count == 0) return "Instant";
                 return string.Join(", ", durationConditions.ConvertAll(c => {
-                    bool isTurns = c.Source == ValueSource.Fixed;
-                    string suffix = isTurns ? " turns" : (c.ValueType == ConditionValueType.Percentage ? "%" : "");
-                    return $"{(isTurns ? "" : c.Source + " ")}{c.Type} {c.Value}{suffix}";
+                    bool isMultiplier = c.ValueType == ConditionValueType.Scaled;
+                    string suffix = isMultiplier ? "x" : "";
+                    return $"{c.Source} {c.Type} {c.Value}{suffix}";
                 }));
             }
         }
@@ -58,10 +64,6 @@ namespace NetFlower {
         /// Enforces constraints.
         /// </summary>
         private void OnValidate() {
-            if (prevATT == 0) {
-                prevATT = AbilityTargetType.Agents;
-            }
-            
             // When EffectType is not Status: statusEffect must be None
             if (effectType != AbilityEffectType.Status) {
                 // Only save to prevSE when leaving Status mode (statusEffect is not None)
@@ -75,36 +77,54 @@ namespace NetFlower {
                     statusEffect = prevSE != StatusEffect.None ? prevSE : StatusEffect.WillUp;
                 }
             }
-            
+
             // When EffectType is not Terrain: terrainEffect must be None
             if (effectType != AbilityEffectType.Terrain) {
-                // Only save to prevTE when leaving Terrain mode (terrainEffect is not None)
                 if (terrainEffect != TerrainEffect.None) {
                     prevTE = terrainEffect;
-                    // Also save the current targetType (before stripping) when leaving Terrain mode
-                    if ((targetType & ~AbilityTargetType.Empty) != 0) {
-                        prevATT = targetType;
-                    }
                 }
                 terrainEffect = TerrainEffect.None;
+                // When leaving Terrain, restore last non-terrain target type
+                if (prevEffectType == AbilityEffectType.Terrain) {
+                    targetType = prevATT != 0 ? prevATT : AbilityTargetType.Agents;
+                }
                 // Strip Empty from targetType for non-terrain effects
                 targetType &= ~AbilityTargetType.Empty;
+                if (targetType == 0) {
+                    targetType = AbilityTargetType.Agents;
+                }
+                // Remember non-terrain target type for next time we leave Terrain
+                prevATT = targetType;
+                prevEffectType = effectType;
             } else {
+                // When EffectType is Terrain: target type is always Everything
+                targetType = AbilityTargetType.Everything;
                 // When EffectType is Terrain: terrainEffect cannot be None
                 if (terrainEffect == TerrainEffect.None) {
-                    // Restore terrain effect from previous value when switching to Terrain mode
-                    terrainEffect = prevTE != TerrainEffect.None ? prevTE : TerrainEffect.Difficult;
-                    // Restore targetType from prevATT when switching to Terrain mode (preserves Empty flag)
-                    if (prevATT != 0 && (prevATT & AbilityTargetType.Empty) != 0) {
-                        targetType = prevATT;
-                    }
+                    terrainEffect = prevTE != TerrainEffect.None ? prevTE : TerrainEffect.DifficultUp;
                 }
-                // Don't overwrite prevATT in terrain mode - it's only updated when leaving terrain mode
+                prevEffectType = effectType;
             }
 
             if (targetType == 0) {
                 targetType = AbilityTargetType.Agents;
             }
+
+            // Amount: state status (Status + statusEffect < 101) or state terrain (Terrain + terrainEffect < 101) locks to 1/Fixed; otherwise remember and restore
+            bool isAmountLocked = (effectType == AbilityEffectType.Status && statusEffect < (StatusEffect)101)
+                || (effectType == AbilityEffectType.Terrain && terrainEffect < (TerrainEffect)101);
+            if (isAmountLocked) {
+                amountSource = ValueSource.Fixed;
+                amount = 1;
+            } else {
+                if (prevWasStateEffect) {
+                    amount = prevAmount;
+                    amountSource = prevAmountSource;
+                }
+                prevAmount = amount;
+                prevAmountSource = amountSource;
+            }
+            prevWasStateEffect = isAmountLocked;
 
             // Check conditions, if the source is fixed, the value must be non-negative, and condition value type must be Fixed as well.
             foreach (var condition in delayConditions) {
@@ -116,6 +136,8 @@ namespace NetFlower {
                     if (condition.Value < 0) {
                         condition.Value = 0;
                     }
+                    // Round to nearest integer for turn count
+                    condition.Value = Math.Round(condition.Value);
                     condition.ValueType = ConditionValueType.Fixed;
                 }
             }
@@ -128,6 +150,8 @@ namespace NetFlower {
                     if (condition.Value < 0) {
                         condition.Value = 0;
                     }
+                    // Round to nearest integer for turn count
+                    condition.Value = Math.Round(condition.Value);
                     condition.ValueType = ConditionValueType.Fixed;
                 }
             }
@@ -170,11 +194,19 @@ namespace NetFlower {
         ExplosionDown = 208,
     }
     public enum TerrainEffect {
+        // States
         None = 0,
-        Difficult = 1, // Impairs movement (e.g., swamp, rubble)
-        Unwalkable = 2, // Cannot be entered (e.g., wall, chasm)
-        Damaging = 3,  // Damages agents on it (e.g., fire, acid)
-        Healing = 4,   // Heals agents on it (e.g., healing pool)
+        Unwalkable = 1, // Cannot be entered (e.g., wall, chasm)
+
+        // Up effects (buffs)
+        DifficultUp = 101, // Impairs movement (e.g., swamp, rubble)
+        DamagingUp = 102,  // Damages agents on it (e.g., fire, acid)
+        HealingUp = 103,   // Heals agents on it (e.g., healing pool)
+        
+        // Down effects (debuffs)
+        DifficultDown = 201, // Impairs movement (e.g., swamp, rubble)
+        DamagingDown = 202,  // Damages agents on it (e.g., fire, acid)
+        HealingDown = 203,   // Heals agents on it (e.g., healing pool)
     }
 
     public enum ValueSource {
@@ -212,7 +244,7 @@ namespace NetFlower {
 
     public enum ConditionValueType {
         Fixed = 0,
-        Percentage = 1,
+        Scaled = 1,
     }
 
     public enum ConditionConnector {
@@ -225,7 +257,7 @@ namespace NetFlower {
         public ConditionConnector ConnectorToNext = ConditionConnector.AND; // How this connects to the next condition in the list (AND/OR)
         public ConditionType Type = ConditionType.EQ; // Type of comparison
         public ValueSource Source = ValueSource.Fixed; // What value to check (e.g., TargetHP, CasterWill, etc.)
-        public int Value = 0;
-        public ConditionValueType ValueType = ConditionValueType.Fixed; // If Percentage, Value is treated as a percentage (e.g., "TargetHP < 50%")
+        public double Value = 0;
+        public ConditionValueType ValueType = ConditionValueType.Fixed; // If Scaled, Value is treated as a multiplier (e.g., "TargetHP x 2")
     }
 }

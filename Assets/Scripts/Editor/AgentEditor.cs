@@ -172,7 +172,7 @@ public class AgentEditor : UnityEditor.Editor {
                 if (effect == null) {
                     templateOptions[i] = $"Template {i}: <null>";
                 } else {
-                    templateOptions[i] = $"{effect.EffectType} | Amt {effect.Amount} | Dur {effect.Duration}";
+                    templateOptions[i] = $"{effect.EffectType} | Amt {effect.Amount} | Dur {effect.DurationDescription}";
                 }
             }
 

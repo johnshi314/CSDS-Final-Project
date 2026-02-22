@@ -16,6 +16,7 @@ namespace NetFlower {
     /// </summary>
     [CreateAssetMenu(fileName = "Summon", menuName = "Scriptable Objects/Summon")]
     public class Summon : ScriptableObject {
+        [SerializeField, HideInInspector] private int version = 1; // For future use in data migration if needed
         [Header("Identity")]
         public string Id;                           // Unique identifier
         public string DisplayName;                  // Display name for the summoned agent
@@ -34,6 +35,8 @@ namespace NetFlower {
 
         [Header("Visuals")]
         public GameObject Prefab;                   // Prefab to instantiate for the summon
+
+        public int Version => version;
 
         /// <summary>
         /// Create an Agent instance from this template.

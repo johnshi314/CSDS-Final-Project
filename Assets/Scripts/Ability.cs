@@ -21,6 +21,7 @@ namespace NetFlower {
     /// </summary>
     [CreateAssetMenu(fileName = "Ability", menuName = "Scriptable Objects/Ability")]
     public class Ability: ScriptableObject {
+        [SerializeField, HideInInspector] private uint version = 1; // For future use in data migration if needed
         [Header("Identity")]
         public string Id;                       // ID for referencing cross system and database
         public string DisplayName;              // Name of ability
@@ -42,6 +43,8 @@ namespace NetFlower {
         // [Header("Effects")]
         public List<AbilityEffect> TargetEffects;     // List of effects this ability applies to targets
         public List<AbilityEffect> CasterEffects;     // List of effects this ability applies to the caster
+
+        public uint Version => version;
 
         /// <summary>
         /// Called when the ScriptableObject is loaded or values change in the editor.

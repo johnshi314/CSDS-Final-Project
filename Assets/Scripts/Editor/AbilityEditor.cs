@@ -448,7 +448,7 @@ public class AbilityEditor : UnityEditor.Editor {
         if (isTurns) {
             valueStr = $"{c.Value} turns";
         } else {
-            valueStr = c.ValueType == ConditionValueType.Percentage ? $"{c.Value}%" : c.Value.ToString();
+            valueStr = c.ValueType == ConditionValueType.Scaled ? $"{Math.Round(c.Value * 100.0, 2)}%" : c.Value.ToString();
         }
 
         if (isTurns) {
@@ -460,11 +460,11 @@ public class AbilityEditor : UnityEditor.Editor {
     /// <summary>
     /// Format a value with its source.
     /// </summary>
-    protected string FormatValueWithSource(int value, ValueSource source, string fixedSuffix = "") {
+    protected string FormatValueWithSource(double value, ValueSource source, string fixedSuffix = "") {
         if (source == ValueSource.Fixed) {
-            return fixedSuffix != "" ? $"{value} {fixedSuffix}" : value.ToString();
+            return fixedSuffix != "" ? $"{Math.Round(value, 2)} {fixedSuffix}" : value.ToString();
         } else {
-            return $"{value}x {source}";
+            return $"{Math.Round(value, 2)}x {source}";
         }
     }
 }

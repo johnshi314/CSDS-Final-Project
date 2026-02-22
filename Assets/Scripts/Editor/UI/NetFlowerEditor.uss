@@ -46,6 +46,11 @@
     opacity: 0.5;
 }
 
+/* Keep disabled inputs visible (some Unity editor themes hide them by default) */
+.amount-section .unity-base-field__input {
+    display: flex;
+}
+
 /* ===== Summary Box ===== */
 .summary-box {
     background-color: rgba(0, 0, 0, 0.15);
