@@ -19,7 +19,7 @@ namespace NetFlower {
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         public void Start() {
             // Initialize current HP to max HP at the start
-            this.HP = this.MaxHP;
+            this.hp = this.maxHP;
 
             // Initialize cooldowns for all abilities to 0 (available)
             foreach (var ability in Abilities) {
@@ -38,17 +38,20 @@ namespace NetFlower {
         [SerializeField] string AgentName;       // Agent's display name
 
         [Header("Base Stats")]
-        [SerializeField] uint MaxHP = 20;       // Maximum health points
-        [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
+        [SerializeField] uint maxHP = 20;       // Maximum health points
+        [SerializeField] uint maxRange = 3;     // Maximum movement range (per turn)
         [SerializeField] Tunneling CanTunnel;   // How other agents can pass through this agent
         [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
 
         [Header("Current Stats")]
-        [SerializeField] uint HP;                   // Current health points
+        [SerializeField] uint hp;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
-        public uint MovementRange { get { return MaxRange; } }
+        public uint MovementRange { get { return maxRange; } }
+        public uint HP { get { return hp; } }
+        public uint MaxHP { get { return maxHP; } }
+        public uint MaxRange { get { return maxRange; } }
 
         /// <summary>
         /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
@@ -63,8 +66,7 @@ namespace NetFlower {
         /// <param name="currentTurn">Current turn number (used for expiry: effect expires when currentTurn >= TurnApplied + duration).</param>
         public void TickEffects(int currentTurn) {
             for (int i = activeEffects.Count - 1; i >= 0; i--) {
-                // TODO: Implement effect expiration
-                // if (activeEffects[i].IsExpired(currentTurn)) activeEffects.RemoveAt(i);
+                if (activeEffects[i].IsExpired(currentTurn)) activeEffects.RemoveAt(i);
             }
         }
 
@@ -145,11 +147,11 @@ namespace NetFlower {
                             Tunneling tunneling = default) {
             this.Player = player;
             this.AgentName = agent_name;
-            this.MaxHP = hp;
-            this.MaxRange = range;
+            this.maxHP = hp;
+            this.maxRange = range;
             this.Abilities = abilities != null ? new List<Ability>(abilities) : new List<Ability>();
             this.CanTunnel = tunneling;
-            this.HP = hp;
+            this.hp = hp;
         }
 
         // ===================================================================== //
@@ -160,11 +162,11 @@ namespace NetFlower {
         /// </summary>
         public NetFlower.Player GetPlayer() { return this.Player; }
         public String GetAgentName() {  return this.AgentName; }
-        public uint GetMaxHP() {  return this.MaxHP; }
-        public uint GetMaxRange() { return this.MaxRange; }
+        public uint GetmaxHP() {  return this.maxHP; }
+        public uint GetMaxRange() { return this.maxRange; }
         public List<Ability> GetAbilities() { return this.Abilities; }
         public Tunneling GetTunneling() { return this.CanTunnel; }
-        public uint GetHP() {  return this.HP; }
+        public uint GetHP() {  return this.hp; }
   
 
         /// <summary>
@@ -172,9 +174,9 @@ namespace NetFlower {
         /// </summary>
         /// <param name="damage">Amount of damage to apply.</param>
         public void TakeDamage(int damage) {
-            this.HP -= (uint)damage;
-            if (this.HP < 0) {
-                this.HP = 0;
+            this.hp -= (uint)damage;
+            if (this.hp < 0) {
+                this.hp = 0;
             }
         }
 
@@ -183,9 +185,9 @@ namespace NetFlower {
         /// </summary>
         /// <param name="amount">Amount of HP to restore.</param>
         public void Heal(int amount) {
-            this.HP += (uint)amount;
-            if (this.HP > this.MaxHP) {
-                this.HP = this.MaxHP;
+            this.hp += (uint)amount;
+            if (this.hp > this.maxHP) {
+                this.hp = this.maxHP;
             }
         }
 
@@ -194,14 +196,14 @@ namespace NetFlower {
         /// </summary>
         /// <returns>True if the agent is knocked out, otherwise false.</returns>
         public bool KOed() {
-            return this.HP <= 0;
+            return this.hp <= 0;
         }
 
         /// <summary>
         /// Reset the agent's HP to its maximum value.
         /// </summary>
         public void ResetHP() {
-            this.HP = this.MaxHP;
+            this.hp = this.maxHP;
         }
 
         /// <summary>

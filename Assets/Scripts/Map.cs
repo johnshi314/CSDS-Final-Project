@@ -226,8 +226,7 @@ namespace NetFlower {
             var toRemove = new List<(Vector2Int pos, AbilityEffectInstance inst)>();
             foreach (var kv in tileEffects) {
                 foreach (var inst in kv.Value) {
-                    // TODO: Implement effect expiration
-                    // if (inst.IsExpired(currentTurn)) toRemove.Add((kv.Key, inst));
+                    if (inst.IsExpired(currentTurn)) toRemove.Add((kv.Key, inst));
                 }
             }
             foreach (var (pos, inst) in toRemove) {

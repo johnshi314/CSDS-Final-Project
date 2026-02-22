@@ -342,13 +342,12 @@ namespace NetFlower {
         public Agent TargetAgent;  // For agent-bound (Damage, Heal, Status): the agent this effect follows; null for Terrain
         /// <summary>Turn number when this effect was applied (used for expiry with current turn).</summary>
         public int TurnApplied;
-        public List<ValueCondition> DurationConditions {
-            get {
-                if (Effect == null) return new List<ValueCondition>();
-                if (Effect.DurationConditions == null) return new List<ValueCondition>();
-                return Effect.DurationConditions;
-            }
-        }
+
+        /// <summary>Instantiated from Effect.DelayConditions when this instance was created.</summary>
+        public ValueConditions DelayConditions { get; private set; }
+        /// <summary>Instantiated from Effect.DurationConditions when this instance was created.</summary>
+        public ValueConditions DurationConditions { get; private set; }
+
         [Obsolete("Use DurationConditions instead")]
         public int Duration = 1; // TODO: Depricate this and use DurationConditions instead
 
@@ -368,6 +367,8 @@ namespace NetFlower {
             TargetTile = targetTile;
             TargetAgent = targetAgent;
             TurnApplied = turnApplied;
+            DelayConditions = new ValueConditions(effect.DelayConditions);
+            DurationConditions = new ValueConditions(effect.DurationConditions);
         }
 
         /// <summary>
@@ -379,6 +380,27 @@ namespace NetFlower {
         /// True if this effect is tile-bound (Terrain). Otherwise agent-bound (Damage, Heal, Status). Delegates to Effect.
         /// </summary>
         public bool IsTileBound => Effect != null && Effect.IsTileBound;
+
+        /// <summary>
+        /// True if this instance should be removed at the given turn. Uses the instantiated duration conditions;
+        /// for Fixed conditions, elapsed turns (currentTurn - TurnApplied) are passed so "Fixed GE 3" means "lasts 3 turns".
+        /// </summary>
+        public bool IsExpired(int currentTurn) {
+            if (DurationConditions == null || DurationConditions.Conditions == null || DurationConditions.Conditions.Count == 0)
+                return true; // no duration = instant, consider expired
+            int elapsedTurns = currentTurn - TurnApplied;
+            return DurationConditions.IsMet(elapsedTurns, Source, TargetAgent);
+        }
+
+        /// <summary>
+        /// True if the delay conditions are met at the given turn (e.g. effect should trigger this turn).
+        /// Uses the instantiated delay conditions; pass currentTurn for Fixed-based delay.
+        /// </summary>
+        public bool IsDelayMet(int currentTurn) {
+            if (DelayConditions == null || DelayConditions.Conditions == null || DelayConditions.Conditions.Count == 0)
+                return true; // no delay = trigger immediately
+            return DelayConditions.IsMet(currentTurn, Source, TargetAgent);
+        }
 
         /// <summary>
         /// Apply this effect once. Agent-bound: apply to TargetAgent (or occupant at TargetTile). Tile-bound: apply to TargetTile.
