@@ -6,6 +6,7 @@
 *                 Contains agent-like data used to spawn an Agent at runtime.
 **********************************************************************/
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 namespace NetFlower {
@@ -31,12 +32,37 @@ namespace NetFlower {
         public List<Ability> Abilities;             // Abilities this summon can use
 
         [Header("Lifespan")]
-        public int Duration = -1;                   // Turns the summon lasts (-1 for permanent)
+        [SerializeField] private List<ValueCondition> durationConditions = new(); // When the summon expires (Fixed = turns; empty = permanent)
+
+        public List<ValueCondition> DurationConditions => durationConditions;
+        public string DurationDescription {
+            get {
+                if (durationConditions.Count == 0) return "Permanent";
+                return string.Join(", ", durationConditions.ConvertAll(c => {
+                    bool isMultiplier = c.ValueType == ConditionValueType.Scaled;
+                    string suffix = isMultiplier ? "x" : "";
+                    return $"{c.Source} {c.Type} {c.Value}{suffix}";
+                }));
+            }
+        }
 
         [Header("Visuals")]
         public GameObject Prefab;                   // Prefab to instantiate for the summon
 
         public int Version => version;
+
+        private void OnValidate() {
+            foreach (var condition in durationConditions) {
+                if (condition.Source == ValueSource.TargetCount) {
+                    condition.Source = ValueSource.Fixed;
+                }
+                if (condition.Source == ValueSource.Fixed) {
+                    if (condition.Value < 0) condition.Value = 0;
+                    condition.Value = Math.Round(condition.Value);
+                    condition.ValueType = ConditionValueType.Fixed;
+                }
+            }
+        }
 
         /// <summary>
         /// Create an Agent instance from this template.
@@ -49,7 +75,7 @@ namespace NetFlower {
             // If we have a prefab, instantiate it; otherwise create a new GameObject
             GameObject agentObj;
             if (Prefab != null) {
-                agentObj = Object.Instantiate(Prefab, position, Quaternion.identity);
+                agentObj = UnityEngine.Object.Instantiate(Prefab, position, Quaternion.identity);
                 if (parent != null) {
                     agentObj.transform.SetParent(parent.transform);
                 }

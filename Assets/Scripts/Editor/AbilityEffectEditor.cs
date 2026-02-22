@@ -112,13 +112,13 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         timingSection.AddToClassList("section-container");
         
         _delayConditionsContainer = new VisualElement();
-        BuildConditionsList(_delayConditionsContainer, "delayConditions", "Delay Conditions", "No delay - effect activates immediately");
+        ValueConditionListUI.Build(serializedObject, _delayConditionsContainer, "delayConditions", "Delay Conditions", "No delay - effect activates immediately");
         timingSection.Add(_delayConditionsContainer);
         
         timingSection.Add(new VisualElement { name = "spacer" }.WithClass("spacer"));
         
         _durationConditionsContainer = new VisualElement();
-        BuildConditionsList(_durationConditionsContainer, "durationConditions", "Duration Conditions", "No duration limit - effect is permanent");
+        ValueConditionListUI.Build(serializedObject, _durationConditionsContainer, "durationConditions", "Duration Conditions", "No duration limit - effect is permanent");
         timingSection.Add(_durationConditionsContainer);
         
         root.Add(timingSection);
@@ -209,7 +209,7 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     }
 
     /// <summary>
-    /// Amount is disabled for state status (Status + statusEffect &lt; 101) or state terrain (Terrain + terrainEffect &lt; 101).
+    /// Amount is disabled for state status (Status + statusEffect < 101) or state terrain (Terrain + terrainEffect < 101).
     /// Enabled for Damage, Heal, and for Status/Terrain when the effect is an Up/Down (e.g. WillUp, DifficultUp).
     /// </summary>
     void UpdateAmountSectionEnabledState() {
@@ -287,192 +287,6 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         container.Add(field);
     }
 
-    /// <summary>
-    /// Build a list of conditions for Delay/Duration.
-    /// Fixed source = turns, other sources = compared values.
-    /// </summary>
-    void BuildConditionsList(VisualElement container, string conditionsPropName, string headerLabel, string emptyMessage) {
-        container.Clear();
-        var conditionsProp = serializedObject.FindProperty(conditionsPropName);
-
-        // Header with Add button
-        var headerLabelElem = new Label(headerLabel);
-        headerLabelElem.style.unityTextAlign = TextAnchor.MiddleLeft;
-        headerLabelElem.style.marginLeft = 0;
-        headerLabelElem.style.marginTop = 8;
-        headerLabelElem.style.marginBottom = 4;
-        headerLabelElem.style.unityFontStyleAndWeight = FontStyle.Bold;
-        container.Add(headerLabelElem);
-
-        var headerRow = new VisualElement();
-        headerRow.style.justifyContent = Justify.FlexEnd;
-        headerRow.style.alignItems = Align.Center;
-        headerRow.style.marginBottom = 4;
-
-        var addButton = new Button(() => {
-            conditionsProp.arraySize++;
-            var newElement = conditionsProp.GetArrayElementAtIndex(conditionsProp.arraySize - 1);
-            // Set defaults - Fixed with 0 value is a sensible default for "only on this turn" duration
-            newElement.FindPropertyRelative("Source").intValue = (int)ValueSource.Fixed;
-            newElement.FindPropertyRelative("Type").enumValueIndex = (int)ConditionType.EQ;
-            newElement.FindPropertyRelative("Value").doubleValue = 0.0;
-            newElement.FindPropertyRelative("ValueType").enumValueIndex = (int)ConditionValueType.Fixed;
-            newElement.FindPropertyRelative("ConnectorToNext").enumValueIndex = (int)ConditionConnector.AND;
-            serializedObject.ApplyModifiedProperties();
-            BuildConditionsList(container, conditionsPropName, headerLabel, emptyMessage);
-        }) { text = "+" };
-        addButton.style.width = 24;
-        addButton.style.height = 20;
-        headerRow.Add(addButton);
-
-        container.Add(headerRow);
-
-        // List of conditions
-        for (int i = 0; i < conditionsProp.arraySize; i++) {
-            int capturedIndex = i; // Capture by value for closure
-            var conditionElement = conditionsProp.GetArrayElementAtIndex(i);
-            var conditionRow = BuildConditionRow(conditionElement, i, conditionsProp.arraySize, () => {
-                conditionsProp.DeleteArrayElementAtIndex(capturedIndex);
-                serializedObject.ApplyModifiedProperties();
-                BuildConditionsList(container, conditionsPropName, headerLabel, emptyMessage);
-            });
-            container.Add(conditionRow);
-        }
-
-        if (conditionsProp.arraySize == 0) {
-            var emptyLabel = new Label(emptyMessage);
-            emptyLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
-            emptyLabel.style.marginLeft = 4;
-            emptyLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
-            container.Add(emptyLabel);
-        }
-    }
-
-    /// <summary>
-    /// Build a single condition row with all fields inline.
-    /// Fixed source shows "Turns" label, other sources show ValueType dropdown.
-    /// </summary>
-    VisualElement BuildConditionRow(SerializedProperty conditionProp, int index, int totalCount, System.Action onDelete) {
-        var row = new VisualElement();
-        row.style.flexDirection = FlexDirection.Row;
-        row.style.alignItems = Align.Center;
-        row.style.marginBottom = 2;
-        row.style.paddingLeft = 8;
-        row.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
-        row.style.borderBottomLeftRadius = 4;
-        row.style.borderBottomRightRadius = 4;
-        row.style.borderTopLeftRadius = 4;
-        row.style.borderTopRightRadius = 4;
-        row.style.paddingTop = 4;
-        row.style.paddingBottom = 4;
-        
-        // Source dropdown - use PopupField to exclude TargetCount (not valid for conditions)
-        var sourceProp = conditionProp.FindPropertyRelative("Source");
-        var validSources = GetValidConditionSources();
-        var currentSource = (ValueSource)sourceProp.intValue;
-        if (!validSources.Contains(currentSource)) {
-            currentSource = ValueSource.Fixed;
-        }
-        
-        // Container for ValueType dropdown or "Turns" label (declared early for callback)
-        var valueTypeContainer = new VisualElement();
-        valueTypeContainer.style.width = 80;
-        valueTypeContainer.style.marginLeft = 2;
-        
-        var valueTypeProp = conditionProp.FindPropertyRelative("ValueType");
-        
-        // Function to update the valueType container based on source
-        void UpdateValueTypeDisplay() {
-            valueTypeContainer.Clear();
-            var src = (ValueSource)sourceProp.intValue;
-            
-            // Fixed shows "Turns" label
-            if (src == ValueSource.Fixed) {
-                // Show "Turns" label for Fixed source
-                var turnsLabel = new Label("Turns");
-                turnsLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
-                turnsLabel.style.paddingLeft = 4;
-                valueTypeContainer.Add(turnsLabel);
-            } else {
-                // Show ValueType dropdown for other sources
-                var valueTypeField = new EnumField((ConditionValueType)valueTypeProp.enumValueIndex);
-                valueTypeField.style.width = 80;
-                valueTypeField.RegisterValueChangedCallback(evt => {
-                    valueTypeProp.enumValueIndex = (int)(ConditionValueType)evt.newValue;
-                    serializedObject.ApplyModifiedProperties();
-                });
-                valueTypeContainer.Add(valueTypeField);
-            }
-        }
-        
-        var sourceField = new PopupField<ValueSource>(
-            validSources,
-            currentSource,
-            FormatValueSource,
-            FormatValueSource
-        );
-        sourceField.style.width = 110;
-        sourceField.RegisterValueChangedCallback(evt => {
-            sourceProp.intValue = (int)evt.newValue;
-            serializedObject.ApplyModifiedProperties();
-            UpdateValueTypeDisplay();
-        });
-        row.Add(sourceField);
-        
-        // Condition type dropdown
-        var typeProp = conditionProp.FindPropertyRelative("Type");
-        var typeField = new EnumField((ConditionType)typeProp.enumValueIndex);
-        typeField.style.width = 80;
-        typeField.RegisterValueChangedCallback(evt => {
-            typeProp.enumValueIndex = (int)(ConditionType)evt.newValue;
-            serializedObject.ApplyModifiedProperties();
-        });
-        row.Add(typeField);
-        
-        // Value field (ValueCondition.Value is double)
-        var valueProp = conditionProp.FindPropertyRelative("Value");
-        var valueField = new DoubleField();
-        valueField.value = valueProp.doubleValue;
-        valueField.style.width = 50;
-        // Right-align the text in the input field
-        var inputElement = valueField.Q<UnityEngine.UIElements.TextElement>();
-        if (inputElement != null) {
-            inputElement.style.unityTextAlign = TextAnchor.MiddleRight;
-        }
-        valueField.RegisterValueChangedCallback(evt => {
-            valueProp.doubleValue = evt.newValue;
-            serializedObject.ApplyModifiedProperties();
-        });
-        row.Add(valueField);
-        
-        // Add the valueTypeContainer (already declared above)
-        row.Add(valueTypeContainer);
-        
-        // Initial update
-        UpdateValueTypeDisplay();
-        
-        // Connector (only if not last)
-        if (index < totalCount - 1) {
-            var connectorProp = conditionProp.FindPropertyRelative("ConnectorToNext");
-            var connectorField = new EnumField((ConditionConnector)connectorProp.enumValueIndex);
-            connectorField.style.width = 60;
-            connectorField.RegisterValueChangedCallback(evt => {
-                connectorProp.enumValueIndex = (int)(ConditionConnector)evt.newValue;
-                serializedObject.ApplyModifiedProperties();
-            });
-            row.Add(connectorField);
-        }
-        
-        // Delete button
-        var deleteButton = new Button(onDelete) { text = "×" };
-        deleteButton.style.width = 20;
-        deleteButton.style.height = 20;
-        deleteButton.style.marginLeft = 4;
-        row.Add(deleteButton);
-        
-        return row;
-    }
-
     System.Collections.Generic.List<StatusEffect> GetValidStatusEffects() {
         var list = new System.Collections.Generic.List<StatusEffect>();
         foreach (StatusEffect value in System.Enum.GetValues(typeof(StatusEffect))) {
@@ -515,23 +329,6 @@ public class AbilityEffectEditor : UnityEditor.Editor {
 
     string FormatTerrainEffect(TerrainEffect effect) {
         return effect.ToString();
-    }
-
-    /// <summary>
-    /// Get valid ValueSource options for conditions (excludes TargetCount).
-    /// </summary>
-    List<ValueSource> GetValidConditionSources() {
-        var list = new List<ValueSource>();
-        foreach (ValueSource value in System.Enum.GetValues(typeof(ValueSource))) {
-            if (value != ValueSource.TargetCount) {
-                list.Add(value);
-            }
-        }
-        return list;
-    }
-
-    string FormatValueSource(ValueSource source) {
-        return source.ToString();
     }
 
     /// <summary>

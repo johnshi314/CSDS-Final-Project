@@ -159,8 +159,7 @@ public class AbilitySummonEditor : AbilityEditor {
         
         _summonPreviewBox.Add(CreateStatRow("HP", summon.MaxHP.ToString()));
         _summonPreviewBox.Add(CreateStatRow("Movement", summon.MaxRange.ToString()));
-        _summonPreviewBox.Add(CreateStatRow("Duration", 
-            summon.Duration < 0 ? "Permanent" : $"{summon.Duration} turns"));
+        _summonPreviewBox.Add(CreateStatRow("Duration", summon.DurationDescription));
         
         if (summon.Abilities != null) {
             _summonPreviewBox.Add(CreateStatRow("Abilities", summon.Abilities.Count.ToString()));
