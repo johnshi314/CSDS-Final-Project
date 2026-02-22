@@ -4,6 +4,7 @@ using UnityEngine.Tilemaps;
 /// <summary>
 /// Loads tile walkability data from a tilemap overlay.
 /// </summary>
+namespace NetFlower.UI {
 public static class WalkabilityLoader {
 
     /// <summary>
@@ -69,4 +70,5 @@ public static class WalkabilityLoader {
             Height = height
         };
     }
+}
 }

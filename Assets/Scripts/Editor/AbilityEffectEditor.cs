@@ -134,6 +134,15 @@ public class AbilityEffectEditor : UnityEditor.Editor {
     void BuildTargetTypeField() {
         _targetTypeContainer.Clear();
 
+        // Add bold, left-aligned 'Targeting' header
+        var targetingHeader = new Label("Targeting");
+        targetingHeader.style.unityTextAlign = TextAnchor.MiddleLeft;
+        targetingHeader.style.marginLeft = 0;
+        targetingHeader.style.marginTop = 8;
+        targetingHeader.style.marginBottom = 4;
+        targetingHeader.style.unityFontStyleAndWeight = FontStyle.Bold;
+        _targetTypeContainer.Add(targetingHeader);
+
         var effectTypeProp = serializedObject.FindProperty("effectType");
         var targetTypeProp = serializedObject.FindProperty("targetType");
         bool isTerrainEffect = (AbilityEffectType)effectTypeProp.enumValueIndex == AbilityEffectType.Terrain;
@@ -281,14 +290,18 @@ public class AbilityEffectEditor : UnityEditor.Editor {
         var conditionsProp = serializedObject.FindProperty(conditionsPropName);
 
         // Header with Add button
-        var headerRow = new VisualElement();
-        headerRow.style.justifyContent = Justify.SpaceBetween;
-        headerRow.style.alignItems = Align.Center;
-        headerRow.style.marginTop = 8;
-        headerRow.style.marginBottom = 4;
-
         var headerLabelElem = new Label(headerLabel);
-        headerRow.Add(headerLabelElem);
+        headerLabelElem.style.unityTextAlign = TextAnchor.MiddleLeft;
+        headerLabelElem.style.marginLeft = 0;
+        headerLabelElem.style.marginTop = 8;
+        headerLabelElem.style.marginBottom = 4;
+        headerLabelElem.style.unityFontStyleAndWeight = FontStyle.Bold;
+        container.Add(headerLabelElem);
+
+        var headerRow = new VisualElement();
+        headerRow.style.justifyContent = Justify.FlexEnd;
+        headerRow.style.alignItems = Align.Center;
+        headerRow.style.marginBottom = 4;
 
         var addButton = new Button(() => {
             conditionsProp.arraySize++;
@@ -601,12 +614,11 @@ public class AbilityEffectEditor : UnityEditor.Editor {
 
 }
 
-/// <summary>
-/// Extension methods for VisualElement fluent API.
-/// </summary>
-public static class VisualElementExtensions {
-    public static T WithClass<T>(this T element, string className) where T : VisualElement {
-        element.AddToClassList(className);
-        return element;
+namespace NetFlower.Editor {
+    public static class VisualElementExtensions {
+        public static T WithClass<T>(this T element, string className) where T : VisualElement {
+            element.AddToClassList(className);
+            return element;
+        }
     }
 }
