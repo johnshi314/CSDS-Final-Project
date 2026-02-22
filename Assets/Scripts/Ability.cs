@@ -29,18 +29,56 @@ namespace NetFlower {
         public AbilityTargetType TargetType;    // Type of targets allowed
         public AbilityTargetMode TargetMode;    // If this is point-select or global
         public AbilityTargetShape TargetShape;  // Shape of area affected
-        public uint ShapeRangeMax = 1;          // Size of area shape (e.g., radius for circle, length for line)
-        public uint ShapeRangeMin = 0;          // Minimum size of area shape (e.g., minimum radius for circle, minimum length for line)
         public uint RangeMax = 1;               // Max range from caster
         public uint RangeMin = 0;               // Min range from caster (0 will allow self-targeting)
+        public uint ShapeRangeMax = 1;          // Size of area shape (e.g., radius for circle, length for line)
+        public uint ShapeRangeMin = 0;          // Minimum size of area shape (e.g., minimum radius for circle, minimum length for line)
+        public uint SelectCount = 1;            // Number of targets that can be selected (only applicable for Point mode)
 
         [Header("Costs")]
-        public uint Cost;                       // Resource cost to use ability (e.g., mana, stamina)
-        public uint Cooldown;                   // Number of turns before ability can be used again after use
+        public uint Cost = 1;                   // Resource cost to use ability (e.g., mana, stamina)
+        public uint Cooldown = 0;               // Number of turns before ability can be used again after use
 
-        [Header("Effects")]
+        // [Header("Effects")]
         public List<AbilityEffect> TargetEffects;     // List of effects this ability applies to targets
         public List<AbilityEffect> CasterEffects;     // List of effects this ability applies to the caster
+
+        /// <summary>
+        /// Called when the ScriptableObject is loaded or values change in the editor.
+        /// Enforces targeting constraints.
+        /// </summary>
+        protected virtual void OnValidate() {
+            // TargetType cannot be empty (0) — default to Everything
+            if (TargetType == 0) {
+                TargetType = AbilityTargetType.Everything;
+            }
+
+            // When Global mode: shape and ranges are not applicable
+            if (TargetMode == AbilityTargetMode.Global) {
+                TargetShape = AbilityTargetShape.None;
+                ShapeRangeMax = 0;
+                ShapeRangeMin = 0;
+                RangeMax = 0;
+                RangeMin = 0;
+                SelectCount = 1; // Global always affects exactly 1 "selection" (the whole board)
+            } else {
+                // When Point mode: shape cannot be None
+                if (TargetShape == AbilityTargetShape.None) {
+                    TargetShape = AbilityTargetShape.Single;
+                }
+                
+                // When Single shape: shape range is not applicable (only one tile)
+                if (TargetShape == AbilityTargetShape.Single) {
+                    ShapeRangeMax = 0;
+                    ShapeRangeMin = 0;
+                }
+                
+                // SelectCount must be at least 1 for Point mode
+                if (SelectCount < 1) {
+                    SelectCount = 1;
+                }
+            }
+        }
 
         /// <summary>
         /// Checks if the Caster is even allowed to target the specified target with this ability based on the context.
@@ -101,11 +139,11 @@ namespace NetFlower {
                     // Apply the effect immediately
                     effectInstance.ApplyTo(target);
 
-                    // If the effect has a duration, add it to the target's active effects
-                    if (effect.Duration > 0) {
-                        // target.AddEffect(effectInstance);
-                        //TODO: Fix how effects are added to agents
-                    }
+                    // // If the effect has a duration, add it to the target's active effects
+                    // if (effect.Duration > 0) {
+                    //     // target.AddEffect(effectInstance);
+                    //     //TODO: Fix how effects are added to agents
+                    // }
                 }
             }
         }
@@ -221,11 +259,14 @@ namespace NetFlower {
     /// </summary>
     [Flags]
     public enum AbilityTargetType {
-        Ally        = 1 << 0,                  // Able to target allies
-        NonAlly     = 1 << 1,                  // Able to target non-allies
-        Empty       = 1 << 2,                  // Able to target empty tiles
-        Agent       = Ally | NonAlly,          // Able to target all units
-        Everything  = Empty | Ally | NonAlly,  // Able to target all units
+        Ally          = 1 << 0,  // Able to target allies
+        NonAlly       = 1 << 1,  // Able to target non-allies
+        Empty         = 1 << 2,  // Able to target empty tiles
+        AllySummon    = 1 << 3,     // Convenience: allies or summons (hidden from editor)
+        NonAllySummon = 1 << 4,  // Convenience: non-allies or summons (hidden from editor)
+        Agents        = Ally | NonAlly,             // Able to target agents only
+        Summons       = AllySummon | NonAllySummon, // Able to target summons only
+        Everything    = Agents | Summons |  Empty,  // Convenience: all targets (hidden from editor)
     }
 
     /// <summary>
