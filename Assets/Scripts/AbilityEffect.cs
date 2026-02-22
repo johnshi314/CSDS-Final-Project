@@ -38,6 +38,10 @@ namespace NetFlower {
         public int Amount => amount;
         public List<ValueCondition> DelayConditions => delayConditions;
         public List<ValueCondition> DurationConditions => durationConditions;
+        
+        [SerializeField, HideInInspector] private StatusEffect prevSE;
+        [SerializeField, HideInInspector] private TerrainEffect prevTE;
+        [SerializeField, HideInInspector] private AbilityTargetType prevATT;
         public string Duration {
             get {
                 if (durationConditions.Count == 0) return "Instant";
@@ -54,30 +58,54 @@ namespace NetFlower {
         /// Enforces constraints.
         /// </summary>
         private void OnValidate() {
-            // TargetType cannot be empty (0) — default to Everything
-            if (targetType == 0) {
-                targetType = AbilityTargetType.Everything;
+            if (prevATT == 0) {
+                prevATT = AbilityTargetType.Agents;
             }
             
             // When EffectType is not Status: statusEffect must be None
             if (effectType != AbilityEffectType.Status) {
+                // Only save to prevSE when leaving Status mode (statusEffect is not None)
+                if (statusEffect != StatusEffect.None) {
+                    prevSE = statusEffect;
+                }
                 statusEffect = StatusEffect.None;
             } else {
                 // When EffectType is Status: statusEffect cannot be None
                 if (statusEffect == StatusEffect.None) {
-                    statusEffect = StatusEffect.WillUp; // Default to first non-None
+                    statusEffect = prevSE != StatusEffect.None ? prevSE : StatusEffect.WillUp;
                 }
             }
             
             // When EffectType is not Terrain: terrainEffect must be None
             if (effectType != AbilityEffectType.Terrain) {
+                // Only save to prevTE when leaving Terrain mode (terrainEffect is not None)
+                if (terrainEffect != TerrainEffect.None) {
+                    prevTE = terrainEffect;
+                    // Also save the current targetType (before stripping) when leaving Terrain mode
+                    if ((targetType & ~AbilityTargetType.Empty) != 0) {
+                        prevATT = targetType;
+                    }
+                }
                 terrainEffect = TerrainEffect.None;
+                // Strip Empty from targetType for non-terrain effects
+                targetType &= ~AbilityTargetType.Empty;
             } else {
                 // When EffectType is Terrain: terrainEffect cannot be None
                 if (terrainEffect == TerrainEffect.None) {
-                    terrainEffect = TerrainEffect.Difficult; // Default to first non-None
+                    // Restore terrain effect from previous value when switching to Terrain mode
+                    terrainEffect = prevTE != TerrainEffect.None ? prevTE : TerrainEffect.Difficult;
+                    // Restore targetType from prevATT when switching to Terrain mode (preserves Empty flag)
+                    if (prevATT != 0 && (prevATT & AbilityTargetType.Empty) != 0) {
+                        targetType = prevATT;
+                    }
                 }
+                // Don't overwrite prevATT in terrain mode - it's only updated when leaving terrain mode
             }
+
+            if (targetType == 0) {
+                targetType = AbilityTargetType.Agents;
+            }
+
             // Check conditions, if the source is fixed, the value must be non-negative, and condition value type must be Fixed as well.
             foreach (var condition in delayConditions) {
                 // TargetCount is not valid for conditions - reset to Fixed
@@ -119,7 +147,7 @@ namespace NetFlower {
         None = 0,
         Targeted = 1,
         Targeting = 2,
-        SpecializedMaintinence = 3,
+        SpecializedMaintenance = 3,
 
         // Up effects (buffs)
         WillUp = 101,
