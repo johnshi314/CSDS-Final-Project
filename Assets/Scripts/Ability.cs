@@ -119,9 +119,10 @@ namespace NetFlower {
 
         /// <summary>
         /// Resolve all effects of this ability using the provided context.
+        /// Override in subclasses (e.g. AbilitySummon) for custom resolution.
         /// </summary>
         /// <param name="context">Context information for ability resolution.</param>
-        public static void Resolve(AbilityUseContext context) {
+        public virtual void Resolve(AbilityUseContext context) {
             // Warn if context is invalid, but attempt to resolve anyway to avoid breaking the game (e.g., if UI passes in incomplete context)
             if (!IsValidContext(context))
                 Debug.LogWarning("Resolving ability with invalid context");

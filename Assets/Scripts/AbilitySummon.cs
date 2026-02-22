@@ -42,19 +42,13 @@ namespace NetFlower {
         /// Resolve the summon ability — spawns the summon at the target tile.
         /// </summary>
         /// <param name="context">The ability use context.</param>
-        public new static void Resolve(AbilityUseContext context) {
-            if (context.Ability is not AbilitySummon summonAbility) {
-                Debug.LogError("AbilitySummon.Resolve called with non-summon ability");
+        public override void Resolve(AbilityUseContext context) {
+            if (Summon == null) {
+                Debug.LogError($"AbilitySummon '{DisplayName}' has no Summon assigned");
                 return;
             }
 
-            if (summonAbility.Summon == null) {
-                Debug.LogError($"AbilitySummon '{summonAbility.DisplayName}' has no Summon assigned");
-                return;
-            }
-
-            // Validate context
-            if (!IsValidContext(context)) {
+            if (!Ability.IsValidContext(context)) {
                 Debug.LogWarning("Resolving summon ability with invalid context");
                 return;
             }
@@ -64,24 +58,24 @@ namespace NetFlower {
             var owner = context.Caster.GetPlayer();
             var worldPos = new Vector3(targetTile.Position.x, targetTile.Position.y, 0);
 
-            var summonedAgent = summonAbility.Summon.SpawnAgent(owner, null, worldPos);
+            var summonedAgent = Summon.SpawnAgent(owner, null, worldPos);
 
             // TODO: Register the summoned agent with the map/turn system
-            Debug.Log($"Summoned '{summonAbility.Summon.DisplayName}' at {targetTile.Position}");
+            Debug.Log($"Summoned '{Summon.DisplayName}' at {targetTile.Position}");
 
             // Apply target effects to the summoned agent (buffs, shields, etc.)
-            if (summonAbility.TargetEffects != null) {
+            if (TargetEffects != null) {
                 var summonAgent = summonedAgent.GetComponent<Agent>();
                 if (summonAgent != null) {
-                    foreach (var effect in summonAbility.TargetEffects) {
+                    foreach (var effect in TargetEffects) {
                         // TODO: Apply effect to summonAgent properly via AbilityEffectInstance
                     }
                 }
             }
 
             // Apply caster effects to the caster
-            if (summonAbility.CasterEffects != null) {
-                foreach (var effect in summonAbility.CasterEffects) {
+            if (CasterEffects != null) {
+                foreach (var effect in CasterEffects) {
                     // TODO: Apply caster effects properly
                 }
             }

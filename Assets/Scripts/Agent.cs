@@ -211,8 +211,8 @@ namespace NetFlower {
                 TargetTile = targetTile
             };
             
-            // Resolve the ability's effects
-            Ability.Resolve(context);
+            // Resolve the ability's effects (dispatches to AbilitySummon.Resolve for summon abilities)
+            ability.Resolve(context);
             
             // Set cooldown after successful use
             currentCooldowns[ability] = (int)ability.Cooldown;
