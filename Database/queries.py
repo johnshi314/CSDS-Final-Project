@@ -45,6 +45,7 @@ def create_player(hashedpw):
             result = connection.execute(text(
                 "INSERT INTO players (created_at, hashedpw) VALUES (:created_at, :hashedpw)"
             ), {"created_at": datetime.now(timezone.utc), "hashedpw": hashedpw})
+            connection.commit()
             player_id = result.lastrowid
             logger.info(f"Player created successfully (ID: {player_id})")
             return player_id
@@ -100,6 +101,7 @@ def insert_players(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
 
         print(f"Inserted {len(rows)} players successfully!")
 
@@ -134,6 +136,7 @@ def insert_characters(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
         logger.info(f"Inserted {len(rows)} characters successfully!")
     except Exception as e:
         logger.error(f"Database error: {e}")
@@ -159,6 +162,7 @@ def insert_matches(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
         print(f"Inserted {len(rows)} matches successfully!")
     except Exception as e:
         print("Database error:", e)
@@ -178,6 +182,7 @@ def insert_matchups(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
         print(f"Inserted {len(rows)} matchups successfully!")
     except Exception as e:
         print("Database error:", e)
@@ -203,6 +208,7 @@ def insert_match_players(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
         print(f"Inserted {len(rows)} match_players successfully!")
     except Exception as e:
         print("Database error:", e)
@@ -222,6 +228,7 @@ def insert_ability_usage(json_string):
     try:
         with engine.begin() as connection:
             connection.execute(sql, rows)
+            connection.commit()
         print(f"Inserted {len(rows)} ability_usage records successfully!")
     except Exception as e:
         print("Database error:", e)
