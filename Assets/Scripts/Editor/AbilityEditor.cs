@@ -34,7 +34,7 @@ public class AbilityEditor : UnityEditor.Editor {
         
         // Load stylesheet
         var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-            "Assets/Scripts/Editor/UI/NetFlowerEditor.uss");
+            "Assets/Scripts/Editor/NetFlowerEditor.uss");
         if (styleSheet != null) {
             root.styleSheets.Add(styleSheet);
         }

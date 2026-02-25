@@ -22,7 +22,7 @@ namespace NetFlower.Editor {
             var root = new VisualElement();
 
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Assets/Scripts/Editor/UI/NetFlowerEditor.uss");
+                "Assets/Scripts/Editor/NetFlowerEditor.uss");
             if (styleSheet != null) {
                 root.styleSheets.Add(styleSheet);
             }
