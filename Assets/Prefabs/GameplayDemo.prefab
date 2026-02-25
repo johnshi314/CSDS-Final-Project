@@ -10,11 +10,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 1.07969
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.42441
       objectReference: {fileID: 0}
     - target: {fileID: 363023989136914256, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1278,7 +1278,21 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3592775124466969150}
+    - targetCorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1923085385317920646}
   m_SourcePrefab: {fileID: 100100000, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+--- !u!114 &567301929608366175 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6562996664655615714, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
+  m_PrefabInstance: {fileID: 6686443194859413181}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1851586129582700408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27a0b7e4bec821a85ba74ab32801c148, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GridUI
 --- !u!1 &1851586129582700408 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
@@ -1296,9 +1310,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 75a04b250e7932a55ae9aac701424db4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.GameplayDemo
-  gridMap: {fileID: 0}
-  agent: {fileID: 0}
-  moveInterval: 1
+  gridMap: {fileID: 567301929608366175}
+  battleManager: {fileID: 3592775124466969150}
 --- !u!114 &3592775124466969150
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1311,3 +1324,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74ce7ddc354accae9a1bec12a3cc9737, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleManager
+  gridMap: {fileID: 567301929608366175}
+  moveRangeColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  moveRangeAlpha: 0.5
+--- !u!114 &1923085385317920646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1851586129582700408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04f4dadd6942739d7adbbe897dabbf31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TurnManager

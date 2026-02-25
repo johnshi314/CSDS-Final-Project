@@ -253,6 +253,21 @@ namespace NetFlower.UI {
         }
 
         /// <summary>
+        /// Highlights a pre-computed list of Tiles (avoids recalculating BFS).
+        /// </summary>
+        public void HighlightTiles(List<Tile> tiles, Color highlightColor, float alpha = 0.6f) {
+            if (tileVisualizer == null || tiles == null) return;
+
+            List<Vector3Int> positions = new List<Vector3Int>();
+            foreach (Tile tile in tiles) {
+                Vector2Int tilemapCoord = MapIndexToTilemap(tile.Position);
+                positions.Add(new Vector3Int(tilemapCoord.x, tilemapCoord.y, 0));
+            }
+
+            tileVisualizer.HighlightCells(positions, highlightColor, alpha);
+        }
+
+        /// <summary>
         /// Clears all persistent tile highlights (keeps hover highlighting active).
         /// </summary>
         public void ClearHighlights() {

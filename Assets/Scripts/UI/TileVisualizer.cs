@@ -21,7 +21,7 @@ public class TileVisualizer : MonoBehaviour {
     private GameObject highlightTilemapObj;
     private TilemapCollider2D tilemapCollider;
     private Vector3Int lastHoveredPos = new Vector3Int(-999, -999, 0);
-    private HashSet<Vector3Int> persistentHighlights = new HashSet<Vector3Int>();
+    private Dictionary<Vector3Int, (Color color, float alpha)> persistentHighlights = new();
     private bool hoverEnabled = true;
     private bool isInitialized = false;
 
@@ -63,7 +63,7 @@ public class TileVisualizer : MonoBehaviour {
         hoverHighlightAlpha = alpha;
         
         // Refresh current hover tile if settings changed
-        if (changed && lastHoveredPos.x != -999 && !persistentHighlights.Contains(lastHoveredPos)) {
+        if (changed && lastHoveredPos.x != -999 && !persistentHighlights.ContainsKey(lastHoveredPos)) {
             SetHighlightAtCell(lastHoveredPos, hoverHighlightColor, hoverHighlightAlpha);
         }
     }
@@ -150,10 +150,14 @@ public class TileVisualizer : MonoBehaviour {
 
         // Only update if the hovered tile changed
         if (hoveredCellPos != lastHoveredPos) {
-            // Clear previous hover highlight (but keep persistent highlights)
-            if (lastHoveredPos.x != -999 && !persistentHighlights.Contains(lastHoveredPos)) {
-                highlightTilemap.SetTile(lastHoveredPos, null);
-                highlightTilemap.SetColor(lastHoveredPos, Color.white);
+            // Restore previous tile: persistent highlights get their color back, others get cleared
+            if (lastHoveredPos.x != -999) {
+                if (persistentHighlights.TryGetValue(lastHoveredPos, out var stored)) {
+                    SetHighlightAtCell(lastHoveredPos, stored.color, stored.alpha);
+                } else {
+                    highlightTilemap.SetTile(lastHoveredPos, null);
+                    highlightTilemap.SetColor(lastHoveredPos, Color.white);
+                }
             }
 
             // Set new hover highlight
@@ -195,7 +199,7 @@ public class TileVisualizer : MonoBehaviour {
     /// </summary>
     public void SetHoverEnabled(bool enabled) {
         hoverEnabled = enabled;
-        if (!enabled && lastHoveredPos.x != -999 && !persistentHighlights.Contains(lastHoveredPos)) {
+        if (!enabled && lastHoveredPos.x != -999 && !persistentHighlights.ContainsKey(lastHoveredPos)) {
             // Clear current hover highlight when disabling
             highlightTilemap.SetTile(lastHoveredPos, null);
             lastHoveredPos = new Vector3Int(-999, -999, 0);
@@ -209,7 +213,7 @@ public class TileVisualizer : MonoBehaviour {
     public void HighlightCell(Vector3Int cellPos, Color color, float alpha = 0.5f) {
         if (!isInitialized || highlightTileAsset == null) return;
         
-        persistentHighlights.Add(cellPos);
+        persistentHighlights[cellPos] = (color, alpha);
         SetHighlightAtCell(cellPos, color, alpha);
     }
 
@@ -241,7 +245,7 @@ public class TileVisualizer : MonoBehaviour {
     public void ClearAllHighlights() {
         if (!isInitialized) return;
         
-        foreach (var cell in persistentHighlights) {
+        foreach (var cell in persistentHighlights.Keys) {
             highlightTilemap.SetTile(cell, null);
             highlightTilemap.SetColor(cell, Color.white);
         }
@@ -252,7 +256,7 @@ public class TileVisualizer : MonoBehaviour {
     /// Returns a hashset of all currently highlighted cell positions (persistent only, excludes hover).
     /// </summary>
     public HashSet<Vector3Int> GetHighlightedCells() {
-        return new HashSet<Vector3Int>(persistentHighlights);
+        return new HashSet<Vector3Int>(persistentHighlights.Keys);
     }
 
     /// <summary>

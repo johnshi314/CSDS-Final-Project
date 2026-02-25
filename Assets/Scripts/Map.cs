@@ -243,12 +243,49 @@ namespace NetFlower {
         public IEnumerable<Agent> GetRegisteredAgents() => currentTiles.Keys;
 
         /// <summary>
-        /// Calculates and returns all tile positions the agent can move to.
-        /// Uses Algorithm-based distance calculation based on agent's movement range and walkability of tiles.
+        /// BFS flood fill from the agent's current tile, bounded by movement range.
+        /// Only traverses walkable tiles not occupied by other agents.
         /// </summary>
         public List<Tile> GetMovableTiles(Agent agent) {
             List<Tile> movableTiles = new List<Tile>();
-            // TODO: Implement pathfinding-based movement range calculation that accounts for walkability and obstacles.
+            Tile startTile = GetCurrentTile(agent);
+            if (startTile == null) return movableTiles;
+
+            int range = (int)agent.MovementRange;
+            var queue = new Queue<(Tile tile, int dist)>();
+            var visited = new HashSet<Vector2Int>();
+
+            queue.Enqueue((startTile, 0));
+            visited.Add(startTile.Position);
+
+            Vector2Int[] directions = {
+                Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
+            };
+
+            while (queue.Count > 0) {
+                var (current, dist) = queue.Dequeue();
+
+                if (dist > 0) {
+                    movableTiles.Add(current);
+                }
+
+                if (dist >= range) continue;
+
+                foreach (var dir in directions) {
+                    Vector2Int neighborPos = current.Position + dir;
+                    if (visited.Contains(neighborPos)) continue;
+                    if (!InBounds(neighborPos)) continue;
+
+                    Tile neighbor = Tiles[neighborPos.x, neighborPos.y];
+                    if (!neighbor.IsWalkable) continue;
+
+                    Agent occupant = GetAgentAtPosition(neighborPos);
+                    if (occupant != null && occupant != agent) continue;
+
+                    visited.Add(neighborPos);
+                    queue.Enqueue((neighbor, dist + 1));
+                }
+            }
 
             return movableTiles;
         }
