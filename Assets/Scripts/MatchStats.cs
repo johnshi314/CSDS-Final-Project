@@ -10,13 +10,15 @@ namespace NetFlower {
         public int matchId;
 
         // Timing
-        public DateTime startTime;
-        public DateTime endTime;
+        public string startTime;
+        public string endTime;
         public float duration;      
         public float queueTime;     
 
         // Outcome
         public string winnerTeamId;
+
+        public MatchStats() { }
 
         public MatchStats(
             int matchId,

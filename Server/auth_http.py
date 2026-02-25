@@ -1,6 +1,6 @@
 """
 HTTP Auth Server for Unity Game
-Provides REST endpoints for registration, login, and token verification.
+Provides REST endpoints for registration, login, recordkeeping, and token verification.
 """
 from datetime import datetime, timedelta, timezone
 import os
@@ -13,6 +13,9 @@ from pydantic import BaseModel, Field
 
 from Database import queries
 from logging_config import get_logger
+
+from fastapi import HTTPException
+import json
 
 logger = get_logger(__name__)
 
@@ -155,6 +158,88 @@ def verify_token(payload: TokenVerifyRequest):
         "player_id": verified['player_id']
     }
 
+@app.post("/submit-playermatchstats")
+def submit_playermatchstats(stat: dict):
+    """
+    Accepts a PlayerMatchStats JSON object from Unity
+    and inserts it into the database
+    """
+    try:
+        converted_row = {
+            # remove match_player_id for AUTO_INCREMENT
+            "match_player_id": None,
+            "match_id": stat["matchId"],
+            "player_id": stat["playerId"],
+            "character_id": stat["characterId"],
+            "team_id": stat["teamId"],
+            "damage_dealt": stat["damageDealt"],
+            "damage_taken": stat["damageTaken"],
+            "turns_taken": stat["turnsTaken"],
+            "won": stat["won"],
+            "disconnected": stat["disconnected"]
+        }
+        json_string = json.dumps([converted_row])  
+        queries.insert_match_players(json_string)
+
+        return {
+            "status": "success",
+            "message": "Player Match stat inserted successfully"
+        }
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/submit-matchstats")
+async def submit_matchstats(match: dict):
+    """
+    Accepts a MatchStats JSON object from Unity and inserts into database.
+    """
+    try:
+
+        row = {
+            "match_id": match["matchId"],
+            "start_time": match["startTime"],
+            "end_time": match["endTime"],
+            "duration": match["duration"],
+            "queue_time": match["queueTime"],
+            "winner_team_id": match["winnerTeamId"]
+        }
+
+        queries.insert_matches(json.dumps([row]))
+        return {"status": "success", "message": "MatchStats inserted successfully"}
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except Exception as e:
+        logger.exception("Submit matchstats failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/submit-matchupstats")
+async def submit_matchupstats(matchup: dict):
+    """
+    Accepts a MatchStats JSON object from Unity and inserts into database.
+    """
+    try:
+
+        row = {
+            "matchup_id": None,
+            "match_id": matchup["matchId"],
+            "character_a_id": matchup["characterAId"],
+            "character_b_id": matchup["characterBId"],
+            "winner_character_id": matchup["winnerCharacterId"]
+        }
+
+        queries.insert_matchups(json.dumps([row]))
+        return {"status": "success", "message": "MatchupStats inserted successfully"}
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except Exception as e:
+        logger.exception("Submit matchupstats failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
