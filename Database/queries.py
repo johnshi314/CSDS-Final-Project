@@ -222,8 +222,8 @@ def insert_ability_usage(json_string):
         return
 
     sql = db.text("""
-        INSERT INTO ability_usage_stats (match_player_id, ability_id, damage_done, downtime)
-        VALUES (:match_player_id, :ability_id, :damage_done, :downtime)
+        INSERT INTO ability_usage_stats (ability_usage_id, character_id, player_id, damage_done, downtime)
+        VALUES (:ability_usage_id, :character_id, :player_id, :damage_done, :downtime)
     """)
     try:
         with engine.begin() as connection:

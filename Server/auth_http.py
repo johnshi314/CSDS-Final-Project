@@ -178,7 +178,7 @@ def submit_playermatchstats(stat: dict):
             "won": stat["won"],
             "disconnected": stat["disconnected"]
         }
-        json_string = json.dumps([converted_row])  
+        json_string = json.dumps([converted_row])
         queries.insert_match_players(json_string)
 
         return {
@@ -190,7 +190,7 @@ def submit_playermatchstats(stat: dict):
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 
 @app.post("/submit-matchstats")
 async def submit_matchstats(match: dict):
@@ -238,7 +238,31 @@ async def submit_matchupstats(matchup: dict):
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
-        logger.exception("Submit matchupstats failed")
+        logger.exception("Submit abilitystats failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/submit-abilityusagestats")
+async def submit_abilityusagestats(ability: dict):
+    """
+    Accepts an AbilityUsageStats JSON object from Unity and inserts into database.
+    """
+    try:
+
+        row = {
+            "ability_usage_id": None,
+            "character_id": ability["characterId"],
+            "player_id": ability["playerId"],
+            "damage_done": ability["damageDone"],
+            "downtime": ability["downtime"],
+        }
+
+        queries.insert_ability_usage(json.dumps([row]))
+        return {"status": "success", "message": "AbilityStats inserted successfully"}
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+    except Exception as e:
+        logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

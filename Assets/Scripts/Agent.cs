@@ -7,6 +7,9 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.Networking;
+using System.Text;
 
 namespace NetFlower {
 
@@ -15,6 +18,8 @@ namespace NetFlower {
     /// </summary>
     public class Agent : MonoBehaviour {
 
+        //  Sending stats to database
+        public enum RequestType { AbilitySubmit }
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         public void Start() {
@@ -52,6 +57,9 @@ namespace NetFlower {
         public uint HP { get { return hp; } }
         public uint MaxHP { get { return maxHP; } }
         public uint MaxRange { get { return maxRange; } }
+
+        // PlayerMatchStats reference
+        private PlayerMatchStats playerMatchStats;
 
         /// <summary>
         /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
@@ -178,6 +186,11 @@ namespace NetFlower {
             if (this.hp < 0) {
                 this.hp = 0;
             }
+
+            // Update match stats
+            if (playerMatchStats != null) {
+                playerMatchStats.damageTaken += damage;
+            }
         }
 
         /// <summary>
@@ -227,7 +240,7 @@ namespace NetFlower {
         public bool UseAbility(Ability ability, Tile targetTile) {
             if (!CanUseAbility(ability))
                 return false;
-            
+
             // Create context for ability resolution
             var context = new AbilityUseContext {
                 Ability = ability,
@@ -240,7 +253,21 @@ namespace NetFlower {
             
             // Set cooldown after successful use
             currentCooldowns[ability] = (int) ability.Cooldown;
-            
+
+            // Record ability use in database
+            AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
+                characterId: this.AgentName,
+                playerId: this.Player.Id);
+
+            // will change how this is calculated later
+            abilityUsageStats.damageDone = ability.TargetEffects.Count;
+
+            // Test ability stats to database
+            string abilityUsageJson = abilityUsageStats.ToJson();
+            Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+
             return true;
         }
 
@@ -299,6 +326,35 @@ namespace NetFlower {
             foreach (var key in keys) {
                 if (currentCooldowns[key] > 0)
                     currentCooldowns[key]--;
+            }
+        }
+
+        IEnumerator SubmitAbilityUsageRoutine(string abilityUsageJson) {
+            string url = "http://localhost:8000/submit-abilityusagestats";
+            yield return SendRequest(url, abilityUsageJson, RequestType.AbilitySubmit);
+        }
+
+        IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Accept", "application/json");
+                request.timeout = 10;
+
+                yield return request.SendWebRequest();
+                Debug.Log($"Server response text: {request.downloadHandler.text}");
+
+
+                if (request.result == UnityWebRequest.Result.Success) {
+                    Debug.Log($"Request succeeded to {url}");
+                    Debug.Log($"Server response: {request.downloadHandler.text}");
+                } else {
+                    Debug.LogError($"Request failed ({request.responseCode}): {request.error}");
+                }
             }
         }
 
