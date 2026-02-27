@@ -19,15 +19,13 @@ MonoBehaviour:
   TargetShape: 3
   RangeMax: 2
   RangeMin: 1
-  Cost: 0
+  ShapeRangeMax: 1
+  ShapeRangeMin: 0
+  SelectCount: 2
+  Cost: 1
   Cooldown: 0
-  Effects:
-  - EffectType: 0
-    Amount: 2
-    Duration: 0
-  - EffectType: 2
-    Amount: 1
-    Duration: 0
-  - EffectType: 2
-    Amount: 2
-    Duration: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: a18f21d8b0ee5fe60bff02eb900308c9, type: 2}
+  CasterEffects:
+  - {fileID: 11400000, guid: 64673fcb041ef9d65833289062f3599e, type: 2}
+  - {fileID: 11400000, guid: c88c162160ac90e26b82d3461f547145, type: 2}

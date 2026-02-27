@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   Id: 101
   DisplayName: Loud Demand
-  TargetType: 2
+  TargetType: 18
   TargetMode: 0
   TargetShape: 3
   ShapeRangeMax: 1

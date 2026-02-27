@@ -21,6 +21,9 @@ MonoBehaviour:
   ShapeRangeMin: 2
   RangeMax: 4
   RangeMin: 1
+  ShapeRangeMax: 1
+  ShapeRangeMin: 0
+  SelectCount: 3
   Cost: 0
   Cooldown: 7
   TargetEffects: []

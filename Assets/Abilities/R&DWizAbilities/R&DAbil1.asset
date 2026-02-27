@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
+  m_Name: R&DAbil1
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  Id: 101
+  DisplayName: Target
+  TargetType: 2
+  TargetMode: 0
+  TargetShape: 0
+  RangeMax: 5
+  RangeMin: 1
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
+  Cost: 1
+  Cooldown: 0
+  TargetEffects:
+  - {fileID: 11400000, guid: 48ed8462d1d6c4a38b6d30de8fca0413, type: 2}
+  - {fileID: 11400000, guid: b6a52d2829b454102a4791b4268ee810, type: 2}
+  CasterEffects: []
