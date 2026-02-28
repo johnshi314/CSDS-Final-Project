@@ -12,14 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: CEOAbil1
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 101
   DisplayName: Loud Demand
-  TargetType: 2
+  TargetType: 18
   TargetMode: 0
-  TargetShape: 3
-  RangeMax: 0
-  RangeMin: 0
+  TargetShape: 0
+  RangeMax: 3
+  RangeMin: 1
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
   Cost: 0
   Cooldown: 0
-  Effects:
-  - {fileID: 0}
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: 0793adf9605e43346b75d9de9259834d, type: 2}
+  CasterEffects: []

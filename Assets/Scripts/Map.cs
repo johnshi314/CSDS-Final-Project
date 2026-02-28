@@ -51,6 +51,9 @@ namespace NetFlower {
         // Track each agent's full path
         private Dictionary<Agent, List<Tile>> paths = new Dictionary<Agent, List<Tile>>();
 
+        // Effect instances on tiles (tick and expire via TickEffects)
+        private Dictionary<Vector2Int, List<AbilityEffectInstance>> tileEffects = new Dictionary<Vector2Int, List<AbilityEffectInstance>>();
+
         // ===================================================================== //
         // ============================ Constructor ============================ //
         /// <summary>
@@ -106,6 +109,7 @@ namespace NetFlower {
             currentTiles.Clear();
             agentsByPosition.Clear();
             paths.Clear();
+            tileEffects.Clear();
         }
         // ===================================================================== //
         // ======================= Public Map Methods ======================== //
@@ -193,6 +197,50 @@ namespace NetFlower {
             }
             return this.Tiles[x, y];
         }
+
+        /// <summary>
+        /// Add a duration effect on a tile (called after ability resolve when effect has duration conditions).
+        /// </summary>
+        public void AddEffect(Tile tile, AbilityEffectInstance instance) {
+            if (tile == null || instance == null) return;
+            if (!tileEffects.TryGetValue(tile.Position, out var list)) {
+                list = new List<AbilityEffectInstance>();
+                tileEffects[tile.Position] = list;
+            }
+            list.Add(instance);
+        }
+
+        /// <summary>
+        /// Get all effect instances on a tile (for display or query).
+        /// </summary>
+        public IReadOnlyList<AbilityEffectInstance> GetEffectsOnTile(Tile tile) {
+            if (tile == null || !tileEffects.TryGetValue(tile.Position, out var list)) return new List<AbilityEffectInstance>();
+            return list;
+        }
+
+        /// <summary>
+        /// Called each turn (e.g. from TurnManager): remove tile-bound effects expired at the given turn number.
+        /// </summary>
+        /// <param name="currentTurn">Current turn number (used for expiry: effect expires when currentTurn >= TurnApplied + duration).</param>
+        public void TickEffects(int currentTurn) {
+            var toRemove = new List<(Vector2Int pos, AbilityEffectInstance inst)>();
+            foreach (var kv in tileEffects) {
+                foreach (var inst in kv.Value) {
+                    if (inst.IsExpired(currentTurn)) toRemove.Add((kv.Key, inst));
+                }
+            }
+            foreach (var (pos, inst) in toRemove) {
+                if (tileEffects.TryGetValue(pos, out var list)) {
+                    list.Remove(inst);
+                    if (list.Count == 0) tileEffects.Remove(pos);
+                }
+            }
+        }
+
+        /// <summary>
+        /// All agents currently on the map (for ticking agent-bound effects each turn).
+        /// </summary>
+        public IEnumerable<Agent> GetRegisteredAgents() => currentTiles.Keys;
 
         /// <summary>
         /// Calculates and returns all tile positions the agent can move to.

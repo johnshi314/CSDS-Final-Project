@@ -12,22 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: DHAbil2
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 102
   DisplayName: Close Competition
   TargetType: 2
   TargetMode: 0
-  TargetShape: 3
+  TargetShape: 0
   RangeMax: 2
   RangeMin: 1
-  Cost: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 2
+  Cost: 1
   Cooldown: 0
-  Effects:
-  - EffectType: 0
-    Amount: 2
-    Duration: 0
-  - EffectType: 2
-    Amount: 1
-    Duration: 0
-  - EffectType: 2
-    Amount: 2
-    Duration: 1
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: 02f33c52fa4ed8847abd0614a760b9a8, type: 2}
+  CasterEffects:
+  - {fileID: 11400000, guid: 0cd71a11ca31abcaba50b7f761fd6423, type: 2}

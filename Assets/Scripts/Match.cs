@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using UnityEngine.Networking;
+using System.Collections;
+using System.Text;
 
 // Placeholder
 namespace NetFlower {
@@ -18,24 +21,30 @@ namespace NetFlower {
         private MatchupStats matchupStats;
         private int dbMatchId;
 
+        //  Sending stats to database
+        public enum RequestType { MatchSubmit, PlayerSubmit, MatchupSubmit }
+
         public void Start() {
-            // change this to fetch pk from db
-            dbMatchId = 1;
-            StartMatch(dbMatchId);
+            matchStats = new MatchStats() { };
+            // change this to fetch next primary key from db
+            dbMatchId = 4;
+            matchStats = StartMatch(dbMatchId);
 
             // Create parent objects for allies and enemies
             GameObject allies = new GameObject("Allies");
             GameObject enemies = new GameObject("Enemies");
 
-            // Create test agents
+            Player allyPlayer = new Player { Id = 1, Name = "AllyPlayer", IP = "127.0.0.1" };
+            Player enemyPlayer = new Player { Id = 2, Name = "EnemyPlayer", IP = "127.0.0.2" };
+
+            // Create agents
             GameObject newAlly = Agent.NewAgent(
-                player: null,
+                player: allyPlayer,
                 agent_name: "Test Ally 1",
                 hp: 30,
                 range: 3,
                 abilities: null,
                 tunneling: Agent.Tunneling.Ally,
-                gameObjectName: null,
                 parent: allies,
                 position: new Vector3(2, 0, 0)
             );
@@ -45,13 +54,12 @@ namespace NetFlower {
             allyStats = allyAgent.RegisterPlayer(dbMatchId);
 
             GameObject newAgent = Agent.NewAgent(
-                player: null,
+                player: enemyPlayer,
                 agent_name: "Test Enemy 1",
                 hp: 15,
                 range: 2,
                 abilities: null,
                 tunneling: Agent.Tunneling.Nothing,
-                gameObjectName: null,
                 parent: enemies,
                 position: new Vector3(0, 0, 0)
             );
@@ -82,23 +90,30 @@ namespace NetFlower {
             // Apply red material to enemy agent
             MeshRenderer enemyRenderer = newAgent.AddComponent<MeshRenderer>();
             enemyRenderer.materials = new Material[] { redMaterial };
+
+            EndMatch("ally");
         }
         // Record match data at start and end
-        public void StartMatch(int dbMatchId) {
-            if (matchActive) return;
-            matchStats = new MatchStats(
-                matchId: dbMatchId,
-                queueTime: 0f
-             );
-            matchStats.startTime = DateTime.UtcNow;
+        public MatchStats StartMatch(int dbMatchId) {
+            if (matchActive) return matchStats;
+            matchStats.matchId = dbMatchId;
+            matchStats.queueTime = 0f;
+            matchStats.startTime = DateTime.UtcNow.ToString("o");
             matchActive = true;
+
+            return matchStats;
         }
 
         public void EndMatch(string winnerTeamId) {
             if (!matchActive) return;
 
-            matchStats.endTime = DateTime.UtcNow;
-            matchStats.duration = (float)(matchStats.endTime - matchStats.startTime).TotalSeconds;
+            matchStats.endTime = DateTime.UtcNow.ToString("o");
+
+            // Parse strings to DateTime to compute duration
+            DateTime start = DateTime.Parse(matchStats.startTime);
+            DateTime end = DateTime.Parse(matchStats.endTime);
+
+            matchStats.duration = (float)(end - start).TotalSeconds;
 
             matchStats.winnerTeamId = winnerTeamId;
 
@@ -109,8 +124,23 @@ namespace NetFlower {
             if (enemyStats != null)
                 enemyStats.won = (enemyStats.teamId == winnerTeamId);
 
+            // Test adding match to database
+            string matchJson = matchStats.ToJson();
+            Debug.Log("Sending match JSON to server: " + matchJson);
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitMatchesRoutine(matchJson));
+
+            // Test adding match player to database
+            string matchPlayerJson = allyStats.ToJson();
+            Debug.Log("Sending match player JSON to server: " + matchPlayerJson);
+
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitMatchPlayerRoutine(matchPlayerJson));
+
             ResolveMatchups();
             matchActive = false;
+
+
         }
 
         public MatchupStats RegisterMatchup(string characterAId, string characterBId) {
@@ -136,8 +166,57 @@ namespace NetFlower {
                 else
                     matchupStats.winnerCharacterId = "tie"; // tie
             }
+
+            // Test adding matchup to database
+            string matchupJson = matchupStats.ToJson();
+            Debug.Log("Sending match JSON to server: " + matchupJson);
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitMatchupRoutine(matchupJson));
+        }
+
+        #region Network Requests
+
+        IEnumerator SubmitMatchesRoutine(string matchJson) {
+            string url = "http://localhost:8000/submit-matchstats"; 
+            yield return SendRequest(url, matchJson, RequestType.MatchSubmit);
+        }
+
+        IEnumerator SubmitMatchupRoutine(string matchupJson) {
+            string url = "http://localhost:8000/submit-matchupstats";
+            yield return SendRequest(url, matchupJson, RequestType.MatchupSubmit);
+        }
+
+        IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
+            string url = "http://localhost:8000/submit-playermatchstats";  
+            yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);    
+        }
+
+        IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Accept", "application/json");
+                request.timeout = 10;
+
+                yield return request.SendWebRequest();
+                Debug.Log($"Server response text: {request.downloadHandler.text}");
+
+
+                if (request.result == UnityWebRequest.Result.Success) {
+                    Debug.Log($"Request succeeded to {url}");
+                    Debug.Log($"Server response: {request.downloadHandler.text}");
+                } else {
+                    Debug.LogError($"Request failed ({request.responseCode}): {request.error}");
+                }
+            }
         }
     }
+
+    #endregion
 }
 
-        
+

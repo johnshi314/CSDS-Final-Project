@@ -7,6 +7,9 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.Networking;
+using System.Text;
 
 namespace NetFlower {
 
@@ -15,13 +18,19 @@ namespace NetFlower {
     /// </summary>
     public class Agent : MonoBehaviour {
 
+        //  Sending stats to database
+        public enum RequestType { AbilitySubmit }
+
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         public void Start() {
             // Initialize current HP to max HP at the start
-            this.HP = this.MaxHP;
+            this.hp = this.maxHP;
 
             // Initialize cooldowns for all abilities to 0 (available)
             foreach (var ability in Abilities) {
+                if (ability.StartsOnCooldown)
+                    currentCooldowns[ability] = (int) ability.Cooldown;
+                else
                 currentCooldowns[ability] = 0;
             }
         }
@@ -34,17 +43,40 @@ namespace NetFlower {
         [SerializeField] string AgentName;       // Agent's display name
 
         [Header("Base Stats")]
-        [SerializeField] uint MaxHP = 20;       // Maximum health points
-        [SerializeField] uint MaxRange = 3;     // Maximum movement range (per turn)
+        [SerializeField] uint maxHP = 20;       // Maximum health points
+        [SerializeField] uint maxRange = 3;     // Maximum movement range (per turn)
         [SerializeField] Tunneling CanTunnel;   // How other agents can pass through this agent
         [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
 
         [Header("Current Stats")]
-        [SerializeField] uint HP;                   // Current health points
+        [SerializeField] uint hp;                   // Current health points
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
-        public uint MovementRange { get { return MaxRange; } }
+        public uint MovementRange { get { return maxRange; } }
+        public uint HP { get { return hp; } }
+        public uint MaxHP { get { return maxHP; } }
+        public uint MaxRange { get { return maxRange; } }
+
+        // PlayerMatchStats reference
+        private PlayerMatchStats playerMatchStats;
+
+        /// <summary>
+        /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
+        /// </summary>
+        public void AddEffect(AbilityEffectInstance instance) {
+            if (instance != null && !instance.IsTileBound) activeEffects.Add(instance);
+        }
+
+        /// <summary>
+        /// Called by turn order each turn: remove agent-bound effects expired at the given turn number.
+        /// </summary>
+        /// <param name="currentTurn">Current turn number (used for expiry: effect expires when currentTurn >= TurnApplied + duration).</param>
+        public void TickEffects(int currentTurn) {
+            for (int i = activeEffects.Count - 1; i >= 0; i--) {
+                if (activeEffects[i].IsExpired(currentTurn)) activeEffects.RemoveAt(i);
+            }
+        }
 
         // TODO: Determine if it is sufficient that a MapManager tracks agents and the map, that the
         // agent themselves can keep track of where they are located (which map and which tile)
@@ -123,11 +155,11 @@ namespace NetFlower {
                             Tunneling tunneling = default) {
             this.Player = player;
             this.AgentName = agent_name;
-            this.MaxHP = hp;
-            this.MaxRange = range;
+            this.maxHP = hp;
+            this.maxRange = range;
             this.Abilities = abilities != null ? new List<Ability>(abilities) : new List<Ability>();
             this.CanTunnel = tunneling;
-            this.HP = hp;
+            this.hp = hp;
         }
 
         // ===================================================================== //
@@ -138,11 +170,11 @@ namespace NetFlower {
         /// </summary>
         public NetFlower.Player GetPlayer() { return this.Player; }
         public String GetAgentName() {  return this.AgentName; }
-        public uint GetMaxHP() {  return this.MaxHP; }
-        public uint GetMaxRange() { return this.MaxRange; }
+        public uint GetmaxHP() {  return this.maxHP; }
+        public uint GetMaxRange() { return this.maxRange; }
         public List<Ability> GetAbilities() { return this.Abilities; }
         public Tunneling GetTunneling() { return this.CanTunnel; }
-        public uint GetHP() {  return this.HP; }
+        public uint GetHP() {  return this.hp; }
   
 
         /// <summary>
@@ -150,9 +182,14 @@ namespace NetFlower {
         /// </summary>
         /// <param name="damage">Amount of damage to apply.</param>
         public void TakeDamage(int damage) {
-            this.HP -= (uint)damage;
-            if (this.HP < 0) {
-                this.HP = 0;
+            this.hp -= (uint)damage;
+            if (this.hp < 0) {
+                this.hp = 0;
+            }
+
+            // Update match stats
+            if (playerMatchStats != null) {
+                playerMatchStats.damageTaken += damage;
             }
         }
 
@@ -161,9 +198,9 @@ namespace NetFlower {
         /// </summary>
         /// <param name="amount">Amount of HP to restore.</param>
         public void Heal(int amount) {
-            this.HP += (uint)amount;
-            if (this.HP > this.MaxHP) {
-                this.HP = this.MaxHP;
+            this.hp += (uint)amount;
+            if (this.hp > this.maxHP) {
+                this.hp = this.maxHP;
             }
         }
 
@@ -172,14 +209,14 @@ namespace NetFlower {
         /// </summary>
         /// <returns>True if the agent is knocked out, otherwise false.</returns>
         public bool KOed() {
-            return this.HP <= 0;
+            return this.hp <= 0;
         }
 
         /// <summary>
         /// Reset the agent's HP to its maximum value.
         /// </summary>
         public void ResetHP() {
-            this.HP = this.MaxHP;
+            this.hp = this.maxHP;
         }
 
         /// <summary>
@@ -203,7 +240,7 @@ namespace NetFlower {
         public bool UseAbility(Ability ability, Tile targetTile) {
             if (!CanUseAbility(ability))
                 return false;
-            
+
             // Create context for ability resolution
             var context = new AbilityUseContext {
                 Ability = ability,
@@ -211,12 +248,26 @@ namespace NetFlower {
                 TargetTile = targetTile
             };
             
-            // Resolve the ability's effects
-            Ability.Resolve(context);
+            // Resolve the ability's effects (dispatches to AbilitySummon.Resolve for summon abilities)
+            ability.Resolve(context);
             
             // Set cooldown after successful use
-            currentCooldowns[ability] = (int)ability.Cooldown;
-            
+            currentCooldowns[ability] = (int) ability.Cooldown;
+
+            // Record ability use in database
+            AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
+                characterId: this.AgentName,
+                playerId: this.Player.Id);
+
+            // will change how this is calculated later
+            abilityUsageStats.damageDone = ability.TargetEffects.Count;
+
+            // Test ability stats to database
+            string abilityUsageJson = abilityUsageStats.ToJson();
+            Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+
             return true;
         }
 
@@ -275,6 +326,35 @@ namespace NetFlower {
             foreach (var key in keys) {
                 if (currentCooldowns[key] > 0)
                     currentCooldowns[key]--;
+            }
+        }
+
+        IEnumerator SubmitAbilityUsageRoutine(string abilityUsageJson) {
+            string url = "http://localhost:8000/submit-abilityusagestats";
+            yield return SendRequest(url, abilityUsageJson, RequestType.AbilitySubmit);
+        }
+
+        IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Accept", "application/json");
+                request.timeout = 10;
+
+                yield return request.SendWebRequest();
+                Debug.Log($"Server response text: {request.downloadHandler.text}");
+
+
+                if (request.result == UnityWebRequest.Result.Success) {
+                    Debug.Log($"Request succeeded to {url}");
+                    Debug.Log($"Server response: {request.downloadHandler.text}");
+                } else {
+                    Debug.LogError($"Request failed ({request.responseCode}): {request.error}");
+                }
             }
         }
 

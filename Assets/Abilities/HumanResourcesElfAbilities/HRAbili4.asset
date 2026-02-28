@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
+  m_Name: HRAbili4
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
+  Id: 101
+  DisplayName: 
+  TargetType: 1
+  TargetMode: 0
+  TargetShape: 3
+  RangeMax: 0
+  RangeMin: 0
+  ShapeRangeMax: 5
+  ShapeRangeMin: 0
+  SelectCount: 1
+  Cost: 0
+  Cooldown: 6
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: 6d5677158f14e6ab1b80cb77215e9f59, type: 2}
+  - {fileID: 11400000, guid: 33e3c482419ac1441b55e984efe98e82, type: 2}
+  CasterEffects:
+  - {fileID: 11400000, guid: 6d5677158f14e6ab1b80cb77215e9f59, type: 2}
+  - {fileID: 11400000, guid: 33e3c482419ac1441b55e984efe98e82, type: 2}

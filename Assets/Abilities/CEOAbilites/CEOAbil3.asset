@@ -12,16 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: CEOAbil3
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 103
   DisplayName: Irrefutable Command
   TargetType: 1
   TargetMode: 0
   TargetShape: 3
-  RangeMax: 2
-  RangeMin: 1
+  RangeMax: 0
+  RangeMin: 0
+  ShapeRangeMax: 2
+  ShapeRangeMin: 1
+  SelectCount: 1
   Cost: 0
   Cooldown: 2
-  Effects:
-  - EffectType: 3
-    Amount: 2
-    Duration: 0
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: da3b95162a55e80b1abef9b3217ddf3f, type: 2}
+  CasterEffects: []

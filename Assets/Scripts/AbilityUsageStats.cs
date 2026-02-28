@@ -6,20 +6,20 @@ namespace NetFlower {
     [System.Serializable]
     public class AbilityUsageStats {
 
-        // Identifiers 
-        public int characterId;      
-        public int matchPlayerId;    
+        // Identifiers
+        public string characterId;
+        public int playerId;
 
-        // Metrics 
+        // Metrics
         public int damageDone;
-        public float downtime;       
+        public float downtime;
 
         public AbilityUsageStats(
-            int characterId,
-            int matchPlayerId
+            string characterId,
+            int playerId
         ) {
             this.characterId = characterId;
-            this.matchPlayerId = matchPlayerId;
+            this.playerId = playerId;
 
             damageDone = 0;
             downtime = 0f;

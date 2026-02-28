@@ -1,0 +1,138 @@
+/* NetFlower Custom Editor Styles - UI Toolkit */
+
+/* ===== Section Headers ===== */
+.section-header {
+    -unity-font-style: bold;
+    font-size: 12px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    padding-left: 3px;
+}
+
+/* ===== Section Containers ===== */
+.section-container {
+    margin-bottom: 8px;
+}
+
+.section-box {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
+/* ===== Help Boxes ===== */
+.help-text {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 2px;
+    margin-bottom: 4px;
+    padding-left: 3px;
+    white-space: normal;
+}
+
+.info-box {
+    background-color: rgba(62, 130, 217, 0.15);
+    border-left-width: 3px;
+    border-left-color: rgb(62, 130, 217);
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 2px;
+}
+
+/* ===== Disabled Fields ===== */
+.disabled-field {
+    opacity: 0.5;
+}
+
+/* Keep disabled inputs visible (some Unity editor themes hide them by default) */
+.amount-section .unity-base-field__input {
+    display: flex;
+}
+
+/* ===== Summary Box ===== */
+.summary-box {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    margin-top: 8px;
+}
+
+.summary-header {
+    -unity-font-style: bold;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.summary-item {
+    font-size: 11px;
+    padding-left: 12px;
+    margin: 2px 0;
+}
+
+.summary-empty {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    -unity-font-style: italic;
+}
+
+/* ===== Preview Box (for Summon stats) ===== */
+.preview-box {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    padding: 6px 8px;
+    margin: 4px 0 4px 16px;
+}
+
+.preview-label {
+    font-size: 11px;
+    margin: 1px 0;
+}
+
+/* ===== Percentage Field ===== */
+.percent-field-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.percent-field-row > IntegerField {
+    flex-grow: 1;
+}
+
+.percent-field-row > IntegerField > Label {
+    min-width: 120px;
+    -unity-text-align: middle-left;
+}
+
+.percent-suffix {
+    font-size: 12px;
+    margin-left: 4px;
+    min-width: 15px;
+}
+
+/* ===== Custom Field Alignment (match PropertyField widths) ===== */
+PopupField > Label,
+EnumField > Label,
+IntegerField > Label,
+EnumFlagsField > Label {
+    min-width: 120px;
+    -unity-text-align: middle-left;
+}
+
+/* ===== Button Styles ===== */
+.create-button {
+    margin-top: 4px;
+    align-self: flex-end;
+}
+
+/* ===== Spacer ===== */
+.spacer {
+    height: 8px;
+}
+
+.spacer-large {
+    height: 16px;
+}

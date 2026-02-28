@@ -118,12 +118,12 @@ public class AgentEditor : UnityEditor.Editor {
             EditorGUI.EndChangeCheck();
 
             // Duration
-            EditorGUI.BeginChangeCheck();
-            int newDuration = Mathf.Max(0, EditorGUILayout.IntField("Remaining Duration", effectInstance.Duration));
-            if (EditorGUI.EndChangeCheck()) {
-                effectInstance.Duration = newDuration;
-                EditorUtility.SetDirty(agent);
-            }
+            // EditorGUI.BeginChangeCheck();
+            // int newDuration = Mathf.Max(0, EditorGUILayout.IntField("Remaining Duration", effectInstance.Duration));
+            // if (EditorGUI.EndChangeCheck()) {
+            //     effectInstance.Duration = newDuration;
+            //     EditorUtility.SetDirty(agent);
+            // }
 
             // Source (drag-and-drop Agent field)
             EditorGUI.BeginChangeCheck();
@@ -172,7 +172,7 @@ public class AgentEditor : UnityEditor.Editor {
                 if (effect == null) {
                     templateOptions[i] = $"Template {i}: <null>";
                 } else {
-                    templateOptions[i] = $"{effect.EffectType} | Amt {effect.Amount} | Dur {effect.Duration}";
+                    templateOptions[i] = $"{effect.EffectType} | Amt {effect.Amount} | Dur {effect.DurationDescription}";
                 }
             }
 
@@ -201,7 +201,9 @@ public class AgentEditor : UnityEditor.Editor {
             var source = selectedEffectSource != null ? selectedEffectSource : agent;
 
             Undo.RecordObject(agent, "Add Active Effect");
-            activeEffects.Add(new AbilityEffectInstance(selectedTemplate, source));
+            // Agent-bound effects need targetAgent (the agent who has the effect); we're adding to this agent's list so target = agent. Tile-bound use null targetAgent.
+            Agent targetAgent = selectedTemplate.IsTileBound ? null : agent;
+            activeEffects.Add(new AbilityEffectInstance(selectedTemplate, source, targetTile: null, targetAgent, turnApplied: 0));
 
             EditorUtility.SetDirty(agent);
         }
