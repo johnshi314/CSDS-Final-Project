@@ -12,16 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: DHAbil3
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 103
   DisplayName: Self-Assure
   TargetType: 1
   TargetMode: 0
   TargetShape: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
   RangeMax: 0
   RangeMin: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
   Cost: 0
-  Cooldown: 3
+  Cooldown: 2
+  StartsOnCooldown: 1
   TargetEffects: []
-  CasterEffects: []
+  CasterEffects:
+  - {fileID: 11400000, guid: 86f294c649ab91993b43a428554a0472, type: 2}
+  - {fileID: 11400000, guid: 323c109aec342432c8c24243800dff5b, type: 2}

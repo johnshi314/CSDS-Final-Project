@@ -12,18 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: HRAbili3
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 103
   DisplayName: 
   TargetType: 2
   TargetMode: 0
   TargetShape: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
   RangeMax: 3
   RangeMin: 1
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
   Cost: 0
   Cooldown: 2
+  StartsOnCooldown: 1
   TargetEffects:
-  - {fileID: 11400000, guid: d445adf67a76049dcb76e5702b393eb4, type: 2}
+  - {fileID: 11400000, guid: a6a851bc96c865e9fb9c95cf9da2cf07, type: 2}
   CasterEffects:
-  - {fileID: 11400000, guid: 6a20e266592d54049828b38cfc047475, type: 2}
+  - {fileID: 11400000, guid: bae95753ce96249b292b597f5ad3bfb8, type: 2}

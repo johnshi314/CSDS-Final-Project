@@ -12,18 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: DHAbil1
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 101
   DisplayName: Intentional Shove
   TargetType: 2
   TargetMode: 0
   TargetShape: 0
   RangeMax: 1
-  RangeMin: 0
+  RangeMin: 1
   ShapeRangeMax: 0
   ShapeRangeMin: 0
   SelectCount: 1
   Cost: 1
   Cooldown: 0
+  StartsOnCooldown: 1
   TargetEffects:
-  - {fileID: 11400000, guid: 3c548700a7367a0fbaf7e33a39981ab8, type: 2}
+  - {fileID: 11400000, guid: ac0f84aef4456f244bec09da5c884428, type: 2}
   CasterEffects: []

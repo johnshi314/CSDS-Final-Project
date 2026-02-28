@@ -12,9 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dedfbbadc4b47b7b6a0a14d258491cdb, type: 3}
   m_Name: PowerUp NoTs
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
+  version: 2
   effectType: 2
-  statusEffect: 3
-  amountSource: 107
-  amount: 100
-  durationSource: 0
-  duration: 2
+  statusEffect: 103
+  terrainEffect: 0
+  targetType: 27
+  amountSource: 100
+  amount: 2
+  delayConditions:
+  - ConnectorToNext: 0
+    Type: 0
+    Source: 0
+    Value: 1
+    ValueType: 0
+  durationConditions:
+  - ConnectorToNext: 0
+    Type: 0
+    Source: 0
+    Value: 0
+    ValueType: 0

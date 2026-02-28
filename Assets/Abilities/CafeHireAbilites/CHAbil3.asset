@@ -12,16 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: CHAbil3
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 103
   DisplayName: Pitch-Black Nectar
   TargetType: 1
   TargetMode: 0
   TargetShape: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
   RangeMax: 0
   RangeMin: 0
+  ShapeRangeMax: 0
+  ShapeRangeMin: 0
+  SelectCount: 1
   Cost: 0
   Cooldown: 3
+  StartsOnCooldown: 1
   TargetEffects: []
-  CasterEffects: []
+  CasterEffects:
+  - {fileID: 11400000, guid: 0ae587852bce8c381945431897f19623, type: 2}
+  - {fileID: 11400000, guid: 299f3cc669c4d32329b90e3c685a1798, type: 2}

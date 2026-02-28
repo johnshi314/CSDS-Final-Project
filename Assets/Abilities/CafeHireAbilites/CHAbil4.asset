@@ -12,16 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: CHAbil4
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 104
   DisplayName: Caution Sign
-  TargetType: -1
+  TargetType: 1
   TargetMode: 0
   TargetShape: 3
-  ShapeRangeMax: 1
+  RangeMax: 0
+  RangeMin: 0
+  ShapeRangeMax: 4
   ShapeRangeMin: 0
-  RangeMax: 4
-  RangeMin: 1
+  SelectCount: 1
   Cost: 0
   Cooldown: 6
-  TargetEffects: []
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: 95a10cc6ada22762091896499254807c, type: 2}
+  - {fileID: 11400000, guid: a07845a06c949c9739f323c450c3350c, type: 2}
   CasterEffects: []

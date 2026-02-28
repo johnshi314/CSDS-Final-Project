@@ -12,16 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b201cd334a9f5deab7379f47fd6e590, type: 3}
   m_Name: DHAbil4
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
+  version: 1
   Id: 104
   DisplayName: 
-  TargetType: 2
+  TargetType: -1
   TargetMode: 0
-  TargetShape: 3
-  ShapeRangeMax: 1
-  ShapeRangeMin: 0
-  RangeMax: 2
+  TargetShape: 1
+  RangeMax: 0
   RangeMin: 1
+  ShapeRangeMax: 7
+  ShapeRangeMin: 0
+  SelectCount: 1
   Cost: 0
   Cooldown: 3
-  TargetEffects: []
+  StartsOnCooldown: 1
+  TargetEffects:
+  - {fileID: 11400000, guid: ff94388020eea29cf9b6105bb0be9650, type: 2}
   CasterEffects: []

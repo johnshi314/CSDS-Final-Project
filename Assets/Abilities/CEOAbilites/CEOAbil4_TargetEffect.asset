@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dedfbbadc4b47b7b6a0a14d258491cdb, type: 3}
   m_Name: CEOAbil4_TargetEffect
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AbilityEffect
-  effectType: 3
+  version: 2
+  effectType: 0
   statusEffect: 0
-  terrainEffect: 2
-  targetType: 4
+  terrainEffect: 0
+  targetType: 31
   amountSource: 0
   amount: 0
   delayConditions: []

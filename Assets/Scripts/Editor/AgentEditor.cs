@@ -118,12 +118,12 @@ public class AgentEditor : UnityEditor.Editor {
             EditorGUI.EndChangeCheck();
 
             // Duration
-            EditorGUI.BeginChangeCheck();
-            int newDuration = Mathf.Max(0, EditorGUILayout.IntField("Remaining Duration", effectInstance.Duration));
-            if (EditorGUI.EndChangeCheck()) {
-                effectInstance.Duration = newDuration;
-                EditorUtility.SetDirty(agent);
-            }
+            // EditorGUI.BeginChangeCheck();
+            // int newDuration = Mathf.Max(0, EditorGUILayout.IntField("Remaining Duration", effectInstance.Duration));
+            // if (EditorGUI.EndChangeCheck()) {
+            //     effectInstance.Duration = newDuration;
+            //     EditorUtility.SetDirty(agent);
+            // }
 
             // Source (drag-and-drop Agent field)
             EditorGUI.BeginChangeCheck();
