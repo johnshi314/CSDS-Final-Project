@@ -9,7 +9,8 @@ namespace NetFlower {
         NotStarted,
         WaitingForAction,
         SelectingMoveTile,
-        SelectingAbility
+        SelectingAbility,
+        SelectingAbilityTarget
     }
 
     /// <summary>
@@ -35,6 +36,10 @@ namespace NetFlower {
         // Ability selection state
         private List<Ability> availableAbilities = new List<Ability>();
         private int selectedAbilityIndex = 0;
+        private Ability selectedAbility = null;  // The ability currently being targeted
+        private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
+        private Color abilityTargetColor = new Color(1f, 0.5f, 0.2f, 1f);  // Orange for ability targets
+        [SerializeField, Range(0f, 1f)] private float abilityTargetAlpha = 0.5f;
 
         // GUI rect used to block tile clicks over the UI panel
         private readonly Rect guiRect = new Rect(5, 5, 350, 400);
@@ -148,7 +153,7 @@ namespace NetFlower {
             if (state != BattleState.SelectingAbility || availableAbilities.Count == 0) return;
 
             Agent agent = CurrentAgent;
-            Ability selectedAbility = availableAbilities[selectedAbilityIndex];
+            selectedAbility = availableAbilities[selectedAbilityIndex];
 
             // Check if ability can be used
             if (!agent.CanUseAbility(selectedAbility)) {
@@ -156,17 +161,90 @@ namespace NetFlower {
                 return;
             }
 
-            // For now, use the ability on the current agent's tile (global or self-targeting)
-            // TODO: Implement targeting system
-            Tile currentTile = gridMap.MapManager.ActiveMap.GetCurrentTile(agent);
-            if (currentTile != null) {
-                agent.UseAbility(selectedAbility, currentTile);
-                Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName}.");
+            // If ability is Global mode, apply immediately to all valid targets
+            if (selectedAbility.TargetMode == AbilityTargetMode.Global) {
+                Map map = gridMap.MapManager.ActiveMap;
+                // For global abilities, apply to caster's tile
+                Tile casterTile = map.GetCurrentTile(agent);
+                if (casterTile != null) {
+                    agent.UseAbility(selectedAbility, casterTile);
+                    Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} (Global).");
+                }
+                state = BattleState.WaitingForAction;
+                availableAbilities.Clear();
+                selectedAbility = null;
+                selectedAbilityIndex = 0;
+            }
+            // If ability is Point mode, go to target selection
+            else if (selectedAbility.TargetMode == AbilityTargetMode.Point) {
+                Map map = gridMap.MapManager.ActiveMap;
+                Tile casterTile = map.GetCurrentTile(agent);
+
+                // Get all valid target tiles based on ability range
+                validAbilityTargets = GetValidAbilityTargets(agent, selectedAbility, casterTile);
+                if (validAbilityTargets.Count == 0) {
+                    Debug.LogWarning($"BattleManager: {agent.Name} has no valid targets for {selectedAbility.DisplayName}.");
+                    state = BattleState.WaitingForAction;
+                    selectedAbility = null;
+                    return;
+                }
+
+                state = BattleState.SelectingAbilityTarget;
+                gridMap.HighlightTiles(validAbilityTargets, abilityTargetColor, abilityTargetAlpha);
+                Debug.Log($"BattleManager: Showing {validAbilityTargets.Count} target options for {selectedAbility.DisplayName}.");
+            }
+        }
+
+        private List<Tile> GetValidAbilityTargets(Agent caster, Ability ability, Tile casterTile) {
+            List<Tile> validTargets = new List<Tile>();
+            Map map = gridMap.MapManager.ActiveMap;
+
+            // Get all tiles within range
+            for (int x = 0; x < map.Width; x++) {
+                for (int y = 0; y < map.Height; y++) {
+                    Vector2Int pos = new Vector2Int(x, y);
+                    Tile tile = map.GetTileAtPosition(pos);
+                    if (tile == null) continue;
+
+                    // Check range
+                    float distance = Vector2Int.Distance(casterTile.Position, pos);
+                    if (distance < ability.RangeMin || distance > ability.RangeMax) continue;
+
+                    // Check if this tile is walkable
+                    if (!tile.IsWalkable) continue;
+
+                    validTargets.Add(tile);
+                }
             }
 
+            return validTargets;
+        }
+
+        public void OnAbilityTargetTileSelected(Tile targetTile) {
+            if (state != BattleState.SelectingAbilityTarget || selectedAbility == null) return;
+
+            Agent agent = CurrentAgent;
+            agent.UseAbility(selectedAbility, targetTile);
+            Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
+
+            gridMap.ClearHighlights();
+            validAbilityTargets.Clear();
             state = BattleState.WaitingForAction;
             availableAbilities.Clear();
+            selectedAbility = null;
             selectedAbilityIndex = 0;
+
+            AdvanceTurn();
+        }
+
+        public void OnAbilityTargetCancelled() {
+            if (state != BattleState.SelectingAbilityTarget) return;
+
+            gridMap.ClearHighlights();
+            validAbilityTargets.Clear();
+            state = BattleState.SelectingAbility;
+            selectedAbility = null;
+            Debug.Log("BattleManager: Ability targeting cancelled.");
         }
 
         public void OnEndTurnPressed() {
@@ -198,7 +276,18 @@ namespace NetFlower {
         // ------------------------------------------------------------------ //
 
         void Update() {
-            if (state != BattleState.SelectingMoveTile) return;
+            if (state == BattleState.SelectingMoveTile) {
+                HandleMoveTileSelection();
+            }
+            else if (state == BattleState.SelectingAbility) {
+                HandleAbilitySelection();
+            }
+            else if (state == BattleState.SelectingAbilityTarget) {
+                HandleAbilityTargetSelection();
+            }
+        }
+
+        private void HandleMoveTileSelection() {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
 
             // Ignore clicks over the UI panel
@@ -216,6 +305,56 @@ namespace NetFlower {
             Debug.Log($"BattleManager: {agent.Name} moved to {clickedTile.Position}.");
 
             AdvanceTurn();
+        }
+
+        private void HandleAbilitySelection() {
+            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+
+            Vector2 mouseScreen = Mouse.current.position.ReadValue();
+            Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
+
+            // Check if click is on an ability
+            int clickedAbilityIndex = GetAbilityIndexAtMousePosition(guiMouse);
+            if (clickedAbilityIndex >= 0) {
+                selectedAbilityIndex = clickedAbilityIndex;
+                Debug.Log($"BattleManager: Selected ability {selectedAbilityIndex}: {availableAbilities[selectedAbilityIndex].DisplayName}");
+            }
+        }
+
+        private void HandleAbilityTargetSelection() {
+            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+
+            Vector2 mouseScreen = Mouse.current.position.ReadValue();
+            Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
+
+            // Ignore clicks over the UI panel
+            if (guiRect.Contains(guiMouse)) return;
+
+            Tile clickedTile = gridMap.GetHoveredTile();
+            if (clickedTile == null || !validAbilityTargets.Contains(clickedTile)) return;
+
+            OnAbilityTargetTileSelected(clickedTile);
+        }
+
+        private int GetAbilityIndexAtMousePosition(Vector2 guiMouse) {
+            if (availableAbilities.Count == 0) return -1;
+
+            float startY = 80;
+            float abilitySpacing = 75;
+            float abilityHeight = 70;
+            float abilityWidth = 310;
+
+            int displayCount = Mathf.Min(4, availableAbilities.Count);
+            for (int i = 0; i < displayCount; i++) {
+                float posY = startY + (i * abilitySpacing);
+                Rect abilityRect = new Rect(20, posY - 5, abilityWidth, abilityHeight);
+
+                if (abilityRect.Contains(guiMouse)) {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         // ------------------------------------------------------------------ //
@@ -258,6 +397,28 @@ namespace NetFlower {
             else if (state == BattleState.SelectingAbility) {
                 DrawAbilitySelection();
             }
+            else if (state == BattleState.SelectingAbilityTarget && selectedAbility != null) {
+                DrawAbilityTargeting();
+            }
+        }
+
+        void DrawAbilityTargeting() {
+            var headerStyle = new GUIStyle(GUI.skin.label) {
+                fontSize = 14,
+                fontStyle = FontStyle.Bold
+            };
+            headerStyle.normal.textColor = Color.cyan;
+            GUI.Label(new Rect(25, 50, 320, 25), $"Target for {selectedAbility.DisplayName}", headerStyle);
+
+            var hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+            hintStyle.normal.textColor = Color.yellow;
+            GUI.Label(new Rect(25, 80, 320, 40),
+                "Click an orange highlighted tile to target", hintStyle);
+
+            float btnY = 130, btnW = 150, btnH = 35;
+            if (GUI.Button(new Rect(25, btnY, btnW, btnH), "Cancel Target")) {
+                OnAbilityTargetCancelled();
+            }
         }
 
         void DrawAbilitySelection() {
@@ -268,7 +429,7 @@ namespace NetFlower {
                 fontStyle = FontStyle.Bold
             };
             headerStyle.normal.textColor = Color.cyan;
-            GUI.Label(new Rect(25, 50, 320, 25), "Abilities", headerStyle);
+            GUI.Label(new Rect(25, 50, 320, 25), "Abilities (Click to select)", headerStyle);
 
             float startY = 80;
             float abilityHeight = 70;
@@ -284,6 +445,11 @@ namespace NetFlower {
                 // Background highlight for selected ability
                 if (isSelected) {
                     GUI.Box(new Rect(20, posY - 5, 310, abilityHeight), "");
+                    // Draw border around selected ability
+                    GUI.skin.box.border.left = 2;
+                    GUI.skin.box.border.right = 2;
+                    GUI.skin.box.border.top = 2;
+                    GUI.skin.box.border.bottom = 2;
                 }
 
                 // Ability name

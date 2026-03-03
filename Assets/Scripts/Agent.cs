@@ -172,7 +172,7 @@ namespace NetFlower {
         public String GetAgentName() {  return this.AgentName; }
         public uint GetmaxHP() {  return this.maxHP; }
         public uint GetMaxRange() { return this.maxRange; }
-        public List<Ability> GetAbilities() { return this.Abilities; }
+        public List<Ability> GetAbilities() { return new List<Ability>(this.Abilities); } // John Shi: I added this to track the abilities of agents
         public Tunneling GetTunneling() { return this.CanTunnel; }
         public uint GetHP() {  return this.hp; }
   
