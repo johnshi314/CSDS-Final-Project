@@ -254,19 +254,22 @@ namespace NetFlower {
             // Set cooldown after successful use
             currentCooldowns[ability] = (int) ability.Cooldown;
 
-            // Record ability use in database
-            AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
-                characterId: this.AgentName,
-                playerId: this.Player.Id);
+            // If this agent is associated with a player, record the stats
+            if (Player != null) {
+                // Record ability use in database
+                AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
+                    characterId: this.AgentName,
+                    playerId: this.Player.Id);
 
-            // will change how this is calculated later
-            abilityUsageStats.damageDone = ability.TargetEffects.Count;
+                // will change how this is calculated later
+                abilityUsageStats.damageDone = ability.TargetEffects.Count;
 
-            // Test ability stats to database
-            string abilityUsageJson = abilityUsageStats.ToJson();
-            Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
-            // Start coroutine to submit JSON to backend
-            StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+                // Test ability stats to database
+                string abilityUsageJson = abilityUsageStats.ToJson();
+                Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
+                // Start coroutine to submit JSON to backend
+                StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+            }
 
             return true;
         }
