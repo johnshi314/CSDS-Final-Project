@@ -19,8 +19,8 @@ namespace NetFlower {
     public class Agent : MonoBehaviour {
         public void Move(int amount) {
             if (amount > range) range = 0;
-            if (amount < 0) range += (uint)amount;
-            else range -= (uint)amount;
+            if (amount < 0) range += (uint) Math.Abs(amount);
+            else range -= (uint) amount;
         }
 
 
