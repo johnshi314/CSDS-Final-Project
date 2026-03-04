@@ -26,6 +26,13 @@ namespace NetFlower {
                 return Type == TileType.Walkable;
             }
         }
+        public Agent Occupant {
+            get {
+                if (Map == null) return null;
+                return Map.GetAgentAtTile(this);       
+            }
+        }
+
         public Tile(Map map, Vector2Int position, bool isWalkable) {
             this.Map = map;
             this.Position = position;
