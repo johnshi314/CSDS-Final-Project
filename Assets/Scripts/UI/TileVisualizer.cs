@@ -163,7 +163,7 @@ public class TileVisualizer : MonoBehaviour {
             // Set new hover highlight
             if (hoveredCellPos.x != -999 && highlightTileAsset != null) {
                 SetHighlightAtCell(hoveredCellPos, hoverHighlightColor, hoverHighlightAlpha);
-                Debug.Log($"Entered tile: {hoveredCellPos}");
+                // Debug.Log($"Entered tile: {hoveredCellPos}");
             }
 
             lastHoveredPos = hoveredCellPos;

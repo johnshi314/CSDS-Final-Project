@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Ability
   version: 1
   Id: 101
-  DisplayName: 
+  DisplayName: HR1
   TargetType: 2
   TargetMode: 0
   TargetShape: 0

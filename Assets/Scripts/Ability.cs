@@ -130,39 +130,64 @@ namespace NetFlower {
             if (!IsValidContext(context))
                 Debug.LogWarning("Resolving ability with invalid context");
 
-            // If there are no effects, nothing to resolve
-            if (context.Ability.TargetEffects == null || context.Ability.TargetEffects.Count == 0)
-                return;
 
+            // Apply caster effects to the caster
+            if (context.Ability.CasterEffects != null)
+            {
+                foreach (var effect in context.Ability.CasterEffects)
+                {
+                    var instance = new AbilityEffectInstance(
+                        effect: effect,
+                        source: context.Caster,
+                        targetAgent: context.Caster,
+                        turnApplied: context.TurnNumber);
+                    instance.Apply();
+                    if (instance.HasDuration)
+                        context.Caster.AddEffect(instance);
+                }
+            }
 
-            // Apply each effect to each tile; agent-bound effects follow the occupant, tile-bound effects stay on the tile
-            foreach (var effect in context.Ability.TargetEffects) {
-                if (effect.IsTileBound) {
-                    var tiles = GetTilesInShape(context);
-                    var map = context.TargetTile.Map;
-                    foreach (Tile tile in tiles) {
-                        var instance = new AbilityEffectInstance(
-                            effect: effect,
-                            source:context.Caster,
-                            targetTile: tile,
-                            turnApplied: context.TurnNumber);
-                        instance.Apply();
-                        if (instance.HasDuration && map != null) {
-                            map.AddEffect(tile, instance);
+            // Apply target effects to all valid targets (including caster if valid)
+            if (context.Ability.TargetEffects != null)
+            {
+                foreach (var effect in context.Ability.TargetEffects)
+                {
+                    if (effect.IsTileBound)
+                    {
+                        var tiles = GetTilesInShape(context);
+                        var map = context.TargetTile.Map;
+                        foreach (Tile tile in tiles)
+                        {
+                            var instance = new AbilityEffectInstance(
+                                effect: effect,
+                                source: context.Caster,
+                                targetTile: tile,
+                                turnApplied: context.TurnNumber);
+                            instance.Apply();
+                            if (instance.HasDuration && map != null)
+                                map.AddEffect(tile, instance);
                         }
                     }
-                } else {
-                    var agents = GetTargetsInShape(context);
-                    foreach (Agent agent in agents) {
-                        // TODO: Check if the effect can be applied to the agent
-                        var instance = new AbilityEffectInstance(
-                            effect: effect,
-                            source: context.Caster,
-                            targetAgent: agent,
-                            turnApplied: context.TurnNumber);
-                        instance.Apply();
-                        if (instance.HasDuration) {
-                            context.Caster.AddEffect(instance);
+                    else
+                    {
+                        var agents = GetTargetsInShape(context);
+                        foreach (Agent agent in agents)
+                        {
+                            // Only apply if agent is a valid target type for this ability
+                            bool isCaster = agent == context.Caster;
+                            bool isAlly = isCaster; // TODO: Replace with real team logic
+                            var targetType = context.Ability.TargetType;
+                            if (isAlly && !targetType.HasFlag(AbilityTargetType.Ally))
+                                continue;
+                            // TODO: Add checks for NonAlly, Summon, etc. when team info is available
+                            var instance = new AbilityEffectInstance(
+                                effect: effect,
+                                source: context.Caster,
+                                targetAgent: agent,
+                                turnApplied: context.TurnNumber);
+                            instance.Apply();
+                            if (instance.HasDuration)
+                                agent.AddEffect(instance);
                         }
                     }
                 }

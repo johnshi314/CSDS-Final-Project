@@ -395,8 +395,6 @@ namespace NetFlower.UI {
             Vector3 worldPos = MapIndexToWorldPosition(newMapIndex, agent.transform.position.z);
             MoveAgentVisually(agent, worldPos);
 
-            // Optional debug log to see coordinate conversions in action
-            DebugPrintMapCoordinate(newMapIndex);
             return true;
         }
 

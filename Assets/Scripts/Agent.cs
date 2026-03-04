@@ -182,10 +182,10 @@ namespace NetFlower {
         /// </summary>
         /// <param name="damage">Amount of damage to apply.</param>
         public void TakeDamage(int damage) {
-            this.hp -= (uint)damage;
-            if (this.hp < 0) {
-                this.hp = 0;
-            }
+
+
+            int actualDamage = Math.Min((int)this.hp, damage);
+            this.hp -= (uint)actualDamage;
 
             // Update match stats
             if (playerMatchStats != null) {
@@ -237,22 +237,15 @@ namespace NetFlower {
         /// <param name="ability">The ability to use.</param>
         /// <param name="targetTile">The tile being targeted.</param>
         /// <returns>True if the ability was successfully used, false otherwise.</returns>
-        public bool UseAbility(Ability ability, Tile targetTile) {
-            if (!CanUseAbility(ability))
+        public bool UseAbility(AbilityUseContext context) {
+            if (!CanUseAbility(context.Ability))
                 return false;
-
-            // Create context for ability resolution
-            var context = new AbilityUseContext {
-                Ability = ability,
-                Caster = this,
-                TargetTile = targetTile
-            };
             
             // Resolve the ability's effects (dispatches to AbilitySummon.Resolve for summon abilities)
-            ability.Resolve(context);
+            context.Ability.Resolve(context);
             
             // Set cooldown after successful use
-            currentCooldowns[ability] = (int) ability.Cooldown;
+            currentCooldowns[context.Ability] = (int) context.Ability.Cooldown;
 
             // If this agent is associated with a player, record the stats
             if (Player != null) {
@@ -262,7 +255,7 @@ namespace NetFlower {
                     playerId: this.Player.Id);
 
                 // will change how this is calculated later
-                abilityUsageStats.damageDone = ability.TargetEffects.Count;
+                abilityUsageStats.damageDone = context.Ability.TargetEffects.Count;
 
                 // Test ability stats to database
                 string abilityUsageJson = abilityUsageStats.ToJson();
@@ -272,10 +265,6 @@ namespace NetFlower {
             }
 
             return true;
-        }
-
-        public bool UseAbility(Ability ability, Map map, Vector2Int targetPos) {
-            return UseAbility(ability, map.GetTileAtPosition(targetPos));
         }
 
         /// <summary>

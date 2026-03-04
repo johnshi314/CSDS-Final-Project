@@ -20,12 +20,17 @@ namespace NetFlower {
     /// </summary>
     public class BattleManager : MonoBehaviour {
 
+        [Header("Turn Management")]
+        public int currentTurn = 0; // Tracks the current turn number (starting from 0)
+
         [Header("References")]
         [SerializeField] private GridMap gridMap;
 
-        [Header("Movement Highlight")]
+        [Header("Tile Highlighting")]
         [SerializeField] private Color moveRangeColor = new Color(0.2f, 0.6f, 1f, 1f);
         [SerializeField, Range(0f, 1f)] private float moveRangeAlpha = 0.5f;
+        [SerializeField] private Color abilityTargetColor = new Color(1f, 0.5f, 0.2f, 1f);
+        [SerializeField, Range(0f, 1f)] private float abilityTargetAlpha = 0.5f;
 
         // State
         private BattleState state = BattleState.NotStarted;
@@ -38,9 +43,7 @@ namespace NetFlower {
         private int selectedAbilityIndex = 0;
         private Ability selectedAbility = null;  // The ability currently being targeted
         private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
-        private Color abilityTargetColor = new Color(1f, 0.5f, 0.2f, 1f);  // Orange for ability targets
-        [SerializeField, Range(0f, 1f)] private float abilityTargetAlpha = 0.5f;
-
+        
         // GUI rect used to block tile clicks over the UI panel
         private readonly Rect guiRect = new Rect(5, 5, 350, 400);
 
@@ -167,7 +170,13 @@ namespace NetFlower {
                 // For global abilities, apply to caster's tile
                 Tile casterTile = map.GetCurrentTile(agent);
                 if (casterTile != null) {
-                    agent.UseAbility(selectedAbility, casterTile);
+                    var aux = new AbilityUseContext {
+                        Ability = selectedAbility,
+                        Caster = agent,
+                        TargetTile = casterTile,
+                        TurnNumber = currentTurn
+                    };
+                    agent.UseAbility(aux);
                     Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} (Global).");
                 }
                 state = BattleState.WaitingForAction;
@@ -224,7 +233,13 @@ namespace NetFlower {
             if (state != BattleState.SelectingAbilityTarget || selectedAbility == null) return;
 
             Agent agent = CurrentAgent;
-            agent.UseAbility(selectedAbility, targetTile);
+            var aux = new AbilityUseContext {
+                Ability = selectedAbility,
+                Caster = agent,
+                TargetTile = targetTile,
+                TurnNumber = currentTurn
+            };
+            agent.UseAbility(aux);
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
 
             gridMap.ClearHighlights();
@@ -263,11 +278,23 @@ namespace NetFlower {
             state = BattleState.WaitingForAction;
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
-            Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn.");
+            // Tick all agents' effects at the start of each turn
+            foreach (var agent in turnOrder)
+            {
+                agent.TickEffects(currentTurn);
+            }
+            if (CurrentAgent != null)
+                CurrentAgent.OnTurnStart();
+            Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn. (Turn {currentTurn + 1})");
         }
 
         private void AdvanceTurn() {
+            if (CurrentAgent != null)
+                CurrentAgent.OnTurnEnd();
+            // Increment turn number when looping back to the first agent
             currentAgentIndex = (currentAgentIndex + 1) % turnOrder.Count;
+            if (currentAgentIndex == 0)
+                currentTurn++;
             BeginTurn();
         }
 
