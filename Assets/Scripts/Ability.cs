@@ -441,7 +441,21 @@ namespace NetFlower {
                     if (agent != null) {
                         if (Effect.EffectType == AbilityEffectType.Damage) agent.TakeDamage(amount);
                         else if (Effect.EffectType == AbilityEffectType.Heal) agent.Heal(amount);
-                        else { /* TODO: status */ Debug.LogWarning("Status effect not yet implemented"); }
+                        else if (Effect.EffectType == AbilityEffectType.Status) {
+                            switch (Effect.StatusEffect) {
+                                case StatusEffect.MovementDown:
+                                    agent.Move(amount); // For simplicity, we use the Amount field to indicate how much to decrease movement range; in a real implementation we might want a more flexible system for different status effects
+                                    break;
+                                case StatusEffect.MovementUp:
+                                    agent.Move(-amount);
+                                    break;
+                                // Add more status effects as needed
+                                default:
+                                    Debug.LogWarning($"Unknown status effect type: {Effect.StatusEffect}");
+                                    break;
+                            }
+                        
+                        }
                     }
                     break;
                 case AbilityEffectType.Terrain:

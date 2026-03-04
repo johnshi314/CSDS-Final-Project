@@ -17,6 +17,12 @@ namespace NetFlower {
     /// Data structure representing an agent in the game who can perform actions and take and deal damage.
     /// </summary>
     public class Agent : MonoBehaviour {
+        public void Move(int amount) {
+            if (amount > range) range = 0;
+            if (amount < 0) range += (uint)amount;
+            else range -= (uint)amount;
+        }
+
 
         //  Sending stats to database
         public enum RequestType { AbilitySubmit }
@@ -25,6 +31,7 @@ namespace NetFlower {
         public void Start() {
             // Initialize current HP to max HP at the start
             this.hp = this.maxHP;
+            this.range = this.maxRange;
 
             // Initialize cooldowns for all abilities to 0 (available)
             foreach (var ability in Abilities) {
@@ -49,11 +56,12 @@ namespace NetFlower {
         [SerializeField] List<Ability> Abilities;  // List of Abilities this agent can use
 
         [Header("Current Stats")]
-        [SerializeField] uint hp;                   // Current health points
+        [SerializeField] uint hp;                 // Current health points
+        [SerializeField] uint range;              // Current movement range
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
         public string Name { get { return AgentName; } }
-        public uint MovementRange { get { return maxRange; } }
+        public uint MovementRange { get { return range; } }
         public uint HP { get { return hp; } }
         public uint MaxHP { get { return maxHP; } }
         public uint MaxRange { get { return maxRange; } }
@@ -160,6 +168,7 @@ namespace NetFlower {
             this.Abilities = abilities != null ? new List<Ability>(abilities) : new List<Ability>();
             this.CanTunnel = tunneling;
             this.hp = hp;
+            this.range = range;
         }
 
         // ===================================================================== //
@@ -271,7 +280,8 @@ namespace NetFlower {
         /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
         /// </summary>
         public void OnTurnStart() {
-            
+            // Reset movement range at the start of turn
+            this.range = this.maxRange;
         }
 
         /// <summary>
@@ -279,6 +289,7 @@ namespace NetFlower {
         /// </summary>
         public void OnTurnEnd() {
             DecrementCooldowns();
+            this.range = this.maxRange; // Reset movement range at the end of the turn
         }
 
         /// <summary>

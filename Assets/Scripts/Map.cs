@@ -291,6 +291,42 @@ namespace NetFlower {
         }
 
         /// <summary>
+        /// Returns the shortest path (as a list of tiles) from start to end, or empty if unreachable.
+        /// Only traverses walkable, non-diagonal tiles, and avoids other agents.
+        /// </summary>
+        public List<Tile> FindShortestPath(Vector2Int start, Vector2Int end) {
+            var path = new List<Tile>();
+            if (!InBounds(start) || !InBounds(end)) return path;
+            if (start == end) {
+                path.Add(GetTileAtPosition(start));
+                return path;
+            }
+            var queue = new Queue<(Vector2Int pos, List<Tile> pathSoFar)>();
+            var visited = new HashSet<Vector2Int>();
+            queue.Enqueue((start, new List<Tile> { GetTileAtPosition(start) }));
+            visited.Add(start);
+            Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            while (queue.Count > 0) {
+                var (current, currentPath) = queue.Dequeue();
+                foreach (var dir in directions) {
+                    Vector2Int neighbor = current + dir;
+                    if (!InBounds(neighbor) || visited.Contains(neighbor)) continue;
+                    Tile neighborTile = GetTileAtPosition(neighbor);
+                    if (!neighborTile.IsWalkable) continue;
+                    Agent occupant = GetAgentAtPosition(neighbor);
+                    if (occupant != null) continue;
+                    var newPath = new List<Tile>(currentPath) { neighborTile };
+                    if (neighbor == end) {
+                        return newPath;
+                    }
+                    queue.Enqueue((neighbor, newPath));
+                    visited.Add(neighbor);
+                }
+            }
+            return new List<Tile>(); // No path found
+        }
+
+        /// <summary>
         /// Returns the dimensions of the map as a Vector2Int (width, height).
         /// </summary>
          public Vector2Int GetDimensions() {

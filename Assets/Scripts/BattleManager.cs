@@ -20,6 +20,11 @@ namespace NetFlower {
     /// </summary>
     public class BattleManager : MonoBehaviour {
 
+    // Turn timer
+    private float turnTimer = 30f;
+    private const float TURN_TIME_LIMIT = 30f;
+    private bool timerActive = false;
+
         [Header("Turn Management")]
         public int currentTurn = 0; // Tracks the current turn number (starting from 0)
 
@@ -248,8 +253,7 @@ namespace NetFlower {
             availableAbilities.Clear();
             selectedAbility = null;
             selectedAbilityIndex = 0;
-
-            AdvanceTurn();
+            // Do not advance turn automatically after using ability
         }
 
         public void OnAbilityTargetCancelled() {
@@ -286,6 +290,10 @@ namespace NetFlower {
             if (CurrentAgent != null)
                 CurrentAgent.OnTurnStart();
             Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn. (Turn {currentTurn + 1})");
+
+            // Start turn timer
+            turnTimer = TURN_TIME_LIMIT;
+            timerActive = true;
         }
 
         private void AdvanceTurn() {
@@ -296,6 +304,7 @@ namespace NetFlower {
             if (currentAgentIndex == 0)
                 currentTurn++;
             BeginTurn();
+            // Do not stop timer here; BeginTurn restarts it for the next player
         }
 
         // ------------------------------------------------------------------ //
@@ -303,6 +312,15 @@ namespace NetFlower {
         // ------------------------------------------------------------------ //
 
         void Update() {
+            // Handle turn timer (run in all player action states)
+            if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget)) {
+                turnTimer -= Time.deltaTime;
+                if (turnTimer <= 0f) {
+                    turnTimer = 0f;
+                    timerActive = false;
+                    AdvanceTurn();
+                }
+            }
             if (state == BattleState.SelectingMoveTile) {
                 HandleMoveTileSelection();
             }
@@ -326,12 +344,24 @@ namespace NetFlower {
             if (clickedTile == null || !validMoveTiles.Contains(clickedTile)) return;
 
             Agent agent = CurrentAgent;
+            // Calculate path distance moved using BFS
+            Vector2Int? oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
+            Vector2Int newPos = clickedTile.Position;
+            int pathLength = 0;
+            if (oldPos.HasValue) {
+                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, newPos);
+                // Path includes start tile, so movement cost is path.Count - 1
+                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
+            }
             gridMap.TryMoveAgentByMapIndex(agent, clickedTile.Position);
+            // Decrease agent's movement range by path length moved
+            if (pathLength > 0 && agent != null) {
+                agent.Move(pathLength);
+            }
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
-            Debug.Log($"BattleManager: {agent.Name} moved to {clickedTile.Position}.");
-
-            AdvanceTurn();
+            // Return to main action menu so player can act again
+            state = BattleState.WaitingForAction;
         }
 
         private void HandleAbilitySelection() {
@@ -402,6 +432,18 @@ namespace NetFlower {
 
             float btnW = 115, btnH = 35, btnY = 55;
 
+            // Always show turn timer in top right during player's turn
+            if (CurrentAgent != null && timerActive) {
+                float timerBoxW = 140, timerBoxH = 50;
+                float timerBoxX = Screen.width - timerBoxW - 20;
+                float timerBoxY = 20;
+                Rect timerRect = new Rect(timerBoxX, timerBoxY, timerBoxW, timerBoxH);
+                GUI.Box(timerRect, "");
+                var timerStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
+                timerStyle.normal.textColor = Color.yellow;
+                GUI.Label(new Rect(timerBoxX, timerBoxY + 8, timerBoxW, 30), $"Time: {turnTimer:F1}s", timerStyle);
+            }
+
             if (state == BattleState.WaitingForAction) {
                 if (GUI.Button(new Rect(15, btnY, btnW, btnH), "Move"))
                     OnMovePressed();
@@ -409,7 +451,7 @@ namespace NetFlower {
                 if (GUI.Button(new Rect(15 + btnW + 10, btnY, btnW, btnH), "Use Ability"))
                     OnUseAbilityPressed();
 
-                if (GUI.Button(new Rect(15, btnY + btnH + 5, btnW * 2 + 10, btnH), "End Turn"))
+                if (GUI.Button(new Rect(15, btnY + btnH + 5, btnW * 2 + 10, btnH), "Pass Turn"))
                     OnEndTurnPressed();
             }
             else if (state == BattleState.SelectingMoveTile) {
