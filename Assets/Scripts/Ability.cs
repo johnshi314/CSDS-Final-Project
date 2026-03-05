@@ -14,6 +14,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace NetFlower {
     /// <summary>
@@ -125,7 +126,11 @@ namespace NetFlower {
         /// Override in subclasses (e.g. AbilitySummon) for custom resolution.
         /// </summary>
         /// <param name="context">Context information for ability resolution.</param>
-        public virtual void Resolve(AbilityUseContext context) {
+        /// <returns>Resolution information including all effect instances created during resolution.</returns>
+        public virtual AbilityUseResolution Resolve(AbilityUseContext context) {
+            // Keep track of all effect instances created during this resolution to return
+            List<AbilityEffectInstance> effectInstances = new List<AbilityEffectInstance>();
+
             // Warn if context is invalid, but attempt to resolve anyway to avoid breaking the game (e.g., if UI passes in incomplete context)
             if (!IsValidContext(context))
                 Debug.LogWarning("Resolving ability with invalid context");
@@ -142,6 +147,7 @@ namespace NetFlower {
                         targetAgent: context.Caster,
                         turnApplied: context.TurnNumber);
                     instance.Apply();
+                    effectInstances.Add(instance);
                     if (instance.HasDuration)
                         context.Caster.AddEffect(instance);
                 }
@@ -163,6 +169,7 @@ namespace NetFlower {
                                 source: context.Caster,
                                 targetTile: tile,
                                 turnApplied: context.TurnNumber);
+                            effectInstances.Add(instance);
                             instance.Apply();
                             if (instance.HasDuration && map != null)
                                 map.AddEffect(tile, instance);
@@ -185,6 +192,7 @@ namespace NetFlower {
                                 source: context.Caster,
                                 targetAgent: agent,
                                 turnApplied: context.TurnNumber);
+                            effectInstances.Add(instance);
                             instance.Apply();
                             if (instance.HasDuration)
                                 agent.AddEffect(instance);
@@ -192,6 +200,7 @@ namespace NetFlower {
                     }
                 }
             }
+            return new AbilityUseResolution(context, effectInstances);
         }
 
         /// <summary>
@@ -465,6 +474,43 @@ namespace NetFlower {
                 default:
                     break;
             }
+        }
+    }
+    public class AbilityUseResolution {
+        public readonly int TotalDamageDealt;
+        // TODO: Add more stats to keep track of during resolution (e.g., total healing done, status effects applied, tiles affected) for analytics and database recording
+        public AbilityUseContext Context;
+        public IReadOnlyList<Agent> TargetAgents;
+        public IReadOnlyList<AbilityEffectInstance> EffectInstances;
+        public Agent Caster => Context?.Caster;
+        public Tile TargetTile => Context?.TargetTile;
+        
+        public AbilityUseResolution(AbilityUseContext context, IEnumerable<AbilityEffectInstance> effectInstances) {
+            Context = context;
+            EffectInstances = effectInstances.ToList().AsReadOnly();
+            
+            // Determine affected agents based on effect instances (for stats tracking and other post-resolution processing)
+            var targets = new HashSet<Agent>();
+            foreach (var instance in effectInstances) {
+                if (instance.TargetAgent != null) {
+                    targets.Add(instance.TargetAgent);
+                } else if (instance.TargetTile != null) {
+                    var agent = instance.TargetTile.Occupant;
+                    if (agent != null) {
+                        targets.Add(agent);
+                    }
+                }
+            }
+            TargetAgents = targets.ToList().AsReadOnly();
+
+            // Calculate total damage dealt for stats tracking (can be expanded later to include other effect types and amounts)
+            int totalDamageDealt = 0;
+            foreach (var instance in EffectInstances) {
+                if (instance.Effect.EffectType == AbilityEffectType.Damage) {
+                    totalDamageDealt += (int)instance.Effect.Amount;
+                }
+            }
+            TotalDamageDealt = totalDamageDealt;
         }
     }
 }

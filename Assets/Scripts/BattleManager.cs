@@ -64,9 +64,6 @@ namespace NetFlower {
         [SerializeField, Range(0f, 1f)] public float scaleWidth = 0.5f;
         private Rect uiRect = new Rect(5, 5, 350, 400);
 
-        // GUI rect to display player stats
-        private readonly Rect statsRect = new Rect(5, 180, 260, 100);
-
         public BattleState State => state;
         public Agent CurrentAgent =>
             (turnOrder.Count > 0 && currentAgentIndex < turnOrder.Count)
@@ -524,6 +521,9 @@ namespace NetFlower {
             // scale the box to the screen size (for better mobile visibility)
             GUI.Box(uiRect, "", GUI.skin.window);
 
+            // Player Stats Box — anchored to top-right edge of uiRect
+            DrawPlayerStats();
+
             var labelStyle = new GUIStyle(GUI.skin.label) {
                 fontSize = 18,
                 fontStyle = FontStyle.Bold
@@ -592,6 +592,24 @@ namespace NetFlower {
                 };
                 movingStyle.normal.textColor = Color.yellow;
                 GUI.Label(new Rect(15 + uiRect.xMin, 55 + uiRect.yMin, uiRect.width - 30, 30), "Moving...", movingStyle);
+            }
+        }
+
+        void DrawPlayerStats() {
+            float statsW = 220f;
+            float statsH = 110f;
+            float statsX = uiRect.xMax;
+            float statsY = 0f;
+            Rect statsRect = new Rect(statsX, statsY, statsW, statsH);
+            GUI.Box(statsRect, $"{CurrentAgent.Name}'s Stats");
+            var stats = CurrentAgent.playerMatchStats;
+            float labelX = statsX + 10;
+            float labelStartY = statsY + 25;
+            if (stats != null) {
+                GUI.Label(new Rect(labelX, labelStartY, statsW - 20, 20), $"Damage Dealt: {stats.damageDealt}");
+                GUI.Label(new Rect(labelX, labelStartY + 20, statsW - 20, 20), $"Damage Taken: {stats.damageTaken}");
+                GUI.Label(new Rect(labelX, labelStartY + 40, statsW - 20, 20), $"Turns Taken: {stats.turnsTaken}");
+                GUI.Label(new Rect(labelX, labelStartY + 60, statsW - 20, 20), $"HP: {CurrentAgent.HP}");
             }
         }
 
@@ -706,16 +724,7 @@ namespace NetFlower {
             GUI.Label(new Rect(confirmBtnX, infoLabelY, uiRect.width - 2 * padding, 20),
                 $"Ability {selectedAbilityIndex + 1} of {availableAbilities.Count}", infoTextStyle);
 
-            // Player Stats Box
-            GUI.Box(statsRect, $"{CurrentAgent.Name}'s Stats");
-            var stats = CurrentAgent.playerMatchStats;
 
-            if (stats != null) {
-                GUI.Label(new Rect(10, 200, 240, 20), $"Damage Dealt: {stats.damageDealt}");
-                GUI.Label(new Rect(10, 220, 240, 20), $"Damage Taken: {stats.damageTaken}");
-                GUI.Label(new Rect(10, 240, 240, 20), $"Turns Taken: {stats.turnsTaken}");
-                GUI.Label(new Rect(10, 260, 240, 20), $"HP: {CurrentAgent.HP}");
-            }
         }
     }
 }

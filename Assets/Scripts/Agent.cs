@@ -261,7 +261,7 @@ namespace NetFlower {
                 return false;
             
             // Resolve the ability's effects (dispatches to AbilitySummon.Resolve for summon abilities)
-            context.Ability.Resolve(context);
+            var resolution = context.Ability.Resolve(context);
             
             // Set cooldown after successful use
             currentCooldowns[context.Ability] = (int) context.Ability.Cooldown;
@@ -277,8 +277,7 @@ namespace NetFlower {
                 abilityName: context.Ability.DisplayName);
 
                 // will change how this is calculated later
-                abilityUsageStats.damageDone = context.Ability.TargetEffects.Count;
-
+                abilityUsageStats.damageDone = resolution.TotalDamageDealt;
                 // Make an attempt to submit to the database
                 try {
                     // Test ability stats to database
@@ -287,7 +286,7 @@ namespace NetFlower {
                     // Start coroutine to submit JSON to backend
                     StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
                 } catch (Exception e) {
-                    Debug.LogError("Error serializing ability usage stats: " + e.Message);
+                    Debug.Log("Error serializing ability usage stats: " + e.Message);
                 }
 
             return true;
@@ -373,7 +372,7 @@ namespace NetFlower {
                     Debug.Log($"Request succeeded to {url}");
                     Debug.Log($"Server response: {request.downloadHandler.text}");
                 } else {
-                    Debug.LogError($"Request failed ({request.responseCode}): {request.error}");
+                    Debug.Log($"Request failed ({request.responseCode}): {request.error}");
                 }
             }
         }

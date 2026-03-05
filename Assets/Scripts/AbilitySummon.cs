@@ -8,6 +8,7 @@
 *                   - Empty tiles only
 **********************************************************************/
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace NetFlower {
     /// <summary>
@@ -42,15 +43,16 @@ namespace NetFlower {
         /// Resolve the summon ability — spawns the summon at the target tile.
         /// </summary>
         /// <param name="context">The ability use context.</param>
-        public override void Resolve(AbilityUseContext context) {
+        public override AbilityUseResolution Resolve(AbilityUseContext context) {
+            var effectInstances = new List<AbilityEffectInstance>();
             if (Summon == null) {
                 Debug.LogError($"AbilitySummon '{DisplayName}' has no Summon assigned");
-                return;
+                return new AbilityUseResolution(context, new List<AbilityEffectInstance>()); // Return empty resolution on error
             }
 
             if (!Ability.IsValidContext(context)) {
                 Debug.LogWarning("Resolving summon ability with invalid context");
-                return;
+                return new AbilityUseResolution(context, new List<AbilityEffectInstance>()); // Return empty resolution on error
             }
 
             // Spawn the summon at the target tile
@@ -68,7 +70,14 @@ namespace NetFlower {
                 var summonAgent = summonedAgent.GetComponent<Agent>();
                 if (summonAgent != null) {
                     foreach (var effect in TargetEffects) {
-                        // TODO: Apply effect to summonAgent properly via AbilityEffectInstance
+                        var instance = new AbilityEffectInstance(
+                            effect: effect,
+                            source: context.Caster,
+                            targetAgent: summonAgent,
+                            turnApplied: context.TurnNumber
+                        );
+                        instance.Apply();
+                        effectInstances.Add(instance);
                     }
                 }
             }
@@ -76,9 +85,18 @@ namespace NetFlower {
             // Apply caster effects to the caster
             if (CasterEffects != null) {
                 foreach (var effect in CasterEffects) {
-                    // TODO: Apply caster effects properly
+                    var instance = new AbilityEffectInstance(
+                        effect: effect,
+                        source: context.Caster,
+                        targetAgent: context.Caster,
+                        turnApplied: context.TurnNumber
+                    );
+                    instance.Apply();
+                    effectInstances.Add(instance);
                 }
             }
+
+            return new AbilityUseResolution(context, effectInstances); // Return the resolution
         }
     }
 }
