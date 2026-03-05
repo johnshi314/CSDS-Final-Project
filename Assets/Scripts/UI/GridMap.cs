@@ -138,13 +138,25 @@ namespace NetFlower.UI {
         private void PositionInitialAgents() {
             if (!IsMapReady) return;
 
+            // Get the tilemap renderer's sorting order to layer agents above terrain
+            TilemapRenderer tilemapRenderer = tilemap.GetComponent<TilemapRenderer>();
+            int terrainSortingOrder = tilemapRenderer != null ? tilemapRenderer.sortingOrder : 0;
+            int agentSortingOrder = terrainSortingOrder + 10; // Agents render well above terrain
+
             foreach (Agent agent in ConfiguredAgents) {
                 Tile currentTile = ActiveMap.GetCurrentTile(agent);
                 if (currentTile != null) {
                     // Convert map index to world position and update agent's transform
                     Vector3 worldPos = MapIndexToWorldPosition(currentTile.Position, agent.transform.position.z);
                     agent.transform.position = worldPos;
-                    Debug.Log($"GridMap: Positioned {agent.Name} at world position {worldPos} (map index {currentTile.Position})");
+                    
+                    // Set sprite renderer sorting order to render above terrain
+                    SpriteRenderer spriteRenderer = agent.GetComponent<SpriteRenderer>();
+                    if (spriteRenderer != null) {
+                        spriteRenderer.sortingOrder = agentSortingOrder;
+                    }
+                    
+                    Debug.Log($"GridMap: Positioned {agent.Name} at world position {worldPos} (map index {currentTile.Position}), sorting order: {agentSortingOrder}");
                 } else {
                     Debug.LogWarning($"GridMap: Agent {agent.Name} not placed on map, skipping visual positioning.");
                 }
@@ -419,6 +431,23 @@ namespace NetFlower.UI {
             
             Tile currentTile = ActiveMap.GetCurrentTile(agent);
             return currentTile?.Position;
+        }
+
+        /// <summary>
+        /// Updates the sorting order of an agent's sprite renderer to keep it in front of terrain.
+        /// Call this after moving an agent during gameplay.
+        /// </summary>
+        public void UpdateAgentSortingOrder(Agent agent) {
+            if (agent == null || tilemap == null) return;
+
+            TilemapRenderer tilemapRenderer = tilemap.GetComponent<TilemapRenderer>();
+            int terrainSortingOrder = tilemapRenderer != null ? tilemapRenderer.sortingOrder : 0;
+            int agentSortingOrder = terrainSortingOrder + 10;
+
+            SpriteRenderer spriteRenderer = agent.GetComponent<SpriteRenderer>();
+            if (spriteRenderer != null) {
+                spriteRenderer.sortingOrder = agentSortingOrder;
+            }
         }
 #endregion
 
