@@ -1,3 +1,10 @@
+/**********************************************************************
+ * File         : BattleManager.cs
+ * Author       : Mikey Maldonado
+ * Date Created : 2026-02-05
+ * Description  : Manages the flow of a turn-based battle, including turn order, player actions, and state transitions.
+ *                TODO: Refactor to use TurnOrder and other classes 
+ **********************************************************************/
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
@@ -5,6 +12,9 @@ using NetFlower.UI;
 
 namespace NetFlower {
 
+    /// <summary>
+    /// States for the battle flow. Determines what player input does and what UI is shown.
+    /// </summary>
     public enum BattleState {
         NotStarted,
         WaitingForAction,
@@ -22,10 +32,10 @@ namespace NetFlower {
     /// </summary>
     public class BattleManager : MonoBehaviour {
 
-    // Turn timer
-    private float turnTimer = 30f;
-    private const float TURN_TIME_LIMIT = 30f;
-    private bool timerActive = false;
+        // Timer variables
+        private float turnTimer = 30f;
+        private const float TURN_TIME_LIMIT = 30f;
+        private bool timerActive = false;
 
         [Header("Turn Management")]
         public int currentTurn = 0; // Tracks the current turn number (starting from 0)
@@ -317,7 +327,7 @@ namespace NetFlower {
                 agent.TickEffects(currentTurn);
             }
             if (CurrentAgent != null)
-                CurrentAgent.OnTurnStart();
+                CurrentAgent.OnTurnStart(currentTurn);
             Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn. (Turn {currentTurn + 1})");
 
             // Start turn timer
@@ -327,7 +337,7 @@ namespace NetFlower {
 
         private void AdvanceTurn() {
             if (CurrentAgent != null)
-                CurrentAgent.OnTurnEnd();
+                CurrentAgent.OnTurnEnd(currentTurn);
             // Increment turn number when looping back to the first agent
             // record turns taken
             CurrentAgent.playerMatchStats.turnsTaken++;
@@ -417,7 +427,7 @@ namespace NetFlower {
             gridMap.TryMoveAgentByMapIndex(agent, clickedTile.Position);
             // Decrease agent's movement range by path length moved
             if (pathLength > 0 && agent != null) {
-                agent.Move(pathLength);
+                agent.SpendMovement(pathLength);
             }
 
             gridMap.ClearHighlights();
@@ -723,8 +733,6 @@ namespace NetFlower {
             float infoLabelY = navBtnY - 20; // 20px above nav buttons
             GUI.Label(new Rect(confirmBtnX, infoLabelY, uiRect.width - 2 * padding, 20),
                 $"Ability {selectedAbilityIndex + 1} of {availableAbilities.Count}", infoTextStyle);
-
-
         }
     }
 }

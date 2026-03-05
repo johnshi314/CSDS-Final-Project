@@ -14,8 +14,8 @@ namespace NetFlower {
         // Map currently being managed
         public readonly Map ActiveMap;
         public bool HasActiveMap => ActiveMap != null;
-        public readonly Team redTeam;
-        public readonly Team blueTeam;
+        public readonly Team TeamRed;
+        public readonly Team TeamBlue;
 
         public MapManager(
             Team redTeam,
@@ -41,15 +41,15 @@ namespace NetFlower {
                 return;
             }
 
-            this.redTeam = redTeam;
-            this.blueTeam = blueTeam;
+            this.TeamRed = redTeam;
+            this.TeamBlue = blueTeam;
 
             List<Vector2Int> rsp = redSpawnPoints?.ToList() ?? new List<Vector2Int>();
             List<Vector2Int> bsp = blueSpawnPoints?.ToList() ?? new List<Vector2Int>();
 
             // Calculate how many spawn points are needed for each team based on team size and provided spawn points
-            int redSpawnsNeeded = this.redTeam.Members.Count - rsp.Count;
-            int blueSpawnsNeeded = this.blueTeam.Members.Count - bsp.Count;
+            int redSpawnsNeeded = this.TeamRed.Members.Count - rsp.Count;
+            int blueSpawnsNeeded = this.TeamBlue.Members.Count - bsp.Count;
 
             // Default separate teams on opposite sides of the map if spawn points are not provided
             if (redSpawnsNeeded > 0) {
@@ -87,11 +87,11 @@ namespace NetFlower {
             
              // Initialize map with agents
              List<Agent> initialAgents = new List<Agent>();
-             initialAgents.AddRange(this.redTeam.Members);
-             initialAgents.AddRange(this.blueTeam.Members);
+             initialAgents.AddRange(this.TeamRed.Members);
+             initialAgents.AddRange(this.TeamBlue.Members);
 
             // Register Red Team agents
-            List<Agent> redMembers = new List<Agent>(this.redTeam.Members);
+            List<Agent> redMembers = new List<Agent>(this.TeamRed.Members);
             for (int i = 0; i < Mathf.Min(rsp.Count, redMembers.Count); i++) {
                 Vector2Int spawnPoint = rsp[i];
                 Agent agent = redMembers[i];
@@ -101,7 +101,7 @@ namespace NetFlower {
             }
 
             // Register Blue Team agents
-            List<Agent> blueMembers = new List<Agent>(this.blueTeam.Members);
+            List<Agent> blueMembers = new List<Agent>(this.TeamBlue.Members);
             for (int i = 0; i < Mathf.Min(bsp.Count, blueMembers.Count); i++) {
                 Vector2Int spawnPoint = bsp[i];
                 Agent agent = blueMembers[i];
@@ -116,7 +116,12 @@ namespace NetFlower {
         // ===================================================================== //
         // ======================= Agent Placement ============================= //
 
-        // Place an agent on a specific tile and register them on the map
+        /// <summary>
+        /// Place an agent on a specific tile and register them on the map
+        /// </summary>
+        /// <param name="agent">The agent to place.</param>
+        /// <param name="tilePos">The tile to place the agent on.</param>
+        /// <returns>True if the agent was placed successfully, false otherwise.</returns>
         public bool PlaceAgent(Agent agent, Vector2Int tilePos) {
             // Check if we can place the agent at the target position
             if (!CanPlaceAgent(agent, tilePos)) {
@@ -133,6 +138,12 @@ namespace NetFlower {
 
         // ===================================================================== //
         // ======================= Movement Requests =========================== //
+        /// <summary>
+        /// Request to move an agent to a target tile. Checks if the move is valid (within bounds, walkable, not occupied, and agent is registered) before updating the agent's position on the map.
+        /// </summary>
+        /// <param name="agent">The agent to move.</param>
+        /// <param name="targetTile">The tile to move the agent to.</param>
+        /// <returns>True if the move is valid and executed, false otherwise.</returns>
         public bool RequestMove(Agent agent, Vector2Int targetTile) {
             // Check if move is valid
             if (!CanMoveAgent(agent, targetTile)) {
@@ -146,6 +157,12 @@ namespace NetFlower {
 
             return true;
         }
+        /// <summary>
+        /// Checks if an agent can move to a target tile. Validates that the target tile is within bounds, walkable, not occupied by another agent (unless it's the same agent), and that the agent is currently registered on the map. This method does not execute the move, it only checks its validity.
+        /// </summary>
+        /// <param name="agent">The agent to move.</param>
+        /// <param name="tilePos">The tile to move the agent to.</param>
+        /// <returns>True if the move is valid, false otherwise.</returns>
         public bool CanMoveAgent(Agent agent, Vector2Int tilePos) {
             return CanPlaceAgent(agent, tilePos) && IsRegistered(agent);
         }

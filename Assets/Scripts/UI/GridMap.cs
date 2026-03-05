@@ -41,8 +41,8 @@ namespace NetFlower.UI {
         // Cached references
         public MapManager MapManager => mapManager;
         public TileVisualizer TileVisualizer => tileVisualizer;
-        public IReadOnlyList<Agent> RedAgents => IsMapReady ? mapManager.redTeam.Members : redAgents;
-        public IReadOnlyList<Agent> BlueAgents => IsMapReady ? mapManager.blueTeam.Members : blueAgents;
+        public IReadOnlyList<Agent> RedAgents => IsMapReady ? mapManager.TeamRed.Members : redAgents;
+        public IReadOnlyList<Agent> BlueAgents => IsMapReady ? mapManager.TeamBlue.Members : blueAgents;
         public IReadOnlyList<Vector2Int> RedSpawnPoints => IsMapReady ? mapManager.ActiveMap.RedSpawnPoints : redSpawnPoints;
         public IReadOnlyList<Vector2Int> BlueSpawnPoints => IsMapReady ? mapManager.ActiveMap.BlueSpawnPoints : blueSpawnPoints;
         private IEnumerable<Agent> ConfiguredAgents {

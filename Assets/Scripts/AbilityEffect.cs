@@ -2,7 +2,14 @@
 * File Name     : AbilityEffect.cs
 * Author        : Mikey Maldonado
 * Date Created  : 2026-02-20
-* Description   : ...
+* Description   : Data structure representing an ability effect, which
+*                 defines the specific impact of an ability on targets,
+*                 including type (damage, heal, status, terrain), amount,
+*                 timing (delay and duration), and targeting constraints.
+* Including:
+*   - AbilityEffectType (Damage, Heal, Status, Terrain)
+*   - StatusEffect (None, Targeted, Targeting, SpecializedMaintenance, WillUp, etc.)
+*   - TerrainEffect (None, Unwalkable, DifficultUp, DamagingUp, HealingUp, DifficultDown, DamagingDown, HealingDown)
 **********************************************************************/
 using UnityEngine;
 using System;
@@ -10,7 +17,10 @@ using System.Collections.Generic;
 
 namespace NetFlower {
     /// <summary>
-    ///
+    /// Data structure representing an ability effect.
+    /// This ScriptableObject is used to build several kinds
+    /// kinds of effects that an Ability can apply to targets,
+    /// such as damage, healing, status effects, or terrain changes.
     /// </summary>
     [CreateAssetMenu(fileName = "AbilityEffect", menuName = "Scriptable Objects/AbilityEffect")]
     public class AbilityEffect: ScriptableObject {
@@ -160,7 +170,14 @@ namespace NetFlower {
         }
     }
 
-
+    /// <summary>
+    /// Enum for the type of an ability effect, which determines how the effect is
+    /// applied and what additional fields are relevant.
+    /// - Status implies there is a non-None StatusEffect field that defines the specific status change.
+    /// - Terrain implies there is a non-None TerrainEffect field that defines the specific terrain change.
+    /// - Damage and Heal imply a numerical effect defined by the Amount and AmountSource fields, and
+    /// the value of StatusEffect and TerrainEffect is ignored (should be None and enforced in the Editor).
+    /// </summary>
     public enum AbilityEffectType {
         Damage = 0,
         Heal = 1,
@@ -168,6 +185,9 @@ namespace NetFlower {
         Terrain = 3,
     }
 
+    /// <summary>
+    /// Enum for specific status effects that can be applied to agents by abilities.
+    /// </summary>
     public enum StatusEffect {
         // States
         None = 0,
@@ -195,6 +215,12 @@ namespace NetFlower {
         MovementDown = 207,
         ExplosionDown = 208,
     }
+
+    /// <summary>
+    /// Enum for specific terrain effects that can be applied to tiles by abilities.
+    /// Up/Down in terrain effects refers to whether the effect is generally beneficial (Up) or harmful (Down) to agents which will determine any icons/colors used in the UI.
+    /// Unwalkable means the tile cannot be entered at all, while the other effects modify the tile's properties while still allowing it to be entered.
+    /// </summary>
     public enum TerrainEffect {
         // States
         None = 0,

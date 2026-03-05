@@ -17,11 +17,6 @@ namespace NetFlower {
     /// Data structure representing an agent in the game who can perform actions and take and deal damage.
     /// </summary>
     public class Agent : MonoBehaviour {
-        public void Move(int amount) {
-            if (amount > range) range = 0;
-            if (amount < 0) range += (uint) Math.Abs(amount);
-            else range -= (uint) amount;
-        }
 
         // Temporary static player ID for testing database submission
         public static int testPlayerId = 1;
@@ -104,7 +99,6 @@ namespace NetFlower {
         /// <summary>
         /// Flags for how other agents can walk through this agent when pathing on the map
         /// </summary>
-
         [Flags]
         public enum Tunneling {
             Nothing     = 0,                // Cannot be tunneled through
@@ -301,17 +295,39 @@ namespace NetFlower {
         /// <summary>
         /// Called at the start of the agent's turn to reapply active effects and decrement their durations.
         /// </summary>
-        public void OnTurnStart() {
-            // Reset movement range at the start of turn
-            this.range = this.maxRange;
+        public void OnTurnStart(int currentTurn) {
         }
 
         /// <summary>
         /// Called at the end of the agent's turn to decrement cooldowns.
         /// </summary>
-        public void OnTurnEnd() {
+        public void OnTurnEnd(int currentTurn) {
             DecrementCooldowns();
             this.range = this.maxRange; // Reset movement range at the end of the turn
+        }
+
+        /// <summary>
+        /// Spend movement range when the agent moves on the map.
+        /// This should be called when the agent moves to decrease their remaining movement range for the turn.
+        /// If amount is negative, it will refund movement range (used for effects that increase movement).
+        /// The agent's movement range will not go below 0 or above maxRange.
+        /// </summary>
+        /// <param name="amount"></param>
+        public void SpendMovement(int amount) {
+            if (amount > range) range = 0;
+            if (amount < 0) range += (uint) Math.Abs(amount);
+            else range -= (uint) amount;
+        }
+
+        /// <summary>
+        /// Check if the agent can move a certain amount based on their remaining movement range.
+        /// Positive amounts check if the agent has enough movement range to spend.
+        /// </summary>
+        /// <param name="amount"></param>
+        /// <returns>True if the agent can move the specified amount, false otherwise.</returns>
+        public bool CanMove(int amount) {
+            if (amount < 0) return true; // Can always move if refunding movement
+            return amount <= range;
         }
 
         /// <summary>
@@ -342,10 +358,6 @@ namespace NetFlower {
 
         // ===================================================================== //
         // ======================= Private Agent Methods ======================= //
-
-        /// <summary>
-        /// Decrement all active cooldowns by 1.
-        /// </summary>
         private void DecrementCooldowns() {
             var keys = new List<Ability>(currentCooldowns.Keys);
             foreach (var key in keys) {

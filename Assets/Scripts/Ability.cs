@@ -4,12 +4,13 @@
 * Date Created  : 2026-02-05
 * Description   : Data structures representing abilities in the game,
 *                 including:
-*   - Ability:              Core ability data,
-*   - AbilityTargetType:    Categories of targets abilities can affect.
-*   - AbilityTargetMode:    How abilities select targets,
-*   - AbilityTargetShape:   Shape of the area affected by abilities,
-*   - AbilityUseContext:    Context information for ability usage.
-*   - AbilityModifiers:     Modifiers that can be applied to ability effects.
+*   - Ability:               Core ability data,
+*   - AbilityTargetType:     Categories of targets abilities can affect,
+*   - AbilityTargetMode:     How abilities select targets,
+*   - AbilityTargetShape:    Shape of the area affected by abilities,
+*   - AbilityUseContext:     Context information for ability usage.
+*   - AbilityEffectInstance: Instance of an ability effect with specific parameters.
+*   - AbilityUseResolution:  Information about the outcome of using an ability.
 **********************************************************************/
 using UnityEngine;
 using System;
@@ -357,15 +358,6 @@ namespace NetFlower {
     }
 
     /// <summary>
-    /// Modifiers that can be applied to an ability's effects.
-    /// </summary>
-    public struct AbilityModifier
-    {
-        public int RangeMaxDelta;
-        public int RangeMinDelta;
-        public int DamageDelta;
-    }
-    /// <summary>
     /// Runtime instance of an ability effect. Turn order decides when to call Apply and when to remove expired instances.
     /// Agent-bound (Damage, Heal, Status): stored on the agent, follows that agent. Tile-bound (Terrain): stored on the map by tile, lingers on the tile.
     /// </summary>
@@ -453,10 +445,10 @@ namespace NetFlower {
                         else if (Effect.EffectType == AbilityEffectType.Status) {
                             switch (Effect.StatusEffect) {
                                 case StatusEffect.MovementDown:
-                                    agent.Move(amount); // For simplicity, we use the Amount field to indicate how much to decrease movement range; in a real implementation we might want a more flexible system for different status effects
+                                    agent.SpendMovement(amount); // For simplicity, we use the Amount field to indicate how much to decrease movement range; in a real implementation we might want a more flexible system for different status effects
                                     break;
                                 case StatusEffect.MovementUp:
-                                    agent.Move(-amount);
+                                    agent.SpendMovement(-amount);
                                     break;
                                 // Add more status effects as needed
                                 default:
