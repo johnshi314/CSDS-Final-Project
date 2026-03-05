@@ -50,13 +50,18 @@ namespace NetFlower {
         private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
         
         // GUI rect used to block tile clicks over the UI panel
-        private readonly Rect guiRect = new Rect(5, 5, 350, 400);
+        [Header("UI Rect")]
+        [SerializeField, Range(0f, 1f)] public float scaleWidth = 0.5f;
+        private Rect uiRect = new Rect(5, 5, 350, 400);
 
         public BattleState State => state;
         public Agent CurrentAgent =>
             (turnOrder.Count > 0 && currentAgentIndex < turnOrder.Count)
                 ? turnOrder[currentAgentIndex]
                 : null;
+
+        public void Start() {
+        }
 
         // ------------------------------------------------------------------ //
         // Public API (called by GameplayDemo or wired to Canvas buttons)
@@ -312,6 +317,8 @@ namespace NetFlower {
         // ------------------------------------------------------------------ //
 
         void Update() {
+
+            UpdateGUIRect();
             // Handle turn timer (run in all player action states)
             if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget)) {
                 turnTimer -= Time.deltaTime;
@@ -332,13 +339,20 @@ namespace NetFlower {
             }
         }
 
+        private void UpdateGUIRect() {
+            // guiRect now takes up the full screen height, width is set by scaleHeight (interpreted as width percent)
+            float width = Mathf.Clamp01(scaleWidth) * Screen.width;
+            if (width < 200f) width = 200f; // minimum width for usability
+            uiRect = new Rect(0, 0, width, Screen.height);
+        }
+
         private void HandleMoveTileSelection() {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
 
             // Ignore clicks over the UI panel
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
-            if (guiRect.Contains(guiMouse)) return;
+            if (uiRect.Contains(guiMouse)) return;
 
             Tile clickedTile = gridMap.GetHoveredTile();
             if (clickedTile == null || !validMoveTiles.Contains(clickedTile)) return;
@@ -365,17 +379,7 @@ namespace NetFlower {
         }
 
         private void HandleAbilitySelection() {
-            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Vector2 mouseScreen = Mouse.current.position.ReadValue();
-            Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
-
-            // Check if click is on an ability
-            int clickedAbilityIndex = GetAbilityIndexAtMousePosition(guiMouse);
-            if (clickedAbilityIndex >= 0) {
-                selectedAbilityIndex = clickedAbilityIndex;
-                Debug.Log($"BattleManager: Selected ability {selectedAbilityIndex}: {availableAbilities[selectedAbilityIndex].DisplayName}");
-            }
+            // No-op: ability selection is handled by GUI.Button in DrawAbilitySelection
         }
 
         private void HandleAbilityTargetSelection() {
@@ -385,7 +389,7 @@ namespace NetFlower {
             Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
 
             // Ignore clicks over the UI panel
-            if (guiRect.Contains(guiMouse)) return;
+            if (uiRect.Contains(guiMouse)) return;
 
             Tile clickedTile = gridMap.GetHoveredTile();
             if (clickedTile == null || !validAbilityTargets.Contains(clickedTile)) return;
@@ -393,44 +397,37 @@ namespace NetFlower {
             OnAbilityTargetTileSelected(clickedTile);
         }
 
-        private int GetAbilityIndexAtMousePosition(Vector2 guiMouse) {
-            if (availableAbilities.Count == 0) return -1;
-
-            float startY = 80;
-            float abilitySpacing = 75;
-            float abilityHeight = 70;
-            float abilityWidth = 310;
-
-            int displayCount = Mathf.Min(4, availableAbilities.Count);
-            for (int i = 0; i < displayCount; i++) {
-                float posY = startY + (i * abilitySpacing);
-                Rect abilityRect = new Rect(20, posY - 5, abilityWidth, abilityHeight);
-
-                if (abilityRect.Contains(guiMouse)) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
         // ------------------------------------------------------------------ //
         // Demo UI (IMGUI) — replace with Canvas buttons for production
         // ------------------------------------------------------------------ //
 
         void OnGUI() {
+            // Debug: Show mouse position in GUI coordinates and draw a red dot
+            if (Mouse.current != null) {
+                Vector2 mouseScreen = Mouse.current.position.ReadValue();
+                Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
+                var mouseLabelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+                mouseLabelStyle.normal.textColor = Color.red;
+                GUI.Label(new Rect(10, Screen.height - 30, 300, 20), $"Mouse GUI: {guiMouse.x:F1}, {guiMouse.y:F1}", mouseLabelStyle);
+                // Draw a small red dot at the mouse position
+                Color prevColor = GUI.color;
+                GUI.color = Color.red;
+                GUI.DrawTexture(new Rect(guiMouse.x - 3, guiMouse.y - 3, 6, 6), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0);
+                GUI.color = prevColor;
+            }
             if (state == BattleState.NotStarted || CurrentAgent == null) return;
-
-            GUI.Box(guiRect, "");
+            // scale the box to the screen size (for better mobile visibility)
+            GUI.Box(uiRect, "", GUI.skin.window);
 
             var labelStyle = new GUIStyle(GUI.skin.label) {
                 fontSize = 18,
                 fontStyle = FontStyle.Bold
             };
             labelStyle.normal.textColor = Color.white;
-            GUI.Label(new Rect(15, 12, 240, 30), $"{CurrentAgent.Name}'s Turn", labelStyle);
+            var labelRect = new Rect(15 + uiRect.xMin, 12 + uiRect.yMin, uiRect.width - 30, 30);
+            GUI.Label(labelRect, $"{CurrentAgent.Name}'s Turn", labelStyle);
 
-            float btnW = 115, btnH = 35, btnY = 55;
+            float btnW = 115, btnH = 35, btnY = 55 + uiRect.yMin;
 
             // Always show turn timer in top right during player's turn
             if (CurrentAgent != null && timerActive) {
@@ -445,13 +442,27 @@ namespace NetFlower {
             }
 
             if (state == BattleState.WaitingForAction) {
-                if (GUI.Button(new Rect(15, btnY, btnW, btnH), "Move"))
+                float actionBtnW = uiRect.width - 30;
+                float actionBtnH = 40;
+                float actionBtnX = uiRect.xMin + 15;
+                float actionBtnY = uiRect.yMin + 60;
+
+                // Check if current agent has movement left
+                bool canMove = false;
+                if (CurrentAgent != null && gridMap != null && gridMap.MapManager != null && gridMap.MapManager.ActiveMap != null) {
+                    var movableTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(CurrentAgent);
+                    canMove = movableTiles != null && movableTiles.Count > 0;
+                }
+
+                // Grey out and disable Move button if no movement left
+                GUI.enabled = canMove;
+                if (GUI.Button(new Rect(actionBtnX, actionBtnY, actionBtnW, actionBtnH), "Move") && canMove)
                     OnMovePressed();
+                GUI.enabled = true;
 
-                if (GUI.Button(new Rect(15 + btnW + 10, btnY, btnW, btnH), "Use Ability"))
+                if (GUI.Button(new Rect(actionBtnX, actionBtnY + actionBtnH + 10, actionBtnW, actionBtnH), "Use Ability"))
                     OnUseAbilityPressed();
-
-                if (GUI.Button(new Rect(15, btnY + btnH + 5, btnW * 2 + 10, btnH), "Pass Turn"))
+                if (GUI.Button(new Rect(actionBtnX, actionBtnY + 2 * (actionBtnH + 10), actionBtnW, actionBtnH), "Pass Turn"))
                     OnEndTurnPressed();
             }
             else if (state == BattleState.SelectingMoveTile) {
@@ -477,96 +488,109 @@ namespace NetFlower {
                 fontStyle = FontStyle.Bold
             };
             headerStyle.normal.textColor = Color.cyan;
-            GUI.Label(new Rect(25, 50, 320, 25), $"Target for {selectedAbility.DisplayName}", headerStyle);
+            var targetingRect = new Rect(10 + uiRect.xMin, 50 + uiRect.yMin, uiRect.width - 20, 25);
+            GUI.Label(targetingRect, $"Target for {selectedAbility.DisplayName}", headerStyle);
 
             var hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             hintStyle.normal.textColor = Color.yellow;
-            GUI.Label(new Rect(25, 80, 320, 40),
+            GUI.Label(new Rect(10 + uiRect.xMin, 80 + uiRect.yMin, uiRect.width - 20, 40),
                 "Click an orange highlighted tile to target", hintStyle);
 
             float btnY = 130, btnW = 150, btnH = 35;
-            if (GUI.Button(new Rect(25, btnY, btnW, btnH), "Cancel Target")) {
+            if (GUI.Button(new Rect(25 + uiRect.xMin, btnY + uiRect.yMin, btnW, btnH), "Cancel Target")) {
                 OnAbilityTargetCancelled();
             }
         }
 
         void DrawAbilitySelection() {
+            float headerPadX = 20f;
+            float headerPadY = 40f;
+            float headerHeight = 20f;
             if (availableAbilities.Count == 0) return;
 
             var headerStyle = new GUIStyle(GUI.skin.label) {
-                fontSize = 14,
-                fontStyle = FontStyle.Bold
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft
             };
             headerStyle.normal.textColor = Color.cyan;
-            GUI.Label(new Rect(25, 50, 320, 25), "Abilities (Click to select)", headerStyle);
+            // Span the full screen width, right-aligned, with extra padding from the top
+            GUI.Label(new Rect(headerPadX, uiRect.yMin + headerPadY, uiRect.width - 2 * headerPadX, headerHeight), "Abilities (Click to select)", headerStyle);
 
-            float startY = 80;
-            float abilityHeight = 70;
-            float abilitySpacing = 75;
-
-            // Draw all abilities (showing up to 4 at a time)
-            int displayCount = Mathf.Min(4, availableAbilities.Count);
-            for (int i = 0; i < displayCount; i++) {
+            // Layout: abilities stacked vertically in a single column
+            float padding = 10f;
+            float navBtnH = 30f;
+            float navBtnW = (uiRect.width - 3 * padding) / 2f;
+            float confirmBtnH = 30f;
+            float confirmBtnY = uiRect.yMin + uiRect.height - confirmBtnH - padding;
+            float navBtnY = confirmBtnY - navBtnH - padding;
+            float abilityAreaY = uiRect.yMin + headerPadY + headerHeight + padding;
+            int abilityCount = availableAbilities.Count;
+            if (abilityCount == 0) return;
+            float availableH = navBtnY - abilityAreaY; // No extraBtnSpace subtraction
+            float abilityH = (availableH - (abilityCount - 1) * padding) / abilityCount;
+            float abilityW = uiRect.width - 2 * padding;
+            for (int i = 0; i < abilityCount; i++) {
+                float x = uiRect.xMin + padding;
+                float y = abilityAreaY + i * (abilityH + padding);
+                if (y + abilityH > navBtnY) break;
+                Rect abilityRect = new Rect(x, y, abilityW, abilityH);
                 Ability ability = availableAbilities[i];
                 bool isSelected = i == selectedAbilityIndex;
-                float posY = startY + (i * abilitySpacing);
-
-                // Background highlight for selected ability
+                // Draw ability as a button for perfect hitbox alignment
+                Color prevColor = GUI.color;
                 if (isSelected) {
-                    GUI.Box(new Rect(20, posY - 5, 310, abilityHeight), "");
-                    // Draw border around selected ability
-                    GUI.skin.box.border.left = 2;
-                    GUI.skin.box.border.right = 2;
-                    GUI.skin.box.border.top = 2;
-                    GUI.skin.box.border.bottom = 2;
+                    GUI.color = new Color(1f, 1f, 0.5f, 0.3f);
+                    GUI.Box(abilityRect, "");
                 }
-
-                // Ability name
+                GUI.color = prevColor;
+                if (GUI.Button(abilityRect, GUIContent.none, GUIStyle.none)) {
+                    selectedAbilityIndex = i;
+                    Debug.Log($"BattleManager: Selected ability {selectedAbilityIndex}: {ability.DisplayName}");
+                }
+                // Draw ability name and info inside the button
                 var abilityNameStyle = new GUIStyle(GUI.skin.label) {
                     fontSize = 13,
                     fontStyle = FontStyle.Bold,
-                    wordWrap = true
+                    wordWrap = true,
+                    alignment = TextAnchor.UpperCenter
                 };
                 abilityNameStyle.normal.textColor = isSelected ? Color.yellow : Color.white;
-
                 string cooldownText = !CurrentAgent.CanUseAbility(ability) ? " (Cooldown)" : "";
-                GUI.Label(new Rect(30, posY, 290, 20), ability.DisplayName + cooldownText, abilityNameStyle);
-
+                GUI.Label(new Rect(x + 5, y + 5, abilityW - 10, 20), ability.DisplayName + cooldownText, abilityNameStyle);
                 // Ability info (target type, range, cost)
                 var infoStyle = new GUIStyle(GUI.skin.label) {
                     fontSize = 11,
-                    wordWrap = true
+                    wordWrap = true,
+                    alignment = TextAnchor.UpperCenter
                 };
                 infoStyle.normal.textColor = Color.gray;
-
                 string infoText = $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}";
-                GUI.Label(new Rect(30, posY + 22, 290, 40), infoText, infoStyle);
+                GUI.Label(new Rect(x + 5, y + 30, abilityW - 10, abilityH - 35), infoText, infoStyle);
             }
 
-            // Navigation buttons
-            float navBtnY = startY + (displayCount * abilitySpacing) + 10;
-            float navBtnW = 75, navBtnH = 30;
-
-            if (GUI.Button(new Rect(25, navBtnY, navBtnW, navBtnH), "< Prev")) {
+            // Navigation buttons (Prev/Next side-by-side)
+            float navBtnX = uiRect.xMin + padding;
+            if (GUI.Button(new Rect(navBtnX, navBtnY, navBtnW, navBtnH), "< Prev")) {
                 OnPreviousAbilityPressed();
             }
-
-            if (GUI.Button(new Rect(105, navBtnY, navBtnW, navBtnH), "Next >")) {
+            if (GUI.Button(new Rect(navBtnX + navBtnW + padding, navBtnY, navBtnW, navBtnH), "Next >")) {
                 OnNextAbilityPressed();
             }
-
-            if (GUI.Button(new Rect(185, navBtnY, navBtnW, navBtnH), "Confirm")) {
+            // Confirm/Cancel buttons side-by-side below
+            float confirmBtnX = uiRect.xMin + padding;
+            if (GUI.Button(new Rect(confirmBtnX, confirmBtnY, navBtnW, confirmBtnH), "Confirm")) {
                 OnConfirmAbilityPressed();
             }
-
-            if (GUI.Button(new Rect(265, navBtnY, navBtnW, navBtnH), "Cancel")) {
+            if (GUI.Button(new Rect(confirmBtnX + navBtnW + padding, confirmBtnY, navBtnW, confirmBtnH), "Cancel")) {
                 OnAbilityCancelled();
             }
 
-            // Info text
+            // Info text: place just above navigation buttons, even if it overlaps the last ability box
             var infoTextStyle = new GUIStyle(GUI.skin.label) { fontSize = 11 };
             infoTextStyle.normal.textColor = Color.yellow;
-            GUI.Label(new Rect(25, navBtnY + navBtnH + 5, 320, 30),
+            float infoLabelY = navBtnY - 20; // 20px above nav buttons
+            GUI.Label(new Rect(confirmBtnX, infoLabelY, uiRect.width - 2 * padding, 20),
                 $"Ability {selectedAbilityIndex + 1} of {availableAbilities.Count}", infoTextStyle);
         }
     }
