@@ -34,8 +34,8 @@ namespace NetFlower {
             GameObject allies = new GameObject("Allies");
             GameObject enemies = new GameObject("Enemies");
 
-            Player allyPlayer = new Player { Id = 1, Name = "AllyPlayer", IP = "127.0.0.1" };
-            Player enemyPlayer = new Player { Id = 2, Name = "EnemyPlayer", IP = "127.0.0.2" };
+            Player allyPlayer = new Player(Id: 1, Name: "AllyPlayer", IP: "127.0.0.1");
+            Player enemyPlayer = new Player(Id: 2, Name: "EnemyPlayer", IP: "127.0.0.1");
 
             // Create agents
             GameObject newAlly = Agent.NewAgent(

@@ -23,6 +23,8 @@ namespace NetFlower {
             else range -= (uint) amount;
         }
 
+        // Temporary static player ID for testing database submission
+        public static int testPlayerId = 1;
 
         //  Sending stats to database
         public enum RequestType { AbilitySubmit }
@@ -39,6 +41,14 @@ namespace NetFlower {
                     currentCooldowns[ability] = (int) ability.Cooldown;
                 else
                 currentCooldowns[ability] = 0;
+            }
+
+            if (Player == null) {
+                this.Player = new Player(
+                    Id: testPlayerId++,
+                    Name: "TestPlayer" + testPlayerId,
+                    IP: "127.0.0.1"
+                );
             }
         }
 
@@ -256,6 +266,10 @@ namespace NetFlower {
             // Set cooldown after successful use
             currentCooldowns[context.Ability] = (int) context.Ability.Cooldown;
 
+            // Only record stats of agents controlled by a player in the database
+            if (this.Player == null)
+                return true;
+
             // Record ability use in database
             AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
                 characterId: this.AgentName,
@@ -265,11 +279,16 @@ namespace NetFlower {
                 // will change how this is calculated later
                 abilityUsageStats.damageDone = context.Ability.TargetEffects.Count;
 
-                // Test ability stats to database
-                string abilityUsageJson = abilityUsageStats.ToJson();
-                Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
-                // Start coroutine to submit JSON to backend
-                StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+                // Make an attempt to submit to the database
+                try {
+                    // Test ability stats to database
+                    string abilityUsageJson = abilityUsageStats.ToJson();
+                    Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
+                    // Start coroutine to submit JSON to backend
+                    StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
+                } catch (Exception e) {
+                    Debug.LogError("Error serializing ability usage stats: " + e.Message);
+                }
 
             return true;
         }

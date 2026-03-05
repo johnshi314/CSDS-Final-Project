@@ -33,11 +33,10 @@ namespace NetFlower.Backend {
         public RequestType CurrentMode { get; private set; }
 
         void Start() {
-            player = new Player {
-                Id = -1,
-                Name = "Guest",
-                IP = ""
-            };
+            player = new Player(
+                Id: -1,
+                Name: "Guest",
+                IP: "0.0.0.0");
             HideMessage();
             CurrentMode = RequestType.Password;
             LoadAuthData();
