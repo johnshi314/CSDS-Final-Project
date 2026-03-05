@@ -176,8 +176,8 @@ def insert_matchups(json_string):
         return
 
     sql = db.text("""
-        INSERT INTO matchup_stats (matchup_id, match_id, character_a_id, character_b_id, winner_character_id)
-        VALUES (:matchup_id, :match_id, :character_a_id, :character_b_id, :winner_character_id)
+        INSERT INTO matchup_stats (match_id, character_a_id, character_b_id, winner_character_id)
+        VALUES (:match_id, :character_a_id, :character_b_id, :winner_character_id)
     """)
     try:
         with engine.begin() as connection:
@@ -222,8 +222,8 @@ def insert_ability_usage(json_string):
         return
 
     sql = db.text("""
-        INSERT INTO ability_usage_stats (ability_usage_id, character_id, player_id, damage_done, downtime)
-        VALUES (:ability_usage_id, :character_id, :player_id, :damage_done, :downtime)
+        INSERT INTO ability_usage_stats (character_id, player_id, damage_done, downtime, ability_name)
+        VALUES (:character_id, :player_id, :damage_done, :downtime, :ability_name)
     """)
     try:
         with engine.begin() as connection:
@@ -255,16 +255,63 @@ matches_json = json.dumps([
         "duration": 720,
         "queue_time": 90,
         "winner_team_id": "ally"
+    },
+    {
+        "match_id": 102,
+        "start_time": "2026-02-19 15:30:00",
+        "end_time": "2026-02-19 15:40:00",
+        "duration": 700,
+        "queue_time": 120,
+        "winner_team_id": "enemy"
+    },
+    {
+        "match_id": 103,
+        "start_time": "2026-02-19 17:00:00",
+        "end_time": "2026-02-19 17:08:00",
+        "duration": 460,
+        "queue_time": 100,
+        "winner_team_id": "ally"
+    },
+    {
+        "match_id": 104,
+        "start_time": "2026-02-19 18:15:00",
+        "end_time": "2026-02-19 18:20:00",
+        "duration": 340,
+        "queue_time": 80,
+        "winner_team_id": "enemy"
     }
 ])
 
 matchups_json = json.dumps([
     {
-        "matchup_id": 1,
         "match_id": 101,
-        "character_a_id": "char_knight",
-        "character_b_id": "char_mage",
-        "winner_character_id": "char_mage",
+        "character_a_id": "Elf",
+        "character_b_id": "Main Character",
+        "winner_character_id": "Elf"
+    },
+    {
+        "match_id": 101,
+        "character_a_id": "Elf",
+        "character_b_id": "CEO",
+        "winner_character_id": "CEO"
+    },
+    {
+        "match_id": 101,
+        "character_a_id": "Elf",
+        "character_b_id": "Delivery",
+        "winner_character_id": "Elf"
+    },
+    {
+        "match_id": 101,
+        "character_a_id": "Elf",
+        "character_b_id": "Main Character",
+        "winner_character_id": "Elf"
+    },
+    {
+        "match_id": 101,
+        "character_a_id": "Elf",
+        "character_b_id": "Main Character",
+        "winner_character_id": "Main Character"
     }
 ])
 
@@ -283,13 +330,37 @@ player_match_json = json.dumps([
     },
     {
         "match_player_id": 2,
-        "match_id": 101,
-        "player_id": 2,
-        "character_id": "char_mage",
+        "match_id": 102,
+        "player_id": 1,
+        "character_id": "char_knight",
         "team_id": "enemy",
-        "damage_dealt": 600,
-        "damage_taken": 700,
+        "damage_dealt": 900,
+        "damage_taken": 350,
         "turns_taken": 7,
+        "won": False,
+        "disconnected": False
+    },
+        {
+        "match_player_id": 3,
+        "match_id": 103,
+        "player_id": 1,
+        "character_id": "char_knight",
+        "team_id": "ally",
+        "damage_dealt": 780,
+        "damage_taken": 420,
+        "turns_taken": 6,
+        "won": True,
+        "disconnected": False
+    },
+        {
+        "match_player_id": 4,
+        "match_id": 104,
+        "player_id": 1,
+        "character_id": "char_knight",
+        "team_id": "enemy",
+        "damage_dealt": 650,
+        "damage_taken": 300,
+        "turns_taken": 5,
         "won": False,
         "disconnected": False
     }
@@ -297,16 +368,88 @@ player_match_json = json.dumps([
 
 ability_usage_json = json.dumps([
     {
-        "match_player_id": 1,
-        "ability_id": 101,
-        "damage_done": 250,
-        "downtime": 4.5
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 6.0,
+        "ability_name": "ability 1"
     },
     {
-        "match_player_id": 2,
-        "ability_id": 102,
-        "damage_done": 300,
-        "downtime": 6.0
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 4,
+        "downtime": 4.0,
+        "ability_name": "ability 2"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 3.0,
+        "ability_name": "ability 1"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 2.0,
+        "ability_name": "ability 1"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 6.0,
+        "ability_name": "ability 1"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 3,
+        "downtime": 4.0,
+        "ability_name": "ability 3"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 3,
+        "downtime": 10.0,
+        "ability_name": "ability 4"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 6,
+        "downtime": 7.0,
+        "ability_name": "ability 4"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 1.0,
+        "ability_name": "ability 1"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 2,
+        "downtime": 1.0,
+        "ability_name": "ability 1"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 4,
+        "downtime": 4.0,
+        "ability_name": "ability 2"
+    },
+    {
+        "character_id": "Elf",
+        "player_id": 2,
+        "damage_done": 4,
+        "downtime": 4.0,
+        "ability_name": "ability 2"
     }
 ])
 

@@ -9,6 +9,7 @@ namespace NetFlower {
         // Identifiers
         public string characterId;
         public int playerId;
+        public string abilityName;
 
         // Metrics
         public int damageDone;
@@ -16,10 +17,12 @@ namespace NetFlower {
 
         public AbilityUsageStats(
             string characterId,
-            int playerId
+            int playerId,
+            string abilityName
         ) {
             this.characterId = characterId;
             this.playerId = playerId;
+            this.abilityName = abilityName;
 
             damageDone = 0;
             downtime = 0f;

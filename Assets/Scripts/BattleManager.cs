@@ -64,6 +64,9 @@ namespace NetFlower {
         [SerializeField, Range(0f, 1f)] public float scaleWidth = 0.5f;
         private Rect uiRect = new Rect(5, 5, 350, 400);
 
+        // GUI rect to display player stats
+        private readonly Rect statsRect = new Rect(5, 180, 260, 100);
+
         public BattleState State => state;
         public Agent CurrentAgent =>
             (turnOrder.Count > 0 && currentAgentIndex < turnOrder.Count)
@@ -95,8 +98,9 @@ namespace NetFlower {
             for (int i = 0; i < max; i++) {
                 if (i < gridMap.RedAgents.Count && gridMap.RedAgents[i] != null)
                     turnOrder.Add(gridMap.RedAgents[i]);
+
                 if (i < gridMap.BlueAgents.Count && gridMap.BlueAgents[i] != null)
-                    turnOrder.Add(gridMap.BlueAgents[i]);
+                    turnOrder.Add(gridMap.BlueAgents[i]);             
             }
 
             if (turnOrder.Count == 0) {
@@ -115,7 +119,12 @@ namespace NetFlower {
             Agent agent = CurrentAgent;
             if (agent == null) return;
 
-            validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
+            // For accessing agent's playerMatchStats object
+            if (CurrentAgent.playerMatchStats == null) {
+                CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(1);
+            }
+
+        validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
             if (validMoveTiles.Count == 0) {
                 Debug.Log($"BattleManager: {agent.Name} has no valid moves.");
                 return;
@@ -323,6 +332,8 @@ namespace NetFlower {
             if (CurrentAgent != null)
                 CurrentAgent.OnTurnEnd();
             // Increment turn number when looping back to the first agent
+            // record turns taken
+            CurrentAgent.playerMatchStats.turnsTaken++;
             currentAgentIndex = (currentAgentIndex + 1) % turnOrder.Count;
             if (currentAgentIndex == 0)
                 currentTurn++;
@@ -694,6 +705,17 @@ namespace NetFlower {
             float infoLabelY = navBtnY - 20; // 20px above nav buttons
             GUI.Label(new Rect(confirmBtnX, infoLabelY, uiRect.width - 2 * padding, 20),
                 $"Ability {selectedAbilityIndex + 1} of {availableAbilities.Count}", infoTextStyle);
+
+            // Player Stats Box
+            GUI.Box(statsRect, $"{CurrentAgent.Name}'s Stats");
+            var stats = CurrentAgent.playerMatchStats;
+
+            if (stats != null) {
+                GUI.Label(new Rect(10, 200, 240, 20), $"Damage Dealt: {stats.damageDealt}");
+                GUI.Label(new Rect(10, 220, 240, 20), $"Damage Taken: {stats.damageTaken}");
+                GUI.Label(new Rect(10, 240, 240, 20), $"Turns Taken: {stats.turnsTaken}");
+                GUI.Label(new Rect(10, 260, 240, 20), $"HP: {CurrentAgent.HP}");
+            }
         }
     }
 }

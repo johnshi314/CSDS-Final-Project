@@ -254,6 +254,7 @@ async def submit_abilityusagestats(ability: dict):
             "player_id": ability["playerId"],
             "damage_done": ability["damageDone"],
             "downtime": ability["downtime"],
+            "ability_name" : ability["abilityName"]
         }
 
         queries.insert_ability_usage(json.dumps([row]))

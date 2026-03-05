@@ -46,7 +46,7 @@ namespace NetFlower {
         public void Update() { }
 
         [Header("Identity")]
-        Player Player;  // The player controlling this agent
+        public Player Player;  // The player controlling this agent
         [SerializeField] string AgentName;       // Agent's display name
 
         [Header("Base Stats")]
@@ -67,7 +67,7 @@ namespace NetFlower {
         public uint MaxRange { get { return maxRange; } }
 
         // PlayerMatchStats reference
-        private PlayerMatchStats playerMatchStats;
+        public PlayerMatchStats playerMatchStats;
 
         /// <summary>
         /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
@@ -256,12 +256,11 @@ namespace NetFlower {
             // Set cooldown after successful use
             currentCooldowns[context.Ability] = (int) context.Ability.Cooldown;
 
-            // If this agent is associated with a player, record the stats
-            if (Player != null) {
-                // Record ability use in database
-                AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
-                    characterId: this.AgentName,
-                    playerId: this.Player.Id);
+            // Record ability use in database
+            AbilityUsageStats abilityUsageStats = new AbilityUsageStats(
+                characterId: this.AgentName,
+                playerId: this.Player.Id,
+                abilityName: context.Ability.DisplayName);
 
                 // will change how this is calculated later
                 abilityUsageStats.damageDone = context.Ability.TargetEffects.Count;
@@ -271,7 +270,6 @@ namespace NetFlower {
                 Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
                 // Start coroutine to submit JSON to backend
                 StartCoroutine(SubmitAbilityUsageRoutine(abilityUsageJson));
-            }
 
             return true;
         }
