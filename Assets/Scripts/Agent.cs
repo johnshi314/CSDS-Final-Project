@@ -278,8 +278,14 @@ namespace NetFlower {
 
                 // will change how this is calculated later
                 abilityUsageStats.damageDone = resolution.TotalDamageDealt;
-                // Make an attempt to submit to the database
-                try {
+
+            // Record damage dealt by agent
+            if (playerMatchStats != null) {
+                playerMatchStats.damageDealt += resolution.TotalDamageDealt;
+            }
+
+            // Make an attempt to submit to the database
+            try {
                     // Test ability stats to database
                     string abilityUsageJson = abilityUsageStats.ToJson();
                     Debug.Log("Sending ability JSON to server: " + abilityUsageJson);
