@@ -10,7 +10,9 @@ namespace NetFlower {
         WaitingForAction,
         SelectingMoveTile,
         SelectingAbility,
-        SelectingAbilityTarget
+        SelectingAbilityTarget,
+        MovingAgent,
+        WaitingForAnimations
     }
 
     /// <summary>
@@ -49,6 +51,14 @@ namespace NetFlower {
         private Ability selectedAbility = null;  // The ability currently being targeted
         private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
         
+        // Movement tweening state
+        [Header("Movement Animation")]
+        [SerializeField] private float moveSpeed = 5f; // tiles per second
+        private List<Vector3> movePath;
+        private int movePathIndex;
+        private float moveLerpT;
+        private Agent movingAgent;
+
         // GUI rect used to block tile clicks over the UI panel
         [Header("UI Rect")]
         [SerializeField, Range(0f, 1f)] public float scaleWidth = 0.5f;
@@ -274,6 +284,14 @@ namespace NetFlower {
         public void OnEndTurnPressed() {
             if (state == BattleState.NotStarted) return;
 
+            // If agent is mid-move animation, wait for it to finish before advancing
+            if (state == BattleState.MovingAgent) {
+                state = BattleState.WaitingForAnimations;
+                gridMap.ClearHighlights();
+                validMoveTiles.Clear();
+                return;
+            }
+
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
             AdvanceTurn();
@@ -319,15 +337,26 @@ namespace NetFlower {
         void Update() {
 
             UpdateGUIRect();
-            // Handle turn timer (run in all player action states)
-            if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget)) {
+            // Handle turn timer (run in all player action states, including during movement animation)
+            if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget || state == BattleState.MovingAgent)) {
                 turnTimer -= Time.deltaTime;
                 if (turnTimer <= 0f) {
                     turnTimer = 0f;
                     timerActive = false;
-                    AdvanceTurn();
+                    if (state == BattleState.MovingAgent) {
+                        // Wait for movement animation to finish before advancing turn
+                        state = BattleState.WaitingForAnimations;
+                    } else {
+                        AdvanceTurn();
+                    }
                 }
             }
+
+            // Update movement tween
+            if (state == BattleState.MovingAgent || state == BattleState.WaitingForAnimations) {
+                UpdateMoveTween();
+            }
+
             if (state == BattleState.SelectingMoveTile) {
                 HandleMoveTileSelection();
             }
@@ -367,19 +396,84 @@ namespace NetFlower {
                 // Path includes start tile, so movement cost is path.Count - 1
                 pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
             }
+            // Build world-position path for tweening
+            var tilePath = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, newPos);
+            float agentZ = agent.transform.position.z;
+            List<Vector3> worldPath = new List<Vector3>();
+            if (tilePath != null) {
+                foreach (var t in tilePath)
+                    worldPath.Add(gridMap.MapIndexToWorldPosition(t.Position, agentZ));
+            }
+
+            // Apply logical move (updates map data + snaps visual position)
             gridMap.TryMoveAgentByMapIndex(agent, clickedTile.Position);
             // Decrease agent's movement range by path length moved
             if (pathLength > 0 && agent != null) {
                 agent.Move(pathLength);
             }
+
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
-            // Return to main action menu so player can act again
-            state = BattleState.WaitingForAction;
+
+            // Start movement tween (snap agent back to original position, then animate)
+            if (worldPath.Count >= 2) {
+                agent.transform.position = worldPath[0];
+                movePath = worldPath;
+                movePathIndex = 0;
+                moveLerpT = 0f;
+                movingAgent = agent;
+                state = BattleState.MovingAgent;
+            } else {
+                // No path to tween (shouldn't happen), just stay in WaitingForAction
+                state = BattleState.WaitingForAction;
+            }
         }
 
         private void HandleAbilitySelection() {
             // No-op: ability selection is handled by GUI.Button in DrawAbilitySelection
+        }
+
+        private void UpdateMoveTween() {
+            if (movingAgent == null || movePath == null || movePath.Count < 2) {
+                OnMoveAnimationComplete();
+                return;
+            }
+
+            moveLerpT += Time.deltaTime * moveSpeed;
+            while (moveLerpT >= 1f) {
+                moveLerpT -= 1f;
+                movePathIndex++;
+                if (movePathIndex >= movePath.Count - 1) {
+                    // Arrived at destination
+                    movingAgent.transform.position = movePath[movePath.Count - 1];
+                    OnMoveAnimationComplete();
+                    return;
+                }
+            }
+
+            movingAgent.transform.position = Vector3.Lerp(
+                movePath[movePathIndex],
+                movePath[movePathIndex + 1],
+                Mathf.Clamp01(moveLerpT));
+        }
+
+        private void OnMoveAnimationComplete() {
+            // Snap to final position just in case
+            if (movingAgent != null && movePath != null && movePath.Count > 0)
+                movingAgent.transform.position = movePath[movePath.Count - 1];
+
+            movePath = null;
+            movingAgent = null;
+            movePathIndex = 0;
+            moveLerpT = 0f;
+
+            if (state == BattleState.WaitingForAnimations) {
+                // Turn ended while moving — advance to next turn now
+                AdvanceTurn();
+            } else {
+                // Movement finished within the turn — return to action menu
+                state = BattleState.WaitingForAction;
+            }
         }
 
         private void HandleAbilityTargetSelection() {
@@ -430,7 +524,7 @@ namespace NetFlower {
             float btnW = 115, btnH = 35, btnY = 55 + uiRect.yMin;
 
             // Always show turn timer in top right during player's turn
-            if (CurrentAgent != null && timerActive) {
+            if (CurrentAgent != null && (timerActive || state == BattleState.MovingAgent || state == BattleState.WaitingForAnimations)) {
                 float timerBoxW = 140, timerBoxH = 50;
                 float timerBoxX = Screen.width - timerBoxW - 20;
                 float timerBoxY = 20;
@@ -479,6 +573,14 @@ namespace NetFlower {
             }
             else if (state == BattleState.SelectingAbilityTarget && selectedAbility != null) {
                 DrawAbilityTargeting();
+            }
+            else if (state == BattleState.MovingAgent || state == BattleState.WaitingForAnimations) {
+                var movingStyle = new GUIStyle(GUI.skin.label) {
+                    fontSize = 14,
+                    fontStyle = FontStyle.Bold
+                };
+                movingStyle.normal.textColor = Color.yellow;
+                GUI.Label(new Rect(15 + uiRect.xMin, 55 + uiRect.yMin, uiRect.width - 30, 30), "Moving...", movingStyle);
             }
         }
 
