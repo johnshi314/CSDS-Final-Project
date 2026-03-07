@@ -197,11 +197,11 @@ def insert_match_players(json_string):
 
     sql = db.text("""
         INSERT INTO player_match_stats (
-            match_player_id, match_id, player_id, character_id, team_id,
+            match_id, player_id, character_id, team_id,
             damage_dealt, damage_taken, turns_taken, won, disconnected
         )
         VALUES (
-            :match_player_id, :match_id, :player_id, :character_id, :team_id,
+            :match_id, :player_id, :character_id, :team_id,
             :damage_dealt, :damage_taken, :turns_taken, :won, :disconnected
         )
     """)
@@ -233,6 +233,63 @@ def insert_ability_usage(json_string):
     except Exception as e:
         print("Database error:", e)
 
+# =============================
+# New Match Functions
+# =============================
+def create_match(start_time=None, queue_time=0):
+    """
+    Create a new match row at the start of the game.
+    Returns the auto-generated match_id.
+    """
+    try:
+        if start_time is None:
+            start_time = datetime.now(timezone.utc)
+
+        with engine.begin() as connection:
+            result = connection.execute(text("""
+                INSERT INTO matches (start_time, queue_time)
+                VALUES (:start_time, :queue_time)
+            """), {
+                "start_time": start_time,
+                "queue_time": queue_time
+            })
+            match_id = result.lastrowid
+
+            logger.info(f"Match created successfully (match_id: {match_id})")
+
+            return match_id
+
+    except Exception as e:
+        logger.error(f"Error creating match: {e}")
+        return None
+
+
+def update_match(match_id, end_time, duration, winner_team_id):
+    """
+    Update match data when the match finishes.
+    """
+    try:
+        if isinstance(end_time, str):
+            end_time = datetime.fromisoformat(end_time.replace(" ", "T"))
+
+        with engine.begin() as connection:
+            connection.execute(text("""
+                UPDATE matches
+                SET end_time = :end_time,
+                    duration = :duration,
+                    winner_team_id = :winner_team_id
+                WHERE match_id = :match_id
+            """), {
+                "match_id": match_id,
+                "end_time": end_time,
+                "duration": duration,
+                "winner_team_id": winner_team_id
+            })
+
+            logger.info(f"Match {match_id} updated successfully")
+
+    except Exception as e:
+        logger.error(f"Error updating match: {e}")
 # -----------------------------
 # Test Data
 # -----------------------------
@@ -469,5 +526,7 @@ if __name__ == "__main__":
     insert_matchups(matchups_json)
     insert_match_players(player_match_json)
     insert_ability_usage(ability_usage_json)
+    last_id = get_last_match_id()
+    print("Last match_id from get_last_match_id():", last_id)
 
     print("All test inserts completed!")
