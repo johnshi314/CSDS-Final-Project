@@ -130,17 +130,7 @@ namespace NetFlower {
             // Start coroutine to submit JSON to backend
             StartCoroutine(SubmitMatchesRoutine(matchJson));
 
-            // Test adding match player to database
-            string matchPlayerJson = allyStats.ToJson();
-            Debug.Log("Sending match player JSON to server: " + matchPlayerJson);
-
-            // Start coroutine to submit JSON to backend
-            StartCoroutine(SubmitMatchPlayerRoutine(matchPlayerJson));
-
-            ResolveMatchups();
             matchActive = false;
-
-
         }
 
         public MatchupStats RegisterMatchup(string characterAId, string characterBId) {
@@ -154,20 +144,12 @@ namespace NetFlower {
             return matchup;
         }
 
-        public void ResolveMatchups() {
+        public void ResolveMatchup(string winner) {
             if (matchupStats == null) return;
 
-            // Compare ally vs enemy stats to determine winner
-            if (allyStats != null && enemyStats != null) {
-                if (allyStats.won && !enemyStats.won)
-                    matchupStats.winnerCharacterId = allyStats.characterId;
-                else if (enemyStats.won && !allyStats.won)
-                    matchupStats.winnerCharacterId = enemyStats.characterId;
-                else
-                    matchupStats.winnerCharacterId = "tie"; // tie
-            }
+            // record winner and add to database
+            matchupStats.winnerCharacterId = winner;
 
-            // Test adding matchup to database
             string matchupJson = matchupStats.ToJson();
             Debug.Log("Sending match JSON to server: " + matchupJson);
             // Start coroutine to submit JSON to backend
