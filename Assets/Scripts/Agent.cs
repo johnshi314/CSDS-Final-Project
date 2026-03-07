@@ -22,7 +22,7 @@ namespace NetFlower {
         public static int testPlayerId = 1;
 
         //  Sending stats to database
-        public enum RequestType { AbilitySubmit }
+        public enum RequestType { AbilitySubmit, PlayerSubmit }
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         public void Start() {
@@ -356,6 +356,15 @@ namespace NetFlower {
             return stats;
         }
 
+        public void RecordPlayerStats() {
+            // Test adding match player to database
+            string matchPlayerJson = this.playerMatchStats.ToJson();
+            Debug.Log("Sending match player JSON to server: " + matchPlayerJson);
+
+            // Start coroutine to submit JSON to backend
+            StartCoroutine(SubmitMatchPlayerRoutine(matchPlayerJson));
+        }
+
         // ===================================================================== //
         // ======================= Private Agent Methods ======================= //
         private void DecrementCooldowns() {
@@ -369,6 +378,11 @@ namespace NetFlower {
         IEnumerator SubmitAbilityUsageRoutine(string abilityUsageJson) {
             string url = "http://localhost:8000/submit-abilityusagestats";
             yield return SendRequest(url, abilityUsageJson, RequestType.AbilitySubmit);
+        }
+
+        IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
+            string url = "http://localhost:8000/submit-playermatchstats";
+            yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);
         }
 
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
