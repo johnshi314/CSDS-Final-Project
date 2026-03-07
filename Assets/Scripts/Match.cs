@@ -12,23 +12,30 @@ namespace NetFlower {
         // Match stats
         public MatchStats matchStats { get; private set; }
 
-        // Match state
-        private bool matchActive = false;
-
         // Variables for stats
         private PlayerMatchStats allyStats;
         private PlayerMatchStats enemyStats;
         private MatchupStats matchupStats;
-        private int dbMatchId;
+        public int dbMatchId;
 
         //  Sending stats to database
         public enum RequestType { MatchSubmit, PlayerSubmit, MatchupSubmit }
 
         public void Start() {
-            matchStats = new MatchStats() { };
-            // change this to fetch next primary key from db
-            dbMatchId = 4;
-            matchStats = StartMatch(dbMatchId);
+            // dbMatch id will hold the next unique matchId from database
+            StartCoroutine(CreateMatchRoutine());
+        }
+
+        [Serializable]
+        public class MatchIdResponse {
+            public string status;
+            public int match_id;
+        }
+
+        void InitializeMatch() {
+            //track match stats
+            matchStats = new MatchStats();
+            StartMatch(dbMatchId);
 
             // Create parent objects for allies and enemies
             GameObject allies = new GameObject("Allies");
@@ -68,9 +75,6 @@ namespace NetFlower {
             Agent enemyAgent = newAgent.GetComponent<Agent>();
             enemyStats = enemyAgent.RegisterPlayer(dbMatchId);
 
-            // Track matchup stats
-            matchupStats = RegisterMatchup(allyAgent.GetAgentName(), enemyAgent.GetAgentName());
-
             // Add sphere mesh to both agents
             MeshFilter enemyMesh = newAgent.AddComponent<MeshFilter>();
             enemyMesh.mesh = Resources.GetBuiltinResource<Mesh>("Sphere.fbx");
@@ -93,19 +97,17 @@ namespace NetFlower {
 
             EndMatch("ally");
         }
+
         // Record match data at start and end
         public MatchStats StartMatch(int dbMatchId) {
-            if (matchActive) return matchStats;
             matchStats.matchId = dbMatchId;
             matchStats.queueTime = 0f;
             matchStats.startTime = DateTime.UtcNow.ToString("o");
-            matchActive = true;
 
             return matchStats;
         }
 
         public void EndMatch(string winnerTeamId) {
-            if (!matchActive) return;
 
             matchStats.endTime = DateTime.UtcNow.ToString("o");
 
@@ -128,9 +130,7 @@ namespace NetFlower {
             string matchJson = matchStats.ToJson();
             Debug.Log("Sending match JSON to server: " + matchJson);
             // Start coroutine to submit JSON to backend
-            StartCoroutine(SubmitMatchesRoutine(matchJson));
-
-            matchActive = false;
+            StartCoroutine(SubmitMatchUpdateRoutine(matchJson));
         }
 
         public MatchupStats RegisterMatchup(string characterAId, string characterBId) {
@@ -158,8 +158,8 @@ namespace NetFlower {
 
         #region Network Requests
 
-        IEnumerator SubmitMatchesRoutine(string matchJson) {
-            string url = "http://localhost:8000/submit-matchstats"; 
+        IEnumerator SubmitMatchUpdateRoutine(string matchJson) {
+            string url = "http://localhost:8000/update-match";
             yield return SendRequest(url, matchJson, RequestType.MatchSubmit);
         }
 
@@ -169,8 +169,8 @@ namespace NetFlower {
         }
 
         IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
-            string url = "http://localhost:8000/submit-playermatchstats";  
-            yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);    
+            string url = "http://localhost:8000/submit-playermatchstats";
+            yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);
         }
 
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
@@ -196,9 +196,34 @@ namespace NetFlower {
                 }
             }
         }
-    }
 
-    #endregion
+        IEnumerator CreateMatchRoutine() {
+            string url = "http://localhost:8000/create-match";
+
+            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success) {
+                    Debug.LogError($"Create match failed: {request.error}");
+                    yield break;
+                }
+
+                string json = request.downloadHandler.text;
+
+                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
+
+                dbMatchId = response.match_id;
+
+                Debug.Log("Match ID from server: " + dbMatchId);
+
+                InitializeMatch();
+            }
+        }
+
+        #endregion
+    }
 }
 
 

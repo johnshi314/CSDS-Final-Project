@@ -190,33 +190,7 @@ def submit_playermatchstats(stat: dict):
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/submit-matchstats")
-async def submit_matchstats(match: dict):
-    """
-    Accepts a MatchStats JSON object from Unity and inserts into database.
-    """
-    try:
-
-        row = {
-            "match_id": match["matchId"],
-            "start_time": match["startTime"],
-            "end_time": match["endTime"],
-            "duration": match["duration"],
-            "queue_time": match["queueTime"],
-            "winner_team_id": match["winnerTeamId"]
-        }
-
-        queries.insert_matches(json.dumps([row]))
-        return {"status": "success", "message": "MatchStats inserted successfully"}
-
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
-    except Exception as e:
-        logger.exception("Submit matchstats failed")
-        raise HTTPException(status_code=500, detail=str(e))
-
+   
 @app.post("/submit-matchupstats")
 async def submit_matchupstats(matchup: dict):
     """
@@ -265,6 +239,54 @@ async def submit_abilityusagestats(ability: dict):
     except Exception as e:
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/create-match")
+def create_match():
+    """
+    Creates a new match at the beginning of the game
+    and returns the generated match_id.
+    """
+    try:
+        match_id = queries.create_match()
+
+        if match_id is None:
+            raise HTTPException(status_code=500, detail="Failed to create match")
+
+        return {
+            "status": "success",
+            "match_id": match_id
+        }
+
+    except Exception as e:
+        logger.exception("Create match failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/update-match")
+def update_match(match: dict):
+    """
+    Updates match stats when the game ends.
+    """
+    try:
+        queries.update_match(
+            match_id=match["matchId"],
+            end_time=match["endTime"],
+            duration=match["duration"],
+            winner_team_id=match["winnerTeamId"]
+        )
+
+        return {
+            "status": "success",
+            "message": "Match updated successfully"
+        }
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
+
+    except Exception as e:
+        logger.exception("Update match failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     import uvicorn
