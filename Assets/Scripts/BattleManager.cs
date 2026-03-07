@@ -136,11 +136,11 @@ namespace NetFlower {
             if (agent == null) return;
 
             // For accessing agent's playerMatchStats object
-            if (CurrentAgent.playerMatchStats == null) {
-                CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(1);
-            }
+            if (CurrentAgent.playerMatchStats.matchId == 0) {
+                CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(101);
+            } 
 
-        validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
+            validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
             if (validMoveTiles.Count == 0) {
                 Debug.Log($"BattleManager: {agent.Name} has no valid moves.");
                 return;
