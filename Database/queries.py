@@ -526,7 +526,5 @@ if __name__ == "__main__":
     insert_matchups(matchups_json)
     insert_match_players(player_match_json)
     insert_ability_usage(ability_usage_json)
-    last_id = get_last_match_id()
-    print("Last match_id from get_last_match_id():", last_id)
 
     print("All test inserts completed!")
