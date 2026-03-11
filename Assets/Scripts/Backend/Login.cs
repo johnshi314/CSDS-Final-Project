@@ -17,6 +17,7 @@ namespace NetFlower.Backend {
         [SerializeField] CanvasGroup registerCanvasGroup;
         [SerializeField] CanvasGroup submitCanvasGroup;
         [SerializeField] CanvasGroup logoutCanvasGroup;
+        [SerializeField] CanvasGroup choiceCanvasGroup;
         [SerializeField] long messageClearDelaySeconds = 5;
 
 
@@ -33,18 +34,38 @@ namespace NetFlower.Backend {
         public RequestType CurrentMode { get; private set; }
 
         void Start() {
+
             player = new Player(
                 Id: -1,
                 Name: "Guest",
                 IP: "0.0.0.0");
+            Debug.Log("Start: Created guest player");
+
             HideMessage();
             CurrentMode = RequestType.Password;
+
             LoadAuthData();
+            Debug.Log($"Start: Loaded auth data. Token: {authToken}, PlayerId: {player.Id}");
+
+
             if (!string.IsNullOrEmpty(authToken)) {
-                CurrentMode = RequestType.Token;
+                Debug.Log("Start: Found saved token, attempting auto-login");
+                ShowMessage("Restoring Session...");
+                HideCanvasGroup(choiceCanvasGroup);
+                //CurrentMode = RequestType.Token;
+                SwitchTo(RequestType.Token);   
+                //Submit(RequestType.Token);
                 Submit(RequestType.Token);
+            } else {
+                Debug.Log("Start: No saved token, showing choice panel");
+                ShowCanvasGroup(choiceCanvasGroup);
+
+                // Hide other UI panels while choosing
+                HideCanvasGroup(idCanvasGroup);
+                HideCanvasGroup(registerCanvasGroup);
+                HideCanvasGroup(submitCanvasGroup);
+                HideCanvasGroup(logoutCanvasGroup);
             }
-            SwitchTo(CurrentMode);
         }
 
         void Update() {
@@ -52,6 +73,16 @@ namespace NetFlower.Backend {
             if (!clearingMessage && msg != null && !string.IsNullOrEmpty(msg.ToString())) {
                 StartCoroutine(ClearMessageAfterDelay(messageClearDelaySeconds));
             }
+        }
+
+        public void OnChooseLogin() {
+            HideCanvasGroup(choiceCanvasGroup);
+            SwitchToLogin();
+        }
+
+        public void OnChooseRegister() {
+            HideCanvasGroup(choiceCanvasGroup);
+            SwitchToRegister();
         }
 
         #region UI Management
