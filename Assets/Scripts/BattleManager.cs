@@ -4,6 +4,10 @@
  * Date Created : 2026-02-05
  * Description  : Manages the flow of a turn-based battle, including turn order, player actions, and state transitions.
  *                TODO: Refactor to use TurnOrder and other classes 
+
+ * Last Modified: 2026-03-19
+ * Last Modified By: John Shi
+ * Note: I modified the BattleManager so it now supports NPC agents. 
  **********************************************************************/
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -29,6 +33,8 @@ namespace NetFlower {
     /// Drives a turn-based battle demo. Owns the state machine that decides
     /// what mouse clicks do, cycles turns between agents, and draws IMGUI
     /// buttons for Move / End Turn / Cancel.
+    /// 
+    /// NOW SUPPORTS NPC AGENTS - Agents with NPCBehavior will move automatically.
     /// </summary>
     public class BattleManager : MonoBehaviour {
 
@@ -73,6 +79,9 @@ namespace NetFlower {
         [Header("UI Rect")]
         [SerializeField, Range(0f, 1f)] public float scaleWidth = 0.5f;
         private Rect uiRect = new Rect(5, 5, 350, 400);
+
+        // NPC behavior tracking
+        private NPCBehavior currentNPCBehavior;
 
         public BattleState State => state;
         public Agent CurrentAgent =>
@@ -321,14 +330,24 @@ namespace NetFlower {
             state = BattleState.WaitingForAction;
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
+            
             // Tick all agents' effects at the start of each turn
-            foreach (var agent in turnOrder)
-            {
+            foreach (var agent in turnOrder) {
                 agent.TickEffects(currentTurn);
             }
-            if (CurrentAgent != null)
+            
+            if (CurrentAgent != null) {
                 CurrentAgent.OnTurnStart(currentTurn);
-            Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn. (Turn {currentTurn + 1})");
+                
+                // Initialize NPC behavior if current agent is an NPC
+                currentNPCBehavior = CurrentAgent.GetComponent<NPCBehavior>();
+                if (currentNPCBehavior != null && currentNPCBehavior.IsNPC) {
+                    currentNPCBehavior.OnTurnStart();
+                    Debug.Log($"BattleManager: {CurrentAgent.Name} (NPC) is taking their turn. (Turn {currentTurn + 1})");
+                } else {
+                    Debug.Log($"BattleManager: {CurrentAgent.Name}'s turn. (Turn {currentTurn + 1})");
+                }
+            }
 
             // Start turn timer
             turnTimer = TURN_TIME_LIMIT;
@@ -336,14 +355,19 @@ namespace NetFlower {
         }
 
         private void AdvanceTurn() {
-            if (CurrentAgent != null)
+            if (CurrentAgent != null) {
                 CurrentAgent.OnTurnEnd(currentTurn);
-            // Increment turn number when looping back to the first agent
-            // record turns taken
-            CurrentAgent.playerMatchStats.turnsTaken++;
+            }
+            
+            // Record turns taken
+            if (CurrentAgent != null && CurrentAgent.playerMatchStats != null) {
+                CurrentAgent.playerMatchStats.turnsTaken++;
+            }
+            
             currentAgentIndex = (currentAgentIndex + 1) % turnOrder.Count;
             if (currentAgentIndex == 0)
                 currentTurn++;
+            
             BeginTurn();
             // Do not stop timer here; BeginTurn restarts it for the next player
         }
@@ -355,6 +379,12 @@ namespace NetFlower {
         void Update() {
 
             UpdateGUIRect();
+            
+            // Handle NPC behavior if current agent is an NPC
+            if (currentNPCBehavior != null && currentNPCBehavior.IsNPC) {
+                currentNPCBehavior.UpdateAI(gridMap, this);
+            }
+            
             // Handle turn timer (run in all player action states, including during movement animation)
             if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget || state == BattleState.MovingAgent)) {
                 turnTimer -= Time.deltaTime;
@@ -540,7 +570,13 @@ namespace NetFlower {
             };
             labelStyle.normal.textColor = Color.white;
             var labelRect = new Rect(15 + uiRect.xMin, 12 + uiRect.yMin, uiRect.width - 30, 30);
-            GUI.Label(labelRect, $"{CurrentAgent.Name}'s Turn", labelStyle);
+            
+            // Show if this is an NPC's turn
+            string turnLabel = CurrentAgent.Name + "'s Turn";
+            if (currentNPCBehavior != null && currentNPCBehavior.IsNPC) {
+                turnLabel += " (NPC)";
+            }
+            GUI.Label(labelRect, turnLabel, labelStyle);
 
             float btnW = 115, btnH = 35, btnY = 55 + uiRect.yMin;
 
@@ -556,46 +592,51 @@ namespace NetFlower {
                 GUI.Label(new Rect(timerBoxX, timerBoxY + 8, timerBoxW, 30), $"Time: {turnTimer:F1}s", timerStyle);
             }
 
-            if (state == BattleState.WaitingForAction) {
-                float actionBtnW = uiRect.width - 30;
-                float actionBtnH = 40;
-                float actionBtnX = uiRect.xMin + 15;
-                float actionBtnY = uiRect.yMin + 60;
+            // Only show action buttons if it's a player-controlled agent
+            if (currentNPCBehavior == null || !currentNPCBehavior.IsNPC) {
+                if (state == BattleState.WaitingForAction) {
+                    float actionBtnW = uiRect.width - 30;
+                    float actionBtnH = 40;
+                    float actionBtnX = uiRect.xMin + 15;
+                    float actionBtnY = uiRect.yMin + 60;
 
-                // Check if current agent has movement left
-                bool canMove = false;
-                if (CurrentAgent != null && gridMap != null && gridMap.MapManager != null && gridMap.MapManager.ActiveMap != null) {
-                    var movableTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(CurrentAgent);
-                    canMove = movableTiles != null && movableTiles.Count > 0;
+                    // Check if current agent has movement left
+                    bool canMove = false;
+                    if (CurrentAgent != null && gridMap != null && gridMap.MapManager != null && gridMap.MapManager.ActiveMap != null) {
+                        var movableTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(CurrentAgent);
+                        canMove = movableTiles != null && movableTiles.Count > 0;
+                    }
+
+                    // Grey out and disable Move button if no movement left
+                    GUI.enabled = canMove;
+                    if (GUI.Button(new Rect(actionBtnX, actionBtnY, actionBtnW, actionBtnH), "Move") && canMove)
+                        OnMovePressed();
+                    GUI.enabled = true;
+
+                    if (GUI.Button(new Rect(actionBtnX, actionBtnY + actionBtnH + 10, actionBtnW, actionBtnH), "Use Ability"))
+                        OnUseAbilityPressed();
+                    if (GUI.Button(new Rect(actionBtnX, actionBtnY + 2 * (actionBtnH + 10), actionBtnW, actionBtnH), "Pass Turn"))
+                        OnEndTurnPressed();
                 }
+                else if (state == BattleState.SelectingMoveTile) {
+                    if (GUI.Button(new Rect(15, btnY, btnW, btnH), "Cancel"))
+                        OnCancelPressed();
 
-                // Grey out and disable Move button if no movement left
-                GUI.enabled = canMove;
-                if (GUI.Button(new Rect(actionBtnX, actionBtnY, actionBtnW, actionBtnH), "Move") && canMove)
-                    OnMovePressed();
-                GUI.enabled = true;
-
-                if (GUI.Button(new Rect(actionBtnX, actionBtnY + actionBtnH + 10, actionBtnW, actionBtnH), "Use Ability"))
-                    OnUseAbilityPressed();
-                if (GUI.Button(new Rect(actionBtnX, actionBtnY + 2 * (actionBtnH + 10), actionBtnW, actionBtnH), "Pass Turn"))
-                    OnEndTurnPressed();
+                    var hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+                    hintStyle.normal.textColor = Color.yellow;
+                    GUI.Label(new Rect(15, btnY + btnH + 4, 240, 20),
+                        "Click a highlighted tile to move", hintStyle);
+                }
+                else if (state == BattleState.SelectingAbility) {
+                    DrawAbilitySelection();
+                }
+                else if (state == BattleState.SelectingAbilityTarget && selectedAbility != null) {
+                    DrawAbilityTargeting();
+                }
             }
-            else if (state == BattleState.SelectingMoveTile) {
-                if (GUI.Button(new Rect(15, btnY, btnW, btnH), "Cancel"))
-                    OnCancelPressed();
-
-                var hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-                hintStyle.normal.textColor = Color.yellow;
-                GUI.Label(new Rect(15, btnY + btnH + 4, 240, 20),
-                    "Click a highlighted tile to move", hintStyle);
-            }
-            else if (state == BattleState.SelectingAbility) {
-                DrawAbilitySelection();
-            }
-            else if (state == BattleState.SelectingAbilityTarget && selectedAbility != null) {
-                DrawAbilityTargeting();
-            }
-            else if (state == BattleState.MovingAgent || state == BattleState.WaitingForAnimations) {
+            
+            // Show movement indicator for everyone
+            if (state == BattleState.MovingAgent || state == BattleState.WaitingForAnimations) {
                 var movingStyle = new GUIStyle(GUI.skin.label) {
                     fontSize = 14,
                     fontStyle = FontStyle.Bold
