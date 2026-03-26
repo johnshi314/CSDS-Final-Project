@@ -14,13 +14,7 @@ using System.Text;
 
 namespace NetFlower {
 
-    /// <summary>
-    /// Human Ranger Elf character class that inherits from Agent.
-    /// Acts identically to Agent for now, can be used in the scene for turns.
-    /// </summary>
     public class HRElf : Agent {
         
-        // Character-specific initialization can be added here in the future
-        // For now, this class acts identically to Agent
     }
 }

@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2029823870383830514}
-  - component: {fileID: -726200317852983082}
   - component: {fileID: 2790349424236938429}
   - component: {fileID: -4061326841650718499}
+  - component: {fileID: -4029165792481918869}
   m_Layer: 0
   m_Name: ElfCharacter
   m_TagString: Untagged
@@ -34,29 +34,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &-726200317852983082
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8979374364227603825}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3ee71944a5662472bbfbd8a077ca859e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.HRElf
-  AgentName: HRElf
-  maxHP: 20
-  maxRange: 3
-  CanTunnel: 1
-  Abilities:
-  - {fileID: 11400000, guid: 738977980eb6f4cbdb77287370650196, type: 2}
-  - {fileID: 11400000, guid: 651c4bf38058a4a7a98acccee130e169, type: 2}
-  - {fileID: 11400000, guid: 78d86368d3fecff4789c39af3cf22763, type: 2}
-  - {fileID: 11400000, guid: c20babb1379614414ab9194603f0b987, type: 2}
-  hp: 0
-  range: 0
 --- !u!212 &2790349424236938429
 SpriteRenderer:
   serializedVersion: 2
@@ -138,3 +115,36 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &-4029165792481918869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8979374364227603825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab87432699ce5acb2a55c97cbbecd0dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Agent
+  AgentName: ElfCharacter
+  maxHP: 20
+  maxRange: 3
+  CanTunnel: 1
+  Abilities:
+  - {fileID: 11400000, guid: 738977980eb6f4cbdb77287370650196, type: 2}
+  - {fileID: 11400000, guid: 651c4bf38058a4a7a98acccee130e169, type: 2}
+  - {fileID: 11400000, guid: c0c9bf315283448e6bcbf6b7e70cb4cf, type: 2}
+  - {fileID: 11400000, guid: c20babb1379614414ab9194603f0b987, type: 2}
+  hp: 0
+  range: 0
+  playerMatchStats:
+    matchId: 0
+    playerId: 0
+    characterId: 
+    teamId: 
+    damageDealt: 0
+    damageTaken: 0
+    turnsTaken: 0
+    won: 0
+    disconnected: 0
