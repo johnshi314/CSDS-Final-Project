@@ -55,6 +55,19 @@ namespace NetFlower {
         [SerializeField] private Color abilityTargetColor = new Color(1f, 0.5f, 0.2f, 1f);
         [SerializeField, Range(0f, 1f)] private float abilityTargetAlpha = 0.5f;
 
+        // UI GUI switched added
+        [Header("UI Options")]
+        [SerializeField] private bool useCanvasUI = true; 
+
+
+        // ---------- for UI read-only access ----------
+        public IReadOnlyList<Ability> AvailableAbilitiesForUI => availableAbilities.AsReadOnly();
+        public int SelectedAbilityIndexForUI => selectedAbilityIndex;
+        public Ability SelectedAbilityForUI => selectedAbility;
+        public float TurnTimerForUI => turnTimer;
+        public Rect UiRectForIMGUI => uiRect; // for debugging 
+        // --------------------------------------------
+
         // State
         private BattleState state = BattleState.NotStarted;
         private List<Agent> turnOrder = new List<Agent>();
@@ -544,6 +557,7 @@ namespace NetFlower {
         // ------------------------------------------------------------------ //
 
         void OnGUI() {
+            if (useCanvasUI) return; // skip the IMGUI demo UI and use Canvas UI
             // Debug: Show mouse position in GUI coordinates and draw a red dot
             if (Mouse.current != null) {
                 Vector2 mouseScreen = Mouse.current.position.ReadValue();
