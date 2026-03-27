@@ -59,6 +59,8 @@ namespace NetFlower {
         [Header("UI Options")]
         [SerializeField] private bool useCanvasUI = true; 
 
+        private Match match; // Reference to the Match component for recording stats
+
 
         // ---------- for UI read-only access ----------
         public IReadOnlyList<Ability> AvailableAbilitiesForUI => availableAbilities.AsReadOnly();
@@ -103,6 +105,12 @@ namespace NetFlower {
                 : null;
 
         public void Start() {
+            // For Mach I need:
+            // - A ID 
+            // - B ID
+            // Winner char name
+            // Match ID
+            match = GetComponent<Match>();
         }
 
         // ------------------------------------------------------------------ //
