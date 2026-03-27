@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 
 using NetFlower.UI;
+using UnityEditor.PackageManager;
 
 namespace NetFlower.Backend {
     public class Login : MonoBehaviour {
@@ -309,6 +310,7 @@ namespace NetFlower.Backend {
                     case RequestType.Token:
                         var tokenResponse = JsonUtility.FromJson<TokenVerifyResponse>(jsonResponse);
                         if (tokenResponse.status == "success" && tokenResponse.valid) {
+                            ClientPlayer.clientPlayer = player;
                             player.Id = tokenResponse.player_id;
                             SaveAuthData();
                             ShowMessage("Session restored. Welcome back!");

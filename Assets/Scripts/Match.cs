@@ -4,10 +4,14 @@ using System;
 using UnityEngine.Networking;
 using System.Collections;
 using System.Text;
+using Unity.VisualScripting;
 
 // Placeholder
 namespace NetFlower {
     public class Match : MonoBehaviour {
+
+        // Static reference to the current match instance
+        public static Match PersistentInstance = null;
 
         // Match stats
         public MatchStats matchStats { get; private set; }
@@ -16,15 +20,15 @@ namespace NetFlower {
         private PlayerMatchStats allyStats;
         private PlayerMatchStats enemyStats;
         private MatchupStats matchupStats;
+        Player player; // TODO: Make sure the player loggd in's id is set here
         public int dbMatchId;
+
+
+        public enum TeamSelection { Red, Blue }
+        public TeamSelection selectedTeam;
 
         //  Sending stats to database
         public enum RequestType { MatchSubmit, PlayerSubmit, MatchupSubmit }
-
-        public void Start() {
-            // dbMatch id will hold the next unique matchId from database
-            StartCoroutine(CreateMatchRoutine());
-        }
 
         [Serializable]
         public class MatchIdResponse {
@@ -32,68 +36,41 @@ namespace NetFlower {
             public int match_id;
         }
 
-        void InitializeMatch() {
+        public class LobbyState {
+            public bool everyoneReady;
+            public List<int> redTeamPlayerIds;
+            public List<int> blueTeamPlayerIds;
+        }
+
+
+        private TMPro.TextMeshProUGUI RedTeamText; // Reference to a UI text element to display match info
+        private TMPro.TextMeshProUGUI BlueTeamText; // Reference to a UI text element to display match info
+
+        void Start() {
+            this.player = ClientPlayer.clientPlayer;
+            if (PersistentInstance != null) {
+                Destroy(this.gameObject); // Ensure only one instance exists
+                return;
+            } else {
+                PersistentInstance = this.gameObject.GetComponent<Match>();
+                DontDestroyOnLoad(this.gameObject); // Keep this object alive between scenes
+            }
+            StartCoroutine(JoinNewLobby());
+        }
+
+        public static Match GetInstance() {
+            return PersistentInstance;
+        }
+
+        void InitializeMatch(int dbMatchId,
+                             int allyPlayerIds,
+                             int enemyPlayerIds) {
+            this.dbMatchId = dbMatchId;
+
+             // Example of recording a matchup
             //track match stats
             matchStats = new MatchStats();
             StartMatch(dbMatchId);
-
-            // Create parent objects for allies and enemies
-            GameObject allies = new GameObject("Allies");
-            GameObject enemies = new GameObject("Enemies");
-
-            Player allyPlayer = new Player(Id: 1, Name: "AllyPlayer", IP: "127.0.0.1");
-            Player enemyPlayer = new Player(Id: 2, Name: "EnemyPlayer", IP: "127.0.0.1");
-
-            // Create agents
-            GameObject newAlly = Agent.NewAgent(
-                player: allyPlayer,
-                agent_name: "Test Ally 1",
-                hp: 30,
-                range: 3,
-                abilities: null,
-                tunneling: Agent.Tunneling.Ally,
-                parent: allies,
-                position: new Vector3(2, 0, 0)
-            );
-
-            // Store stats on newAlly
-            Agent allyAgent = newAlly.GetComponent<Agent>();
-            allyStats = allyAgent.RegisterPlayer(dbMatchId);
-
-            GameObject newAgent = Agent.NewAgent(
-                player: enemyPlayer,
-                agent_name: "Test Enemy 1",
-                hp: 15,
-                range: 2,
-                abilities: null,
-                tunneling: Agent.Tunneling.Nothing,
-                parent: enemies,
-                position: new Vector3(0, 0, 0)
-            );
-
-            // Store stats on newAgent
-            Agent enemyAgent = newAgent.GetComponent<Agent>();
-            enemyStats = enemyAgent.RegisterPlayer(dbMatchId);
-
-            // Add sphere mesh to both agents
-            MeshFilter enemyMesh = newAgent.AddComponent<MeshFilter>();
-            enemyMesh.mesh = Resources.GetBuiltinResource<Mesh>("Sphere.fbx");
-            MeshFilter allyMesh = newAlly.AddComponent<MeshFilter>();
-            allyMesh.mesh = Resources.GetBuiltinResource<Mesh>("Sphere.fbx");
-
-            // Make blue material
-            Material blueMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            blueMaterial.color = Color.blue;
-            // Make red material
-            Material redMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            redMaterial.color = Color.red;
-
-            // Apply blue material to ally agent
-            MeshRenderer allyRenderer = newAlly.AddComponent<MeshRenderer>();
-            allyRenderer.materials = new Material[] { blueMaterial };
-            // Apply red material to enemy agent
-            MeshRenderer enemyRenderer = newAgent.AddComponent<MeshRenderer>();
-            enemyRenderer.materials = new Material[] { redMaterial };
 
             EndMatch("ally");
         }
@@ -173,6 +150,7 @@ namespace NetFlower {
             yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);
         }
 
+
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
 
@@ -197,8 +175,92 @@ namespace NetFlower {
             }
         }
 
-        IEnumerator CreateMatchRoutine() {
-            string url = "http://localhost:8000/create-match";
+
+
+        // Listen to Server Push
+        IEnumerator JoinNewLobby() {
+            string url = "http://localhost:8000/join-new-lobby?player_id=" + player.Id;
+            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success) {
+                    Debug.LogError($"Server push failed: {request.error}");
+                    yield break;
+                }
+                string json = request.downloadHandler.text;
+
+                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
+                dbMatchId = response.match_id;
+
+                Debug.Log("Received server push: " + json);
+
+                // get some matchid form the servers
+            }
+        }
+
+        // Listen to Server Push (put in update unction, timeout 1second?)
+        IEnumerator ListenForServerPush() {
+            string url = "http://localhost:8000/get-lobby-updates";
+            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success) {
+                    Debug.LogError($"Server push failed: {request.error}");
+                    yield break;
+                }
+                string json = request.downloadHandler.text;
+                Debug.Log("Received server push: " + json);
+
+                LobbyState lobbyState = JsonUtility.FromJson<LobbyState>(json);
+
+                // Lobby state:
+                // Red team player IDs
+                // Blue team player IDs
+                UpdateGUI(lobbyState); // Update the GUI with the latest lobby state
+            }
+        }
+
+        void UpdateGUI(LobbyState lobbyState) {
+            // Update the GUI with the latest match and player stats
+            // This could involve updating health bars, ability cooldowns, player names, etc.
+
+            // Update the texts
+            RedTeamText.text = "Red Team: " + string.Join(", ", lobbyState.redTeamPlayerIds);
+            BlueTeamText.text = "Blue Team: " + string.Join(", ", lobbyState.blueTeamPlayerIds);
+
+            if (lobbyState.everyoneReady) {
+                InitializeMatch(dbMatchId,
+                lobbyState.redTeamPlayerIds[0],
+                lobbyState.blueTeamPlayerIds[0]);
+
+                Match currentMatch = this;
+
+                // Change scene and pass the match object
+            }
+            
+        }
+
+        // Player presses the "Join Red Team" button
+        public void PressJoinRedTeam() {
+            selectedTeam = TeamSelection.Red;
+            StartCoroutine(SetPlayerTeam());
+        }
+        
+        // Player presses the "Join Blue Team" button
+        public void PressJoinBlueTeam() {
+            selectedTeam = TeamSelection.Blue;
+            StartCoroutine(SetPlayerTeam());
+        }
+
+        // Player selects team hey want to be on in team select age
+        IEnumerator SetPlayerTeam() {
+            string colorSelectedTeam = selectedTeam == TeamSelection.Red ? "red" : "blue";
+
+            string url = "http://localhost:8000/set-player-team?player_id=" + player.Id + "&match_id=" + dbMatchId + "&team=" + colorSelectedTeam;
 
             using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
                 request.downloadHandler = new DownloadHandlerBuffer();
@@ -206,22 +268,37 @@ namespace NetFlower {
                 yield return request.SendWebRequest();
 
                 if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"Create match failed: {request.error}");
+                    Debug.LogError($"Select team failed: {request.error}");
                     yield break;
                 }
-
                 string json = request.downloadHandler.text;
-
-                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
-
-                dbMatchId = response.match_id;
-
                 Debug.Log("Match ID from server: " + dbMatchId);
-
-                InitializeMatch();
             }
         }
 
+
+        public void PressReadyButton() {
+            StartCoroutine(SetReady());
+        }
+
+        IEnumerator SetReady() {
+            string url = "http://localhost:8000/set-ready?player_id=" + player.Id + "&match_id=" + dbMatchId;
+            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                request.downloadHandler = new DownloadHandlerBuffer();
+
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success) {
+                    Debug.LogError($"Server push failed: {request.error}");
+                    yield break;
+                }
+                string json = request.downloadHandler.text;
+                Debug.Log("Received server push: " + json);
+
+                // get some matchid form the servers
+                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
+            }
+        }
         #endregion
     }
 }
