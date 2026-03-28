@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetFlower — Player Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e8;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: #1a1a2e;
+      border-radius: 16px;
+      padding: 40px 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #7b68ee, #00c9a7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo p {
+      color: #888;
+      font-size: .85rem;
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 28px;
+      background: #12121f;
+    }
+
+    .tabs button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: #888;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .tabs button.active {
+      background: #7b68ee;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: #999;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #2a2a40;
+      border-radius: 8px;
+      background: #12121f;
+      color: #e0e0e8;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input:focus {
+      border-color: #7b68ee;
+    }
+
+    input::placeholder { color: #555; }
+
+    .btn {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+      margin-top: 6px;
+      background: linear-gradient(135deg, #7b68ee, #00c9a7);
+      color: #fff;
+    }
+
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .result {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: .9rem;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .result.success {
+      display: block;
+      background: rgba(0, 201, 167, .12);
+      border: 1px solid rgba(0, 201, 167, .3);
+      color: #00c9a7;
+    }
+
+    .result.error {
+      display: block;
+      background: rgba(238, 68, 68, .12);
+      border: 1px solid rgba(238, 68, 68, .3);
+      color: #ee4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>NetFlower</h1>
+      <p>Player Portal</p>
+    </div>
+
+    <div class="tabs">
+      <button class="active" onclick="switchTab('login')">Login</button>
+      <button onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="login-form">
+      <div class="form-group">
+        <label for="login-id">Player ID</label>
+        <input type="number" id="login-id" placeholder="Enter your Player ID" min="1" required>
+      </div>
+      <div class="form-group">
+        <label for="login-pw">Password</label>
+        <input type="password" id="login-pw" placeholder="Enter your password" required>
+      </div>
+      <button type="submit" class="btn">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="register-form" style="display:none">
+      <div class="form-group">
+        <label for="reg-pw">Choose a Password</label>
+        <input type="password" id="reg-pw" placeholder="Min 8 characters" minlength="8" required>
+      </div>
+      <div class="form-group">
+        <label for="reg-pw2">Confirm Password</label>
+        <input type="password" id="reg-pw2" placeholder="Re-enter password" minlength="8" required>
+      </div>
+      <button type="submit" class="btn">Register</button>
+    </form>
+
+    <div id="result" class="result"></div>
+  </div>
+
+<script>
+  function switchTab(tab) {
+    const btns = document.querySelectorAll('.tabs button');
+    const loginForm = document.getElementById('login-form');
+    const regForm = document.getElementById('register-form');
+    const result = document.getElementById('result');
+
+    result.className = 'result';
+    result.style.display = 'none';
+
+    if (tab === 'login') {
+      btns[0].classList.add('active');
+      btns[1].classList.remove('active');
+      loginForm.style.display = 'block';
+      regForm.style.display = 'none';
+    } else {
+      btns[1].classList.add('active');
+      btns[0].classList.remove('active');
+      regForm.style.display = 'block';
+      loginForm.style.display = 'none';
+    }
+  }
+
+  function showResult(msg, isError) {
+    const el = document.getElementById('result');
+    el.textContent = msg;
+    el.className = 'result ' + (isError ? 'error' : 'success');
+    el.style.display = 'block';
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const playerId = parseInt(document.getElementById('login-id').value);
+    const password = document.getElementById('login-pw').value;
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: playerId, password: password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        showResult('Login successful! Welcome back, Player #' + data.player_id + '.', false);
+      } else {
+        showResult(data.detail || 'Login failed.', true);
+      }
+    } catch (err) {
+      showResult('Could not reach server. Is the auth server running?', true);
+    }
+  });
+
+  document.getElementById('register-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const password = document.getElementById('reg-pw').value;
+    const password2 = document.getElementById('reg-pw2').value;
+
+    if (password !== password2) {
+      showResult('Passwords do not match.', true);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        showResult('Registration successful! Your Player ID is #' + data.player_id + '. Remember this ID to log in.', false);
+      } else {
+        showResult(data.detail || 'Registration failed.', true);
+      }
+    } catch (err) {
+      showResult('Could not reach server. Is the auth server running?', true);
+    }
+  });
+</script>
+</body>
+</html>
