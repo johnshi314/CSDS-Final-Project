@@ -4,13 +4,16 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.Serialization;
 
 using NetFlower.UI;
-using UnityEditor.PackageManager;
 
 namespace NetFlower.Backend {
     public class Login : MonoBehaviour {
-        [SerializeField] string authServerBaseUrl = "http://localhost:8000";
+        [Tooltip("REST API base, no trailing slash. Production: https://litecoders.com/api\n" +
+                 "IMPORTANT: The value on your scene/prefab overrides this script default. If you still see requests to localhost:8000, change this field on the Login object in the Inspector.")]
+        [FormerlySerializedAs("authServerBaseUrl")]
+        [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
         [SerializeField] UserInput playerIdInput;
         [SerializeField] UserInput passwordInput;
         [SerializeField] GameObject loginMessage;
@@ -20,7 +23,6 @@ namespace NetFlower.Backend {
         [SerializeField] CanvasGroup logoutCanvasGroup;
         [SerializeField] CanvasGroup choiceCanvasGroup;
         [SerializeField] long messageClearDelaySeconds = 5;
-
 
         Player player;
         string authToken;
@@ -35,6 +37,12 @@ namespace NetFlower.Backend {
         public RequestType CurrentMode { get; private set; }
 
         void Start() {
+            Debug.Log($"[Login] httpApiBaseUrl (from scene/prefab) = \"{httpApiBaseUrl}\"");
+            if (httpApiBaseUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0
+                || httpApiBaseUrl.IndexOf("127.0.0.1", StringComparison.OrdinalIgnoreCase) >= 0) {
+                Debug.LogWarning(
+                    "[Login] API base is local. For litecoders.com production, set Http Api Base Url on this component to: https://litecoders.com/api");
+            }
 
             player = new Player(
                 Id: -1,
@@ -209,19 +217,19 @@ namespace NetFlower.Backend {
 
         #region Network Requests
         IEnumerator TokenRoutine(string token) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/verify";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/verify";
             var payload = new TokenVerifyRequest { token = token };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Token);
         }
 
         IEnumerator RegisterRoutine(string password) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/register";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/register";
             var payload = new RegisterRequest { password = password };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Register);
         }
 
         IEnumerator PasswordRoutine(int playerId, string password) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/login";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/login";
             var payload = new LoginRequest { player_id = playerId, password = password };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Password);
         }
@@ -267,7 +275,7 @@ namespace NetFlower.Backend {
                     }
                 } else {
                     string detail = !string.IsNullOrEmpty(body) ? body : request.error;
-                    Debug.LogError($"Request Failed ({code}): {detail}");
+                    Debug.LogError($"Request Failed ({code}) {url}: {detail}");
                     ShowMessage("An error occurred while communicating with the server. Please try again later.");
 
                     // If you want to reduce EventSystem weirdness after real failures:
@@ -290,8 +298,10 @@ namespace NetFlower.Backend {
                         var registerResponse = JsonUtility.FromJson<RegisterResponse>(jsonResponse);
                         if (registerResponse.status == "success") {
                             player.Id = registerResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
                             authToken = registerResponse.token;
                             SaveAuthData();
+                            ClientPlayer.clientPlayer = player;
                             ShowMessage("Registration successful! You are now logged in.");
                             playerIdInput.SetText(player.Id.ToString());
                             SwitchTo(RequestType.Password);
@@ -301,8 +311,10 @@ namespace NetFlower.Backend {
                         var loginResponse = JsonUtility.FromJson<LoginResponse>(jsonResponse);
                         if (loginResponse.status == "success") {
                             player.Id = loginResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
                             authToken = loginResponse.token;
                             SaveAuthData();
+                            ClientPlayer.clientPlayer = player;
                             ShowMessage("Login successful!");
                             SwitchTo(RequestType.Token);
                         }
@@ -310,8 +322,9 @@ namespace NetFlower.Backend {
                     case RequestType.Token:
                         var tokenResponse = JsonUtility.FromJson<TokenVerifyResponse>(jsonResponse);
                         if (tokenResponse.status == "success" && tokenResponse.valid) {
-                            ClientPlayer.clientPlayer = player;
                             player.Id = tokenResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
+                            ClientPlayer.clientPlayer = player;
                             SaveAuthData();
                             ShowMessage("Session restored. Welcome back!");
                             SwitchTo(RequestType.Token);
@@ -340,6 +353,7 @@ namespace NetFlower.Backend {
         #region Data Persistence
         public void Logout() {
             ClearAuthData();
+            ClientPlayer.clientPlayer = null;
             ShowMessage("Logged out successfully.");
             SwitchTo(RequestType.Password);
         }
@@ -352,6 +366,8 @@ namespace NetFlower.Backend {
         void ClearAuthData() {
             authToken = null;
             player.Id = -1;
+            player.Name = "Guest";
+            ClientPlayer.clientPlayer = null;
             PlayerPrefs.DeleteKey("auth_token");
             PlayerPrefs.DeleteKey("player_id");
             PlayerPrefs.Save();

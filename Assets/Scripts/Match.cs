@@ -46,11 +46,12 @@ namespace NetFlower {
             public int[] blueTeamPlayerIds;
         }
 
-        [Tooltip("REST base, no trailing slash. Local: http://localhost:8000. Production: https://litecoders.com/api")]
+        [Tooltip("REST base, no trailing slash. Production: https://litecoders.com/api (not the site root — nginx serves /api/* to FastAPI).\nIf you only set https://litecoders.com, requests 404; we auto-fix for litecoders.com in code.")]
         [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
 
         [Tooltip("Lobby WebSocket base (no trailing slash), e.g. wss://litecoders.com/ws. Leave empty to derive from httpApiBaseUrl + /ws.")]
-        [SerializeField] string lobbyWebSocketBaseUrl = "http://localhost:8000/ws";
+        [SerializeField] string lobbyWebSocketBaseUrl = "";
+
         [SerializeField] TMPro.TextMeshProUGUI redTeamText;
         [SerializeField] TMPro.TextMeshProUGUI blueTeamText;
 
@@ -60,6 +61,25 @@ namespace NetFlower {
         bool _lobbyPollStarted;
         bool _lobbyPollRunning;
         bool _matchStartRequested;
+
+        /// <summary>
+        /// REST base used for all HTTP calls. Bare https://litecoders.com (no path) becomes …/api so join-new-lobby hits FastAPI, not the static site (404).
+        /// </summary>
+        string EffectiveApiBase() {
+            var raw = (httpApiBaseUrl ?? "").Trim().TrimEnd('/');
+            if (string.IsNullOrEmpty(raw))
+                return "https://litecoders.com/api";
+            if (!Uri.TryCreate(raw, UriKind.Absolute, out var u))
+                return raw;
+            var host = u.Host;
+            if (host.Equals("litecoders.com", StringComparison.OrdinalIgnoreCase)
+                || host.Equals("www.litecoders.com", StringComparison.OrdinalIgnoreCase)) {
+                var path = u.AbsolutePath.TrimEnd('/');
+                if (string.IsNullOrEmpty(path) || path == "/")
+                    return $"{u.Scheme}://{u.Authority}/api";
+            }
+            return raw;
+        }
 
         void Start() {
             if (PersistentInstance != null) {
@@ -74,6 +94,12 @@ namespace NetFlower {
                 Debug.LogError("[Match] ClientPlayer.clientPlayer is null. Set it after login before entering Lobby.");
                 return;
             }
+            var effective = EffectiveApiBase();
+            Debug.Log($"[Match] httpApiBaseUrl=\"{httpApiBaseUrl}\" → REST calls use \"{effective}\"");
+            if (!string.Equals(effective, (httpApiBaseUrl ?? "").Trim().TrimEnd('/'), StringComparison.Ordinal))
+                Debug.LogWarning("[Match] API base was normalized (likely missing /api). Set Http Api Base Url to the effective value above to match Login.");
+            if (httpApiBaseUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0)
+                Debug.LogWarning("[Match] For production use https://litecoders.com/api on this Match component.");
             StartCoroutine(JoinNewLobby());
         }
 
@@ -159,15 +185,15 @@ namespace NetFlower {
         #region Network — HTTP
 
         IEnumerator SubmitMatchUpdateRoutine(string matchJson) {
-            yield return SendRequest($"{httpApiBaseUrl}/update-match", matchJson, RequestType.MatchSubmit);
+            yield return SendRequest($"{EffectiveApiBase()}/update-match", matchJson, RequestType.MatchSubmit);
         }
 
         IEnumerator SubmitMatchupRoutine(string matchupJson) {
-            yield return SendRequest($"{httpApiBaseUrl}/submit-matchupstats", matchupJson, RequestType.MatchupSubmit);
+            yield return SendRequest($"{EffectiveApiBase()}/submit-matchupstats", matchupJson, RequestType.MatchupSubmit);
         }
 
         IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
-            yield return SendRequest($"{httpApiBaseUrl}/submit-playermatchstats", matchplayerJson, RequestType.PlayerSubmit);
+            yield return SendRequest($"{EffectiveApiBase()}/submit-playermatchstats", matchplayerJson, RequestType.PlayerSubmit);
         }
 
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
@@ -188,12 +214,14 @@ namespace NetFlower {
         }
 
         IEnumerator JoinNewLobby() {
-            string url = $"{httpApiBaseUrl}/join-new-lobby?player_id={player.Id}";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+            string url = $"{EffectiveApiBase()}/join-new-lobby?player_id={player.Id}";
+            // POST (same pattern as set-player-team): some deployments return 404 on GET to /api/* while POST works.
+            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
                 request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"join-new-lobby failed: {request.error}");
+                    Debug.LogError($"join-new-lobby failed ({request.responseCode}) {url}: {request.error}");
                     yield break;
                 }
                 var response = JsonUtility.FromJson<MatchIdResponse>(request.downloadHandler.text);
@@ -212,9 +240,10 @@ namespace NetFlower {
             var wait = new WaitForSeconds(0.05f);
             try {
                 while (dbMatchId > 0 && enabled) {
-                    string url = $"{httpApiBaseUrl}/get-lobby-updates?match_id={dbMatchId}";
+                    string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={dbMatchId}";
                     using (UnityWebRequest request = UnityWebRequest.Get(url)) {
                         request.downloadHandler = new DownloadHandlerBuffer();
+                        request.timeout = 10;
                         yield return request.SendWebRequest();
                         if (request.result == UnityWebRequest.Result.Success)
                             _lobbyIncoming.Enqueue(request.downloadHandler.text);
@@ -254,9 +283,10 @@ namespace NetFlower {
 
         IEnumerator SetPlayerTeam() {
             string color = selectedTeam == TeamSelection.Red ? "red" : "blue";
-            string url = $"{httpApiBaseUrl}/set-player-team?player_id={player.Id}&match_id={dbMatchId}&team={color}";
+            string url = $"{EffectiveApiBase()}/set-player-team?player_id={player.Id}&match_id={dbMatchId}&team={color}";
             using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
                 request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result != UnityWebRequest.Result.Success)
                     Debug.LogError($"set-player-team failed: {request.error}");
@@ -268,9 +298,10 @@ namespace NetFlower {
         }
 
         IEnumerator SetReady() {
-            string url = $"{httpApiBaseUrl}/set-ready?player_id={player.Id}&match_id={dbMatchId}";
+            string url = $"{EffectiveApiBase()}/set-ready?player_id={player.Id}&match_id={dbMatchId}";
             using (UnityWebRequest request = UnityWebRequest.Get(url)) {
                 request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result != UnityWebRequest.Result.Success)
                     Debug.LogError($"set-ready failed: {request.error}");
@@ -320,7 +351,7 @@ namespace NetFlower {
             var explicitBase = (lobbyWebSocketBaseUrl ?? "").Trim().TrimEnd('/');
             if (!string.IsNullOrEmpty(explicitBase))
                 return explicitBase;
-            return WebSocketSchemeHostFromHttpApi(httpApiBaseUrl) + "/ws";
+            return WebSocketSchemeHostFromHttpApi(EffectiveApiBase()) + "/ws";
         }
 
         /// <summary>ws(s)://host[:port] from REST base (strips any /api path).</summary>

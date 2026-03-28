@@ -763,7 +763,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 902f5a2eb446a95069f729a6d240b5af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ClientPlayer
-  PersistentInstance: {fileID: 0}
 --- !u!4 &525041958
 Transform:
   m_ObjectHideFlags: 0

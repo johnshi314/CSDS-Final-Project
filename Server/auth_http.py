@@ -322,11 +322,12 @@ def create_match():
         logger.exception("Create match failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.get("/join-new-lobby")
+@api_router.api_route("/join-new-lobby", methods=["GET", "POST"])
 async def join_new_lobby_endpoint(player_id: int, max_players: int = 8):
     """
     Assign the logged-in player to an open lobby match (or create one).
-    Unity: GET .../join-new-lobby?player_id={id}
+    Unity / curl: GET or POST .../join-new-lobby?player_id={id}
+    (POST matches other Unity calls and avoids some proxies mishandling GET.)
     """
     if player_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid player_id")
@@ -422,10 +423,14 @@ def update_match(match: dict):
 
 
 app.include_router(api_router, prefix=API_PREFIX)
+# If routes are at root, also mount under /api so nginx can proxy https://host/api/* unchanged.
+if not API_PREFIX:
+    app.include_router(api_router, prefix="/api")
 app.include_router(ws_router, prefix=WS_PREFIX)
 logger.info(
-    "HTTP API mounted at %r (empty = root); lobby WebSocket at %r",
+    "HTTP API mounted at %r%s; lobby WebSocket at %r",
     API_PREFIX or "/",
+    " and /api" if not API_PREFIX else "",
     f"{WS_PREFIX}/lobby/{{match_id}}",
 )
 

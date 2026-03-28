@@ -376,7 +376,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80502f2bffa182c03b0b0f647682fcb1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Backend.Login
-  authServerBaseUrl: http://localhost:8000
+  httpApiBaseUrl: https://litecoders.com/api
   playerIdInput: {fileID: 563928591782000863}
   passwordInput: {fileID: 8774888846517228419}
   loginMessage: {fileID: 5123419309295379308}
@@ -384,7 +384,9 @@ MonoBehaviour:
   registerCanvasGroup: {fileID: 7234842103552483655}
   submitCanvasGroup: {fileID: 4945602428718009051}
   logoutCanvasGroup: {fileID: 1624952162091651199}
+  choiceCanvasGroup: {fileID: 0}
   messageClearDelaySeconds: 5
+  skipSslCertificateVerification: 0
 --- !u!225 &7977962137464758947
 CanvasGroup:
   m_ObjectHideFlags: 0
