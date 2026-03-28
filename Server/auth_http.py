@@ -61,6 +61,13 @@ app = FastAPI(title="Unity Auth Server", lifespan=lifespan)
 api_router = APIRouter()
 ws_router = APIRouter()
 
+
+@app.get("/health")
+def health():
+    """Liveness probe; does not touch the database. Use for watchdogs and load balancers."""
+    return {"status": "ok"}
+
+
 # --- Lobby WebSocket registry (same process as HTTP; use this for live pushes) ---
 lobby_connections: dict[int, list[WebSocket]] = {}
 _lobby_conn_lock = asyncio.Lock()
@@ -457,8 +464,20 @@ logger.info(
 
 
 if __name__ == "__main__":
+    import sys
+
+    from logging_config import install_stream_tee
+
+    install_stream_tee("auth_http")
     import uvicorn
+
     try:
-        uvicorn.run(app, host=AUTH_SERVER_HOST, port=AUTH_SERVER_PORT, log_level="info")
+        uvicorn.run(
+            app,
+            host=AUTH_SERVER_HOST,
+            port=AUTH_SERVER_PORT,
+            log_level="info",
+            use_colors=sys.stderr.isatty(),
+        )
     except KeyboardInterrupt:
         logger.info("Auth server stopped by user")

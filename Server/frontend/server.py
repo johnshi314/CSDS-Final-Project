@@ -7,6 +7,7 @@ auth server on port 8000.
 import http.server
 import json
 import os
+import sys
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -16,6 +17,64 @@ AUTH_BACKEND = os.getenv("AUTH_BACKEND", "http://127.0.0.1:8000")
 # When 0, forward full path (e.g. /api/login → backend .../api/login) for API_PREFIX=/api.
 AUTH_STRIP_API_PREFIX = os.getenv("AUTH_STRIP_API_PREFIX", "1").lower() in ("1", "true", "yes")
 STATIC_DIR = Path(__file__).parent
+
+_tee_files: list[object] = []
+
+
+def _default_log_dir() -> Path:
+    """Repo root logs/ when run from tree; /app/logs in the slim container layout."""
+    here = Path(__file__).resolve().parent
+    repo_root = here.parent.parent
+    if (repo_root / "requirements.txt").is_file():
+        return repo_root / "logs"
+    return here / "logs"
+
+
+def _stream_tee_enabled() -> bool:
+    return os.getenv("PYTHON_STREAM_TEE", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+class _TeeIO:
+    __slots__ = ("_primary", "_file")
+
+    def __init__(self, primary, fileobj):
+        self._primary = primary
+        self._file = fileobj
+
+    def write(self, data):
+        if not data:
+            return 0
+        self._primary.write(data)
+        self._primary.flush()
+        self._file.write(data)
+        self._file.flush()
+        return len(data)
+
+    def flush(self):
+        self._primary.flush()
+        self._file.flush()
+
+    def isatty(self):
+        return self._primary.isatty()
+
+    def fileno(self):
+        return self._primary.fileno()
+
+
+def _install_stream_tee(process_name: str = "frontend") -> None:
+    if not _stream_tee_enabled() or isinstance(sys.stdout, _TeeIO):
+        return
+    raw = os.getenv("LOG_DIR", "").strip()
+    if raw:
+        log_dir = Path(raw).resolve()
+    else:
+        log_dir = _default_log_dir().resolve()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    out_f = open(log_dir / f"{process_name}.stdout.log", "a", encoding="utf-8", buffering=1)
+    err_f = open(log_dir / f"{process_name}.stderr.log", "a", encoding="utf-8", buffering=1)
+    _tee_files.extend([out_f, err_f])
+    sys.stdout = _TeeIO(sys.__stdout__, out_f)
+    sys.stderr = _TeeIO(sys.__stderr__, err_f)
 
 
 class FrontendHandler(http.server.BaseHTTPRequestHandler):
@@ -88,6 +147,7 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    _install_stream_tee("frontend")
     server = http.server.HTTPServer(("0.0.0.0", PORT), FrontendHandler)
     print(f"Frontend server running on http://0.0.0.0:{PORT}")
     print(f"Proxying /api/* -> {AUTH_BACKEND}")

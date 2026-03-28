@@ -110,6 +110,9 @@ async def main(host: str = SERVER_HOST, port: int = SERVER_PORT):
 
 
 if __name__ == "__main__":
+    from logging_config import install_stream_tee
+
+    install_stream_tee("multiplayer_echo")
     try:
         asyncio.run(main(host=SERVER_HOST, port=SERVER_PORT))
     except KeyboardInterrupt:
