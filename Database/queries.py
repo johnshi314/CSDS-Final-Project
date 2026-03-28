@@ -245,19 +245,33 @@ def create_match(start_time=None, queue_time=0):
         if start_time is None:
             start_time = datetime.now(timezone.utc)
 
-        with engine.begin() as connection:
-            result = connection.execute(text("""
-                INSERT INTO matches (start_time, queue_time)
-                VALUES (:start_time, :queue_time)
-            """), {
-                "start_time": start_time,
-                "queue_time": queue_time
-            })
-            match_id = result.lastrowid
+        try:
+            with engine.begin() as connection:
+                result = connection.execute(text("""
+                    INSERT INTO matches (start_time, queue_time, lobby_status)
+                    VALUES (:start_time, :queue_time, 'lobby')
+                """), {
+                    "start_time": start_time,
+                    "queue_time": queue_time
+                })
+                match_id = result.lastrowid
+        except Exception as e:
+            logger.warning(
+                "create_match: lobby_status insert failed (%s); retrying legacy INSERT",
+                e,
+            )
+            with engine.begin() as connection:
+                result = connection.execute(text("""
+                    INSERT INTO matches (start_time, queue_time)
+                    VALUES (:start_time, :queue_time)
+                """), {
+                    "start_time": start_time,
+                    "queue_time": queue_time
+                })
+                match_id = result.lastrowid
 
-            logger.info(f"Match created successfully (match_id: {match_id})")
-
-            return match_id
+        logger.info(f"Match created successfully (match_id: {match_id})")
+        return match_id
 
     except Exception as e:
         logger.error(f"Error creating match: {e}")
@@ -290,6 +304,183 @@ def update_match(match_id, end_time, duration, winner_team_id):
 
     except Exception as e:
         logger.error(f"Error updating match: {e}")
+
+
+# =============================
+# Lobby (open match, pre-game)
+# =============================
+# Requires Database/migrations/001_lobby.sql applied to MySQL.
+
+def get_open_lobby_match_for_player(player_id: int):
+    """If player is already in a lobby-phase match, return that match_id."""
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text("""
+                SELECT lp.match_id
+                FROM lobby_players lp
+                INNER JOIN matches m ON m.match_id = lp.match_id
+                WHERE lp.player_id = :player_id AND m.lobby_status = 'lobby'
+                LIMIT 1
+            """), {"player_id": player_id}).mappings().first()
+            return int(row["match_id"]) if row else None
+    except Exception as e:
+        logger.error(f"get_open_lobby_match_for_player: {e}")
+        return None
+
+
+def find_joinable_lobby(max_players: int):
+    """Return a lobby match_id with fewer than max_players members, or None."""
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text("""
+                SELECT m.match_id
+                FROM matches m
+                WHERE m.lobby_status = 'lobby'
+                  AND (
+                    SELECT COUNT(*) FROM lobby_players lp
+                    WHERE lp.match_id = m.match_id
+                  ) < :max_players
+                ORDER BY m.match_id ASC
+                LIMIT 1
+            """), {"max_players": max_players}).mappings().first()
+            return int(row["match_id"]) if row else None
+    except Exception as e:
+        logger.error(f"find_joinable_lobby: {e}")
+        return None
+
+
+def add_lobby_player(match_id: int, player_id: int) -> bool:
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("""
+                INSERT INTO lobby_players (match_id, player_id, team, ready)
+                VALUES (:match_id, :player_id, NULL, 0)
+                ON DUPLICATE KEY UPDATE match_id = match_id
+            """), {"match_id": match_id, "player_id": player_id})
+        return True
+    except Exception as e:
+        logger.error(f"add_lobby_player: {e}")
+        return False
+
+
+def join_new_lobby(player_id: int, max_players: int = 8):
+    """
+    Put player into an open lobby (same match as other waiting players when possible),
+    or create a new lobby match. Returns match_id or None on failure.
+    """
+    existing = get_open_lobby_match_for_player(player_id)
+    if existing is not None:
+        return existing
+    mid = find_joinable_lobby(max_players)
+    if mid is None:
+        mid = create_match()
+        if mid is None:
+            return None
+    if not add_lobby_player(mid, player_id):
+        return None
+    return mid
+
+
+def set_lobby_team(match_id: int, player_id: int, team: str) -> bool:
+    team = (team or "").lower().strip()
+    if team not in ("red", "blue"):
+        return False
+    try:
+        with engine.begin() as connection:
+            r = connection.execute(text("""
+                UPDATE lobby_players
+                SET team = :team
+                WHERE match_id = :match_id AND player_id = :player_id
+            """), {"match_id": match_id, "player_id": player_id, "team": team})
+            return r.rowcount > 0
+    except Exception as e:
+        logger.error(f"set_lobby_team: {e}")
+        return False
+
+
+def set_lobby_ready(match_id: int, player_id: int, ready: bool = True) -> bool:
+    try:
+        with engine.begin() as connection:
+            r = connection.execute(text("""
+                UPDATE lobby_players
+                SET ready = :ready
+                WHERE match_id = :match_id AND player_id = :player_id
+            """), {"match_id": match_id, "player_id": player_id, "ready": 1 if ready else 0})
+            return r.rowcount > 0
+    except Exception as e:
+        logger.error(f"set_lobby_ready: {e}")
+        return False
+
+
+def _lobby_rows(match_id: int):
+    with engine.connect() as connection:
+        return connection.execute(text("""
+            SELECT player_id, team, ready
+            FROM lobby_players
+            WHERE match_id = :match_id
+            ORDER BY player_id ASC
+        """), {"match_id": match_id}).mappings().all()
+
+
+def get_lobby_snapshot(match_id: int) -> dict:
+    """
+    Snapshot for Unity JsonUtility: everyoneReady, redTeamPlayerIds, blueTeamPlayerIds (lists -> JSON arrays).
+    """
+    rows = _lobby_rows(match_id)
+    red, blue = [], []
+    everyone_ready = True
+    if not rows:
+        return {
+            "everyoneReady": False,
+            "redTeamPlayerIds": [],
+            "blueTeamPlayerIds": [],
+        }
+    for r in rows:
+        pid = int(r["player_id"])
+        team = r["team"]
+        ready = bool(r["ready"])
+        if team == "red":
+            red.append(pid)
+        elif team == "blue":
+            blue.append(pid)
+        if team not in ("red", "blue") or not ready:
+            everyone_ready = False
+    if len(red) < 1 or len(blue) < 1:
+        everyone_ready = False
+    return {
+        "everyoneReady": everyone_ready,
+        "redTeamPlayerIds": red,
+        "blueTeamPlayerIds": blue,
+    }
+
+
+def is_player_in_lobby(match_id: int, player_id: int) -> bool:
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text("""
+                SELECT 1 FROM lobby_players
+                WHERE match_id = :match_id AND player_id = :player_id
+                LIMIT 1
+            """), {"match_id": match_id, "player_id": player_id}).first()
+            return row is not None
+    except Exception as e:
+        logger.error(f"is_player_in_lobby: {e}")
+        return False
+
+
+def mark_match_lobby_in_progress(match_id: int) -> bool:
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("""
+                UPDATE matches SET lobby_status = 'in_progress'
+                WHERE match_id = :match_id AND lobby_status = 'lobby'
+            """), {"match_id": match_id})
+        return True
+    except Exception as e:
+        logger.error(f"mark_match_lobby_in_progress: {e}")
+        return False
+
+
 # -----------------------------
 # Test Data
 # -----------------------------

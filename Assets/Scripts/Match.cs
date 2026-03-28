@@ -1,33 +1,35 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System;
-using UnityEngine.Networking;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Net.WebSockets;
 using System.Text;
-using Unity.VisualScripting;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEngine.Networking;
 
-// Placeholder
 namespace NetFlower {
+    /// <summary>
+    /// Lobby + match lifecycle. Persists across scenes (DontDestroyOnLoad).
+    /// Flow: HTTP join-new-lobby → WebSocket …/ws/lobby/{match_id} for live updates.
+    /// Production (nginx): REST under https://host/api/*, WS under wss://host/ws/lobby/*.
+    /// Set httpApiBaseUrl and lobbyWebSocketBaseUrl in the Inspector per build target.
+    /// </summary>
     public class Match : MonoBehaviour {
 
-        // Static reference to the current match instance
         public static Match PersistentInstance = null;
 
-        // Match stats
         public MatchStats matchStats { get; private set; }
 
-        // Variables for stats
         private PlayerMatchStats allyStats;
         private PlayerMatchStats enemyStats;
         private MatchupStats matchupStats;
-        Player player; // TODO: Make sure the player loggd in's id is set here
+        Player player;
         public int dbMatchId;
-
 
         public enum TeamSelection { Red, Blue }
         public TeamSelection selectedTeam;
 
-        //  Sending stats to database
         public enum RequestType { MatchSubmit, PlayerSubmit, MatchupSubmit }
 
         [Serializable]
@@ -36,24 +38,41 @@ namespace NetFlower {
             public int match_id;
         }
 
+        /// <summary>JsonUtility-friendly snapshot (arrays, not List).</summary>
+        [Serializable]
         public class LobbyState {
             public bool everyoneReady;
-            public List<int> redTeamPlayerIds;
-            public List<int> blueTeamPlayerIds;
+            public int[] redTeamPlayerIds;
+            public int[] blueTeamPlayerIds;
         }
 
+        [Tooltip("REST base, no trailing slash. Local: http://localhost:8000. Production: https://litecoders.com/api")]
+        [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
 
-        private TMPro.TextMeshProUGUI RedTeamText; // Reference to a UI text element to display match info
-        private TMPro.TextMeshProUGUI BlueTeamText; // Reference to a UI text element to display match info
+        [Tooltip("Lobby WebSocket base (no trailing slash), e.g. wss://litecoders.com/ws. Leave empty to derive from httpApiBaseUrl + /ws.")]
+        [SerializeField] string lobbyWebSocketBaseUrl = "http://localhost:8000/ws";
+        [SerializeField] TMPro.TextMeshProUGUI redTeamText;
+        [SerializeField] TMPro.TextMeshProUGUI blueTeamText;
+
+        ClientWebSocket _lobbySocket;
+        CancellationTokenSource _lobbyCts;
+        readonly ConcurrentQueue<string> _lobbyIncoming = new ConcurrentQueue<string>();
+        bool _lobbyPollStarted;
+        bool _lobbyPollRunning;
+        bool _matchStartRequested;
 
         void Start() {
-            this.player = ClientPlayer.clientPlayer;
             if (PersistentInstance != null) {
-                Destroy(this.gameObject); // Ensure only one instance exists
+                Destroy(gameObject);
                 return;
-            } else {
-                PersistentInstance = this.gameObject.GetComponent<Match>();
-                DontDestroyOnLoad(this.gameObject); // Keep this object alive between scenes
+            }
+            PersistentInstance = GetComponent<Match>();
+            DontDestroyOnLoad(gameObject);
+
+            player = ClientPlayer.clientPlayer;
+            if (player == null) {
+                Debug.LogError("[Match] ClientPlayer.clientPlayer is null. Set it after login before entering Lobby.");
+                return;
             }
             StartCoroutine(JoinNewLobby());
         }
@@ -62,245 +81,272 @@ namespace NetFlower {
             return PersistentInstance;
         }
 
-        void InitializeMatch(int dbMatchId,
-                             int allyPlayerIds,
-                             int enemyPlayerIds) {
-            this.dbMatchId = dbMatchId;
-
-             // Example of recording a matchup
-            //track match stats
-            matchStats = new MatchStats();
-            StartMatch(dbMatchId);
-
-            EndMatch("ally");
+        void Update() {
+            if (_lobbyPollStarted && !_lobbyPollRunning) {
+                _lobbyPollStarted = false;
+                _lobbyPollRunning = true;
+                StartCoroutine(PollLobbyUpdates());
+            }
+            while (_lobbyIncoming.TryDequeue(out var json)) {
+                try {
+                    var lobbyState = JsonUtility.FromJson<LobbyState>(json);
+                    if (lobbyState != null)
+                        UpdateGUI(lobbyState);
+                } catch (Exception e) {
+                    Debug.LogWarning($"[Match] Bad lobby JSON: {e.Message}\n{json}");
+                }
+            }
         }
 
-        // Record match data at start and end
-        public MatchStats StartMatch(int dbMatchId) {
-            matchStats.matchId = dbMatchId;
+        void OnDestroy() {
+            DisconnectLobbyWebSocket();
+            if (PersistentInstance == this)
+                PersistentInstance = null;
+        }
+
+        void InitializeMatch(int matchId, int[] redIds, int[] blueIds) {
+            dbMatchId = matchId;
+            matchStats = new MatchStats();
+            StartMatch(matchId);
+            Debug.Log($"[Match] Starting match {matchId} red={IdsToStr(redIds)} blue={IdsToStr(blueIds)}");
+            // TODO: load gameplay scene when ready
+        }
+
+        static string IdsToStr(int[] ids) {
+            if (ids == null || ids.Length == 0) return "";
+            return string.Join(",", ids);
+        }
+
+        public MatchStats StartMatch(int matchDbId) {
+            matchStats.matchId = matchDbId;
             matchStats.queueTime = 0f;
             matchStats.startTime = DateTime.UtcNow.ToString("o");
-
             return matchStats;
         }
 
         public void EndMatch(string winnerTeamId) {
-
+            if (matchStats == null) return;
             matchStats.endTime = DateTime.UtcNow.ToString("o");
-
-            // Parse strings to DateTime to compute duration
             DateTime start = DateTime.Parse(matchStats.startTime);
             DateTime end = DateTime.Parse(matchStats.endTime);
-
             matchStats.duration = (float)(end - start).TotalSeconds;
-
             matchStats.winnerTeamId = winnerTeamId;
-
-            // Update individual player stats
             if (allyStats != null)
                 allyStats.won = (allyStats.teamId == winnerTeamId);
-
             if (enemyStats != null)
                 enemyStats.won = (enemyStats.teamId == winnerTeamId);
-
-            // Test adding match to database
             string matchJson = matchStats.ToJson();
             Debug.Log("Sending match JSON to server: " + matchJson);
-            // Start coroutine to submit JSON to backend
             StartCoroutine(SubmitMatchUpdateRoutine(matchJson));
         }
 
         public MatchupStats RegisterMatchup(string characterAId, string characterBId) {
-
             var matchup = new MatchupStats(
                 matchId: matchStats.matchId,
                 characterAId: characterAId,
                 characterBId: characterBId
             );
-
             return matchup;
         }
 
         public void ResolveMatchup(string winner) {
             if (matchupStats == null) return;
-
-            // record winner and add to database
             matchupStats.winnerCharacterId = winner;
-
             string matchupJson = matchupStats.ToJson();
-            Debug.Log("Sending match JSON to server: " + matchupJson);
-            // Start coroutine to submit JSON to backend
             StartCoroutine(SubmitMatchupRoutine(matchupJson));
         }
 
-        #region Network Requests
+        #region Network — HTTP
 
         IEnumerator SubmitMatchUpdateRoutine(string matchJson) {
-            string url = "http://localhost:8000/update-match";
-            yield return SendRequest(url, matchJson, RequestType.MatchSubmit);
+            yield return SendRequest($"{httpApiBaseUrl}/update-match", matchJson, RequestType.MatchSubmit);
         }
 
         IEnumerator SubmitMatchupRoutine(string matchupJson) {
-            string url = "http://localhost:8000/submit-matchupstats";
-            yield return SendRequest(url, matchupJson, RequestType.MatchupSubmit);
+            yield return SendRequest($"{httpApiBaseUrl}/submit-matchupstats", matchupJson, RequestType.MatchupSubmit);
         }
 
         IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
-            string url = "http://localhost:8000/submit-playermatchstats";
-            yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);
+            yield return SendRequest($"{httpApiBaseUrl}/submit-playermatchstats", matchplayerJson, RequestType.PlayerSubmit);
         }
-
 
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
-
             using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
-
                 request.SetRequestHeader("Content-Type", "application/json");
                 request.SetRequestHeader("Accept", "application/json");
                 request.timeout = 10;
-
                 yield return request.SendWebRequest();
-                Debug.Log($"Server response text: {request.downloadHandler.text}");
-
-
                 if (request.result == UnityWebRequest.Result.Success) {
                     Debug.Log($"Request succeeded to {url}");
-                    Debug.Log($"Server response: {request.downloadHandler.text}");
                 } else {
                     Debug.LogError($"Request failed ({request.responseCode}): {request.error}");
                 }
             }
         }
 
-
-
-        // Listen to Server Push
         IEnumerator JoinNewLobby() {
-            string url = "http://localhost:8000/join-new-lobby?player_id=" + player.Id;
+            string url = $"{httpApiBaseUrl}/join-new-lobby?player_id={player.Id}";
             using (UnityWebRequest request = UnityWebRequest.Get(url)) {
                 request.downloadHandler = new DownloadHandlerBuffer();
-
                 yield return request.SendWebRequest();
-
                 if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"Server push failed: {request.error}");
+                    Debug.LogError($"join-new-lobby failed: {request.error}");
                     yield break;
                 }
-                string json = request.downloadHandler.text;
-
-                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
+                var response = JsonUtility.FromJson<MatchIdResponse>(request.downloadHandler.text);
+                if (response == null) {
+                    Debug.LogError("join-new-lobby: bad JSON");
+                    yield break;
+                }
                 dbMatchId = response.match_id;
-
-                Debug.Log("Received server push: " + json);
-
-                // get some matchid form the servers
+                Debug.Log($"[Match] Joined lobby match_id={dbMatchId}");
+                ConnectLobbyWebSocket();
             }
         }
 
-        // Listen to Server Push (put in update unction, timeout 1second?)
-        IEnumerator ListenForServerPush() {
-            string url = "http://localhost:8000/get-lobby-updates";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
-                request.downloadHandler = new DownloadHandlerBuffer();
-
-                yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"Server push failed: {request.error}");
-                    yield break;
+        /// <summary>Optional polling fallback if WebSocket is unavailable.</summary>
+        IEnumerator PollLobbyUpdates() {
+            var wait = new WaitForSeconds(0.05f);
+            try {
+                while (dbMatchId > 0 && enabled) {
+                    string url = $"{httpApiBaseUrl}/get-lobby-updates?match_id={dbMatchId}";
+                    using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                        request.downloadHandler = new DownloadHandlerBuffer();
+                        yield return request.SendWebRequest();
+                        if (request.result == UnityWebRequest.Result.Success)
+                            _lobbyIncoming.Enqueue(request.downloadHandler.text);
+                    }
+                    yield return wait;
                 }
-                string json = request.downloadHandler.text;
-                Debug.Log("Received server push: " + json);
-
-                LobbyState lobbyState = JsonUtility.FromJson<LobbyState>(json);
-
-                // Lobby state:
-                // Red team player IDs
-                // Blue team player IDs
-                UpdateGUI(lobbyState); // Update the GUI with the latest lobby state
+            } finally {
+                _lobbyPollRunning = false;
             }
         }
 
         void UpdateGUI(LobbyState lobbyState) {
-            // Update the GUI with the latest match and player stats
-            // This could involve updating health bars, ability cooldowns, player names, etc.
+            if (redTeamText != null)
+                redTeamText.text = "Red Team: " + IdsToStr(lobbyState.redTeamPlayerIds);
+            if (blueTeamText != null)
+                blueTeamText.text = "Blue Team: " + IdsToStr(lobbyState.blueTeamPlayerIds);
 
-            // Update the texts
-            RedTeamText.text = "Red Team: " + string.Join(", ", lobbyState.redTeamPlayerIds);
-            BlueTeamText.text = "Blue Team: " + string.Join(", ", lobbyState.blueTeamPlayerIds);
-
-            if (lobbyState.everyoneReady) {
-                InitializeMatch(dbMatchId,
-                lobbyState.redTeamPlayerIds[0],
-                lobbyState.blueTeamPlayerIds[0]);
-
-                Match currentMatch = this;
-
-                // Change scene and pass the match object
+            if (_matchStartRequested)
+                return;
+            if (lobbyState.everyoneReady
+                && lobbyState.redTeamPlayerIds != null && lobbyState.redTeamPlayerIds.Length > 0
+                && lobbyState.blueTeamPlayerIds != null && lobbyState.blueTeamPlayerIds.Length > 0) {
+                _matchStartRequested = true;
+                InitializeMatch(dbMatchId, lobbyState.redTeamPlayerIds, lobbyState.blueTeamPlayerIds);
             }
-            
         }
 
-        // Player presses the "Join Red Team" button
         public void PressJoinRedTeam() {
             selectedTeam = TeamSelection.Red;
             StartCoroutine(SetPlayerTeam());
         }
-        
-        // Player presses the "Join Blue Team" button
+
         public void PressJoinBlueTeam() {
             selectedTeam = TeamSelection.Blue;
             StartCoroutine(SetPlayerTeam());
         }
 
-        // Player selects team hey want to be on in team select age
         IEnumerator SetPlayerTeam() {
-            string colorSelectedTeam = selectedTeam == TeamSelection.Red ? "red" : "blue";
-
-            string url = "http://localhost:8000/set-player-team?player_id=" + player.Id + "&match_id=" + dbMatchId + "&team=" + colorSelectedTeam;
-
+            string color = selectedTeam == TeamSelection.Red ? "red" : "blue";
+            string url = $"{httpApiBaseUrl}/set-player-team?player_id={player.Id}&match_id={dbMatchId}&team={color}";
             using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
                 request.downloadHandler = new DownloadHandlerBuffer();
-
                 yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"Select team failed: {request.error}");
-                    yield break;
-                }
-                string json = request.downloadHandler.text;
-                Debug.Log("Match ID from server: " + dbMatchId);
+                if (request.result != UnityWebRequest.Result.Success)
+                    Debug.LogError($"set-player-team failed: {request.error}");
             }
         }
-
 
         public void PressReadyButton() {
             StartCoroutine(SetReady());
         }
 
         IEnumerator SetReady() {
-            string url = "http://localhost:8000/set-ready?player_id=" + player.Id + "&match_id=" + dbMatchId;
+            string url = $"{httpApiBaseUrl}/set-ready?player_id={player.Id}&match_id={dbMatchId}";
             using (UnityWebRequest request = UnityWebRequest.Get(url)) {
                 request.downloadHandler = new DownloadHandlerBuffer();
-
                 yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"Server push failed: {request.error}");
-                    yield break;
-                }
-                string json = request.downloadHandler.text;
-                Debug.Log("Received server push: " + json);
-
-                // get some matchid form the servers
-                MatchIdResponse response = JsonUtility.FromJson<MatchIdResponse>(json);
+                if (request.result != UnityWebRequest.Result.Success)
+                    Debug.LogError($"set-ready failed: {request.error}");
             }
         }
+
+        #endregion
+
+        #region Network — Lobby WebSocket (live pushes)
+
+        void ConnectLobbyWebSocket() {
+            DisconnectLobbyWebSocket();
+            _lobbyCts = new CancellationTokenSource();
+            _lobbySocket = new ClientWebSocket();
+            _ = RunLobbyWebSocketAsync();
+        }
+
+        void DisconnectLobbyWebSocket() {
+            _lobbyCts?.Cancel();
+            try {
+                _lobbySocket?.Abort();
+                _lobbySocket?.Dispose();
+            } catch { /* ignore */ }
+            _lobbySocket = null;
+            _lobbyCts = null;
+        }
+
+        async Task RunLobbyWebSocketAsync() {
+            var token = _lobbyCts.Token;
+            var uri = new Uri($"{LobbyWebSocketBaseTrimmed()}/lobby/{dbMatchId}?player_id={player.Id}");
+            try {
+                await _lobbySocket.ConnectAsync(uri, token);
+                Debug.Log($"[Match] Lobby WebSocket connected {uri}");
+                await ReceiveLobbyLoopAsync(token);
+            } catch (OperationCanceledException) { }
+            catch (Exception e) {
+                Debug.LogWarning($"[Match] Lobby WebSocket error: {e.Message} — falling back to HTTP poll (main thread).");
+                _lobbyPollStarted = true;
+            } finally {
+                try { _lobbySocket?.Dispose(); } catch { }
+                _lobbySocket = null;
+            }
+        }
+
+        /// <summary>Base URL for lobby WebSocket, no trailing slash (…/ws).</summary>
+        string LobbyWebSocketBaseTrimmed() {
+            var explicitBase = (lobbyWebSocketBaseUrl ?? "").Trim().TrimEnd('/');
+            if (!string.IsNullOrEmpty(explicitBase))
+                return explicitBase;
+            return WebSocketSchemeHostFromHttpApi(httpApiBaseUrl) + "/ws";
+        }
+
+        /// <summary>ws(s)://host[:port] from REST base (strips any /api path).</summary>
+        static string WebSocketSchemeHostFromHttpApi(string httpApiBase) {
+            if (string.IsNullOrWhiteSpace(httpApiBase))
+                httpApiBase = "http://localhost:8000";
+            if (!Uri.TryCreate(httpApiBase.Trim(), UriKind.Absolute, out var u))
+                return "ws://localhost:8000";
+            var sch = u.Scheme == Uri.UriSchemeHttps ? "wss" : "ws";
+            return $"{sch}://{u.Authority}";
+        }
+
+        async Task ReceiveLobbyLoopAsync(CancellationToken token) {
+            var buffer = new byte[8192];
+            while (_lobbySocket != null && _lobbySocket.State == WebSocketState.Open && !token.IsCancellationRequested) {
+                var segment = new ArraySegment<byte>(buffer);
+                var result = await _lobbySocket.ReceiveAsync(segment, token);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    break;
+                if (result.MessageType == WebSocketMessageType.Text && result.Count > 0) {
+                    var text = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    _lobbyIncoming.Enqueue(text);
+                }
+            }
+        }
+
         #endregion
     }
 }
-
-

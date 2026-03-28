@@ -1,54 +1,35 @@
 ##############################################################
 # File: Server/__main__.py
-# Author: Mikey Maldonado
-# Description: Entry point to run the WebSocket echo server.
-# Date Created: 2026-01-31
+# Description: Run the unified HTTP + lobby WebSocket server (FastAPI).
+# Optional: run turn-based demo WebSocket on port 8765 in a second terminal.
 ##############################################################
 """
-Run the WebSocket echo server: python -m Server
+Run the game backend: HTTP (auth, stats, lobby REST) + lobby WebSocket on the same port.
+
+    python -m Server
+
+Uses one process so lobby state and WebSocket fan-out share memory. For the separate
+turn-based echo demo (epoch/turn protocol), run in another terminal:
+
+    python -m Server.multiplayer_echo
 """
 import sys
 import signal
-import subprocess
-import time
 
 if __name__ == "__main__":
-    processes = []
-    
     def signal_handler(signum, frame):
-        """Handle SIGINT"""
-        print("\n\nShutting down servers...")
-        for p in processes:
-            if p.poll() is None:
-                p.terminate()
         sys.exit(0)
-    
-    # Register signal handler
+
     signal.signal(signal.SIGINT, signal_handler)
-    
-    try:
-        # Create two processes: one for HTTP server, one for WebSocket server
-        print("Starting HTTP Auth Server...")
-        http_process = subprocess.Popen([sys.executable, "-m", "Server.auth_http"])
-        processes.append(http_process)
-        time.sleep(0.5)  # Give HTTP server a moment to start
-        
-        print("Starting WebSocket Server...")
-        websocket_process = subprocess.Popen([sys.executable, "-m", "Server.multiplayer_echo"])
-        processes.append(websocket_process)
-        
-        print("\nServers running. Press Ctrl+C to shutdown.\n")
-        
-        # Wait on both — if either exits, we'll fall through
-        for p in processes:
-            p.wait()
-    except KeyboardInterrupt:
-        print("\n\nShutting down servers...")
-    finally:
-        # Shut down any still-running processes
-        for p in processes:
-            if p.poll() is None:
-                p.terminate()
-        for p in processes:
-            p.wait()
-        print("All servers stopped.")
+
+    import uvicorn
+    from logging_config import get_logger
+
+    logger = get_logger(__name__)
+
+    import os
+    host = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
+    port = int(os.getenv("AUTH_SERVER_PORT", 8000))
+
+    logger.info("Starting unified server on http://%s:%s (lobby WS: /ws/lobby/{match_id})", host, port)
+    uvicorn.run("Server.auth_http:app", host=host, port=port, log_level="info")

@@ -8,20 +8,40 @@ from contextlib import asynccontextmanager
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, HTTPException, Request, Response
+import asyncio
+import json
+
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel, Field
 
 from Database import queries
 from logging_config import get_logger
-
-from fastapi import HTTPException
-import json
 
 logger = get_logger(__name__)
 
 # Auth Server Configuration
 AUTH_SERVER_HOST = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
 AUTH_SERVER_PORT = int(os.getenv("AUTH_SERVER_PORT", 8000))
+
+# Reverse-proxy path prefixes (e.g. nginx: /api/* and /ws/* → this app)
+def _norm_prefix(p: str) -> str:
+    p = (p or "").strip()
+    if not p:
+        return ""
+    return "/" + p.strip("/")
+
+
+API_PREFIX = _norm_prefix(os.getenv("API_PREFIX", ""))
+WS_PREFIX = _norm_prefix(os.getenv("WS_PREFIX", "/ws")) or "/ws"
 
 # JWT Configuration
 JWT_SECRET = os.getenv('JWT_SECRET', 'change_this_secret_key')
@@ -38,6 +58,47 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Unity Auth Server", lifespan=lifespan)
+api_router = APIRouter()
+ws_router = APIRouter()
+
+# --- Lobby WebSocket registry (same process as HTTP; use this for live pushes) ---
+lobby_connections: dict[int, list[WebSocket]] = {}
+_lobby_conn_lock = asyncio.Lock()
+
+
+async def _register_lobby_ws(match_id: int, ws: WebSocket) -> None:
+    async with _lobby_conn_lock:
+        lobby_connections.setdefault(match_id, []).append(ws)
+
+
+async def _unregister_lobby_ws(match_id: int, ws: WebSocket) -> None:
+    async with _lobby_conn_lock:
+        conns = lobby_connections.get(match_id)
+        if not conns:
+            return
+        lobby_connections[match_id] = [c for c in conns if c is not ws]
+        if not lobby_connections[match_id]:
+            del lobby_connections[match_id]
+
+
+async def broadcast_lobby_snapshot(match_id: int) -> None:
+    """Push current lobby JSON to every client subscribed to this match."""
+    snap = queries.get_lobby_snapshot(match_id)
+    body = json.dumps(snap)
+    async with _lobby_conn_lock:
+        conns = list(lobby_connections.get(match_id, []))
+    dead: list[WebSocket] = []
+    for ws in conns:
+        try:
+            await ws.send_text(body)
+        except Exception:
+            dead.append(ws)
+    if dead:
+        async with _lobby_conn_lock:
+            cur = lobby_connections.get(match_id, [])
+            lobby_connections[match_id] = [c for c in cur if c not in dead]
+            if not lobby_connections[match_id]:
+                del lobby_connections[match_id]
 
 
 class RegisterRequest(BaseModel):
@@ -71,7 +132,7 @@ def verify_jwt_token(token: str):
         return None
 
 
-@app.post("/register")
+@api_router.post("/register")
 def register(payload: RegisterRequest, response: Response):
     password = payload.password
 
@@ -101,7 +162,7 @@ def register(payload: RegisterRequest, response: Response):
     }
 
 
-@app.post("/login")
+@api_router.post("/login")
 def login(payload: LoginRequest, request: Request, response: Response):
     player_id = payload.player_id
     password = payload.password
@@ -140,7 +201,7 @@ def login(payload: LoginRequest, request: Request, response: Response):
     }
 
 
-@app.post("/verify")
+@api_router.post("/verify")
 def verify_token(payload: TokenVerifyRequest):
     token = payload.token
     verified = verify_jwt_token(token)
@@ -158,7 +219,7 @@ def verify_token(payload: TokenVerifyRequest):
         "player_id": verified['player_id']
     }
 
-@app.post("/submit-playermatchstats")
+@api_router.post("/submit-playermatchstats")
 def submit_playermatchstats(stat: dict):
     """
     Accepts a PlayerMatchStats JSON object from Unity
@@ -191,7 +252,7 @@ def submit_playermatchstats(stat: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
    
-@app.post("/submit-matchupstats")
+@api_router.post("/submit-matchupstats")
 async def submit_matchupstats(matchup: dict):
     """
     Accepts a MatchStats JSON object from Unity and inserts into database.
@@ -215,7 +276,7 @@ async def submit_matchupstats(matchup: dict):
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/submit-abilityusagestats")
+@api_router.post("/submit-abilityusagestats")
 async def submit_abilityusagestats(ability: dict):
     """
     Accepts an AbilityUsageStats JSON object from Unity and inserts into database.
@@ -240,7 +301,7 @@ async def submit_abilityusagestats(ability: dict):
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/create-match")
+@api_router.post("/create-match")
 def create_match():
     """
     Creates a new match at the beginning of the game
@@ -261,7 +322,80 @@ def create_match():
         logger.exception("Create match failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/update-match")
+@api_router.get("/join-new-lobby")
+async def join_new_lobby_endpoint(player_id: int, max_players: int = 8):
+    """
+    Assign the logged-in player to an open lobby match (or create one).
+    Unity: GET .../join-new-lobby?player_id={id}
+    """
+    if player_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid player_id")
+    mid = queries.join_new_lobby(player_id, max_players=max_players)
+    if mid is None:
+        raise HTTPException(status_code=500, detail="Could not join lobby (DB error or migration missing)")
+    await broadcast_lobby_snapshot(mid)
+    return {"status": "ok", "match_id": mid}
+
+
+@api_router.get("/get-lobby-updates")
+def get_lobby_updates(match_id: int):
+    """Polling fallback: current lobby snapshot as JSON (same shape as WebSocket pushes)."""
+    if match_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid match_id")
+    return queries.get_lobby_snapshot(match_id)
+
+
+@api_router.post("/set-player-team")
+async def set_player_team_endpoint(
+    player_id: int = Query(...),
+    match_id: int = Query(...),
+    team: str = Query(...),
+):
+    if not queries.set_lobby_team(match_id, player_id, team):
+        raise HTTPException(status_code=400, detail="Invalid team or player not in this lobby")
+    await broadcast_lobby_snapshot(match_id)
+    return {"status": "ok", "match_id": match_id}
+
+
+@api_router.get("/set-ready")
+async def set_ready_endpoint(player_id: int, match_id: int):
+    if player_id <= 0 or match_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    if not queries.set_lobby_ready(match_id, player_id, True):
+        raise HTTPException(status_code=400, detail="Player not in this lobby")
+    snap = queries.get_lobby_snapshot(match_id)
+    if snap.get("everyoneReady"):
+        queries.mark_match_lobby_in_progress(match_id)
+    await broadcast_lobby_snapshot(match_id)
+    return {"status": "ok", "match_id": match_id}
+
+
+@ws_router.websocket("/lobby/{match_id}")
+async def lobby_websocket(websocket: WebSocket, match_id: int, player_id: int = Query(...)):
+    """
+    Live lobby updates for all players in the same match_id.
+    First message after connect is the current snapshot; later pushes mirror HTTP mutations.
+    """
+    if player_id <= 0 or match_id <= 0:
+        await websocket.close(code=4000)
+        return
+    if not queries.is_player_in_lobby(match_id, player_id):
+        await websocket.close(code=4001)
+        return
+    await websocket.accept()
+    await _register_lobby_ws(match_id, websocket)
+    try:
+        await websocket.send_text(json.dumps(queries.get_lobby_snapshot(match_id)))
+        while True:
+            # Keep connection open; ignore client messages (or use for future ping)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await _unregister_lobby_ws(match_id, websocket)
+
+
+@api_router.post("/update-match")
 def update_match(match: dict):
     """
     Updates match stats when the game ends.
@@ -286,6 +420,14 @@ def update_match(match: dict):
         logger.exception("Update match failed")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+app.include_router(api_router, prefix=API_PREFIX)
+app.include_router(ws_router, prefix=WS_PREFIX)
+logger.info(
+    "HTTP API mounted at %r (empty = root); lobby WebSocket at %r",
+    API_PREFIX or "/",
+    f"{WS_PREFIX}/lobby/{{match_id}}",
+)
 
 
 if __name__ == "__main__":

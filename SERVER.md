@@ -1,41 +1,62 @@
-# WebSocket Turn-Based Server
+# Game server (HTTP + lobby WebSocket)
 
-Python WebSocket server for Unity desktop clients. Multiple clients connect; the server runs round-robin turns with a 2-second pause per player, relays each player’s message to everyone, and sends a epoch counter between turns.
+## Public layout (nginx on litecoders.com)
 
-## Protocol (pipe-separated)
+| Traffic | Public URL | Proxied to uvicorn (example) |
+|--------|------------|-------------------------------|
+| Web app | `https://litecoders.com` | Static / frontend |
+| REST API | `https://litecoders.com/api/*` | `http://127.0.0.1:8000/api/*` |
+| Lobby WebSocket | `wss://litecoders.com/ws/lobby/{match_id}?player_id=` | `http://127.0.0.1:8000/ws/lobby/...` |
 
-**Server > clients**
-
-- `you|playerId` — sent once on connect; this client’s player id (0, 1, 2, …).
-- `turn|playerId` — it’s this player’s turn (they can send one message).
-- `said|playerId|message` — that player’s message this turn (relayed to all).
-- `epoch|n` — server epoch counter (increments after each player’s turn), or epoch.
-
-**Client > server**
-
-- Plain text — only accepted when it’s that client’s turn; otherwise ignored.
-
-## Setup
-
-From the **project root**:
+Set environment on the **Python** host:
 
 ```bash
-pip install -r Server/requirements.txt
+API_PREFIX=/api
+WS_PREFIX=/ws
 ```
 
-## Run
+Leave **`API_PREFIX` unset** for local dev so routes stay at `http://localhost:8000/join-new-lobby` (no `/api`).
 
-From the **project root**:
+**`WS_PREFIX`** defaults to `/ws` if unset; lobby sockets are always `{WS_PREFIX}/lobby/{match_id}`.
+
+## Unity (`Match` component)
+
+| Build | `httpApiBaseUrl` | `lobbyWebSocketBaseUrl` |
+|-------|------------------|-------------------------|
+| Local | `http://localhost:8000` | *(empty)* → `ws://localhost:8000/ws` |
+| Production | `https://litecoders.com/api` | *(empty)* → `wss://litecoders.com/ws` |
+
+If your WS public URL ever differs from “same host as API + `/ws`”, set **`lobbyWebSocketBaseUrl`** explicitly (e.g. `wss://litecoders.com/ws`, no trailing slash).
+
+---
+
+## Architecture (demo scale)
+
+- **One Python process** (`python -m Server`) runs FastAPI on port **8000**: auth, match stats, lobby REST, lobby WebSocket.
+- **MySQL** holds `lobby_players` and `matches.lobby_status`. Apply `Database/migrations/001_lobby.sql` once.
+- **Optional:** `python -m Server.multiplayer_echo` — separate turn demo on port **8765**.
+
+## REST (relative to `httpApiBaseUrl`)
+
+| Path | Purpose |
+|------|---------|
+| `GET /join-new-lobby?player_id=` | Enter or create lobby |
+| `GET /get-lobby-updates?match_id=` | Polling snapshot |
+| `POST /set-player-team?...` | Pick team |
+| `GET /set-ready?...` | Mark ready |
+
+With **`API_PREFIX=/api`**, Unity calls `https://litecoders.com/api/join-new-lobby`, etc.
+
+## WebSocket
+
+- Path: `{WS_PREFIX}/lobby/{match_id}?player_id={id}` (default **`/ws/lobby/...`**).
+- Messages: JSON snapshot (`everyoneReady`, `redTeamPlayerIds`, `blueTeamPlayerIds`).
+
+## Run (repo root)
 
 ```bash
+pip install -r requirements.txt
 python -m Server
 ```
 
-Server listens on **ws://0.0.0.0:8765**. Unity `WebSocketClient` uses **ws://localhost:8765** by default.
-
-## Test
-
-1. Start the server: `python -m Server`
-2. Open two or more Unity instances (or builds), each with `WebSocketClient` on a GameObject.
-3. Enter Play in each. Each client gets `you|id`, then in order: `turn|0` (2s), `said|0|...`, `epoch|1`, `turn|1` (2s), `said|1|...`, `epoch|2`, …
-4. Clients only send when it’s their turn; they listen for `said` and `epoch` in the Console.
+At startup the log line shows the mounted HTTP prefix and WebSocket path.

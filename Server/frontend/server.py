@@ -13,6 +13,8 @@ from pathlib import Path
 
 PORT = int(os.getenv("FRONTEND_PORT", 3000))
 AUTH_BACKEND = os.getenv("AUTH_BACKEND", "http://127.0.0.1:8000")
+# When 0, forward full path (e.g. /api/login → backend .../api/login) for API_PREFIX=/api.
+AUTH_STRIP_API_PREFIX = os.getenv("AUTH_STRIP_API_PREFIX", "1").lower() in ("1", "true", "yes")
 STATIC_DIR = Path(__file__).parent
 
 
@@ -42,8 +44,11 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
     def _proxy_to_backend(self):
-        backend_path = self.path[len("/api"):]  # strip /api prefix
-        url = AUTH_BACKEND + backend_path
+        if AUTH_STRIP_API_PREFIX and self.path.startswith("/api"):
+            backend_path = self.path[len("/api"):]  # /api/login → /login (legacy local backend)
+            url = AUTH_BACKEND.rstrip("/") + backend_path
+        else:
+            url = AUTH_BACKEND.rstrip("/") + self.path
 
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length) if content_length else b""
