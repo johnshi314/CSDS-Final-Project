@@ -83,8 +83,12 @@ async def _unregister_lobby_ws(match_id: int, ws: WebSocket) -> None:
 
 async def broadcast_lobby_snapshot(match_id: int) -> None:
     """Push current lobby JSON to every client subscribed to this match."""
-    snap = queries.get_lobby_snapshot(match_id)
-    body = json.dumps(snap)
+    try:
+        snap = queries.get_lobby_snapshot(match_id)
+        body = json.dumps(snap)
+    except Exception:
+        logger.exception("get_lobby_snapshot in broadcast")
+        return
     async with _lobby_conn_lock:
         conns = list(lobby_connections.get(match_id, []))
     dead: list[WebSocket] = []
@@ -331,10 +335,27 @@ async def join_new_lobby_endpoint(player_id: int, max_players: int = 8):
     """
     if player_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid player_id")
-    mid = queries.join_new_lobby(player_id, max_players=max_players)
+    try:
+        mid = queries.join_new_lobby(player_id, max_players=max_players)
+    except Exception as e:
+        logger.exception("join_new_lobby")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Lobby database error (usually missing migration). On the MySQL server run "
+                "Database/migrations/001_lobby.sql then restart the API. Underlying error: "
+                f"{type(e).__name__}: {e}"
+            ),
+        ) from e
     if mid is None:
-        raise HTTPException(status_code=500, detail="Could not join lobby (DB error or migration missing)")
-    await broadcast_lobby_snapshot(mid)
+        raise HTTPException(
+            status_code=503,
+            detail="Could not create a lobby match row (create_match returned None). Check MySQL and .env DB_* settings.",
+        )
+    try:
+        await broadcast_lobby_snapshot(mid)
+    except Exception:
+        logger.exception("broadcast_lobby_snapshot after join (non-fatal)")
     return {"status": "ok", "match_id": mid}
 
 

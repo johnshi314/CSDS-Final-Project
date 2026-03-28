@@ -221,7 +221,8 @@ namespace NetFlower {
                 request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result != UnityWebRequest.Result.Success) {
-                    Debug.LogError($"join-new-lobby failed ({request.responseCode}) {url}: {request.error}");
+                    var errBody = request.downloadHandler != null ? request.downloadHandler.text : "";
+                    Debug.LogError($"join-new-lobby failed ({request.responseCode}) {url}: {request.error}\n{errBody}");
                     yield break;
                 }
                 var response = JsonUtility.FromJson<MatchIdResponse>(request.downloadHandler.text);

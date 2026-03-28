@@ -349,18 +349,14 @@ def find_joinable_lobby(max_players: int):
         return None
 
 
-def add_lobby_player(match_id: int, player_id: int) -> bool:
-    try:
-        with engine.begin() as connection:
-            connection.execute(text("""
-                INSERT INTO lobby_players (match_id, player_id, team, ready)
-                VALUES (:match_id, :player_id, NULL, 0)
-                ON DUPLICATE KEY UPDATE match_id = match_id
-            """), {"match_id": match_id, "player_id": player_id})
-        return True
-    except Exception as e:
-        logger.error(f"add_lobby_player: {e}")
-        return False
+def add_lobby_player(match_id: int, player_id: int) -> None:
+    """Insert lobby row; raises on DB error (e.g. missing lobby_players table)."""
+    with engine.begin() as connection:
+        connection.execute(text("""
+            INSERT INTO lobby_players (match_id, player_id, team, ready)
+            VALUES (:match_id, :player_id, NULL, 0)
+            ON DUPLICATE KEY UPDATE match_id = match_id
+        """), {"match_id": match_id, "player_id": player_id})
 
 
 def join_new_lobby(player_id: int, max_players: int = 8):
@@ -376,8 +372,7 @@ def join_new_lobby(player_id: int, max_players: int = 8):
         mid = create_match()
         if mid is None:
             return None
-    if not add_lobby_player(mid, player_id):
-        return None
+    add_lobby_player(mid, player_id)
     return mid
 
 
@@ -413,13 +408,17 @@ def set_lobby_ready(match_id: int, player_id: int, ready: bool = True) -> bool:
 
 
 def _lobby_rows(match_id: int):
-    with engine.connect() as connection:
-        return connection.execute(text("""
-            SELECT player_id, team, ready
-            FROM lobby_players
-            WHERE match_id = :match_id
-            ORDER BY player_id ASC
-        """), {"match_id": match_id}).mappings().all()
+    try:
+        with engine.connect() as connection:
+            return connection.execute(text("""
+                SELECT player_id, team, ready
+                FROM lobby_players
+                WHERE match_id = :match_id
+                ORDER BY player_id ASC
+            """), {"match_id": match_id}).mappings().all()
+    except Exception as e:
+        logger.error("_lobby_rows: %s", e)
+        return []
 
 
 def get_lobby_snapshot(match_id: int) -> dict:
