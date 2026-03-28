@@ -603,7 +603,7 @@ MonoBehaviour:
   passButton: {fileID: 1486081485}
   cancelMoveButton: {fileID: 980318553}
   moveHintText: {fileID: 1681684356}
-  abilityListContent: {fileID: 575788310}
+  abilityListContent: {fileID: 404543872}
   abilityButtonPrefab: {fileID: 8327085662679526169, guid: 144d79a4b3342e0409e36f3bccdf432b, type: 3}
   prevAbilityButton: {fileID: 1792495534}
   nextAbilityButton: {fileID: 1332966291}
