@@ -960,8 +960,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.Backend.Matchmaking
   httpApiBaseUrl: https://litecoders.com/api
   lobbyWebSocketBaseUrl: wss://litecoders.com/ws
+  battleSceneName: GameplayTest
+  countdownSeconds: 5
   redTeamText: {fileID: 753918280}
   blueTeamText: {fileID: 1849877337}
+  countdownText: {fileID: 2031825990}
 --- !u!4 &1123639126
 Transform:
   m_ObjectHideFlags: 0
@@ -1747,7 +1750,7 @@ GameObject:
   - component: {fileID: 2031825991}
   - component: {fileID: 2031825990}
   m_Layer: 5
-  m_Name: MatchId
+  m_Name: Countdown
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

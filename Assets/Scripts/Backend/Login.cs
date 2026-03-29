@@ -394,7 +394,6 @@ namespace NetFlower.Backend {
                             player.Name = $"Player #{player.Id}";
                             authToken = registerResponse.token;
                             SaveAuthData();
-                            ClientPlayer.clientPlayer = player;
                             ShowMessage("Registration successful! You are now logged in.");
                             playerIdInput.SetText(player.Id.ToString());
                             SwitchTo(RequestType.Token);
@@ -408,7 +407,6 @@ namespace NetFlower.Backend {
                             player.Name = $"Player #{player.Id}";
                             authToken = loginResponse.token;
                             SaveAuthData();
-                            ClientPlayer.clientPlayer = player;
                             ShowMessage("Login successful!");
                             SwitchTo(RequestType.Token);
                             ShowLoggedInScreen();
@@ -419,7 +417,6 @@ namespace NetFlower.Backend {
                         if (tokenResponse.status == "success" && tokenResponse.valid) {
                             player.Id = tokenResponse.player_id;
                             player.Name = $"Player #{player.Id}";
-                            ClientPlayer.clientPlayer = player;
                             SaveAuthData();
                             ShowMessage("Session restored. Welcome back!");
                             SwitchTo(RequestType.Token);
@@ -450,11 +447,16 @@ namespace NetFlower.Backend {
         #region Data Persistence
         public void Logout() {
             ClearAuthData();
-            ClientPlayer.clientPlayer = null;
             ShowMessage("Logged out successfully.");
             SwitchTo(RequestType.Password);
             ShowLoginScreen();
         }
+
+        public void JoinLobby() {
+            // Go to "Lobby" scene
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Lobby");
+        }
+
         void SaveAuthData() {
             if (!string.IsNullOrEmpty(authToken)) PlayerPrefs.SetString("auth_token", authToken);
             if (player.Id > 0) PlayerPrefs.SetInt("player_id", player.Id);
@@ -465,7 +467,6 @@ namespace NetFlower.Backend {
             authToken = null;
             player.Id = -1;
             player.Name = "Guest";
-            ClientPlayer.clientPlayer = null;
             PlayerPrefs.DeleteKey("auth_token");
             PlayerPrefs.DeleteKey("player_id");
             PlayerPrefs.Save();

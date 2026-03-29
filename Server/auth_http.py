@@ -413,7 +413,10 @@ async def set_player_team_endpoint(
     team: str = Query(...),
     player_id: int = Depends(get_current_player),
 ):
-    if not queries.set_lobby_team(match_id, player_id, team):
+    result = queries.set_lobby_team(match_id, player_id, team)
+    if isinstance(result, str):
+        raise HTTPException(status_code=409, detail=result)
+    if not result:
         raise HTTPException(status_code=400, detail="Invalid team or player not in this lobby")
     await broadcast_lobby_snapshot(match_id)
     return {"status": "ok", "match_id": match_id}
@@ -423,7 +426,10 @@ async def set_player_team_endpoint(
 async def set_ready_endpoint(match_id: int, player_id: int = Depends(get_current_player)):
     if match_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid match_id")
-    if not queries.set_lobby_ready(match_id, player_id, True):
+    result = queries.set_lobby_ready(match_id, player_id, True)
+    if isinstance(result, str):
+        raise HTTPException(status_code=409, detail=result)
+    if not result:
         raise HTTPException(status_code=400, detail="Player not in this lobby")
     snap = queries.get_lobby_snapshot(match_id)
     if snap.get("everyoneReady"):

@@ -376,10 +376,14 @@ def join_new_lobby(player_id: int, max_players: int = 8):
     return mid
 
 
-def set_lobby_team(match_id: int, player_id: int, team: str) -> bool:
+def set_lobby_team(match_id: int, player_id: int, team: str) -> bool | str:
+    """Returns True on success, False on bad input/no-op, or an error string if the lobby is locked."""
     team = (team or "").lower().strip()
     if team not in ("red", "blue"):
         return False
+    status = get_lobby_status(match_id)
+    if status and status != "lobby":
+        return f"Lobby is {status}"
     try:
         with engine.begin() as connection:
             r = connection.execute(text("""
@@ -393,7 +397,11 @@ def set_lobby_team(match_id: int, player_id: int, team: str) -> bool:
         return False
 
 
-def set_lobby_ready(match_id: int, player_id: int, ready: bool = True) -> bool:
+def set_lobby_ready(match_id: int, player_id: int, ready: bool = True) -> bool | str:
+    """Returns True on success, False on no-op, or an error string if the lobby is locked."""
+    status = get_lobby_status(match_id)
+    if status and status != "lobby":
+        return f"Lobby is {status}"
     try:
         with engine.begin() as connection:
             r = connection.execute(text("""
@@ -423,14 +431,17 @@ def _lobby_rows(match_id: int):
 
 def get_lobby_snapshot(match_id: int) -> dict:
     """
-    Snapshot for Unity JsonUtility: everyoneReady, redTeamPlayerIds, blueTeamPlayerIds (lists -> JSON arrays).
+    Snapshot for Unity JsonUtility: everyoneReady, lobbyStatus,
+    redTeamPlayerIds, blueTeamPlayerIds (lists -> JSON arrays).
     """
+    status = get_lobby_status(match_id) or "lobby"
     rows = _lobby_rows(match_id)
     red, blue = [], []
     everyone_ready = True
     if not rows:
         return {
             "everyoneReady": False,
+            "lobbyStatus": status,
             "redTeamPlayerIds": [],
             "blueTeamPlayerIds": [],
         }
@@ -448,9 +459,23 @@ def get_lobby_snapshot(match_id: int) -> dict:
         everyone_ready = False
     return {
         "everyoneReady": everyone_ready,
+        "lobbyStatus": status,
         "redTeamPlayerIds": red,
         "blueTeamPlayerIds": blue,
     }
+
+
+def get_lobby_status(match_id: int) -> str | None:
+    """Return the lobby_status column for a match, or None if not found."""
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text(
+                "SELECT lobby_status FROM matches WHERE match_id = :match_id"
+            ), {"match_id": match_id}).mappings().first()
+            return row["lobby_status"] if row else None
+    except Exception as e:
+        logger.error(f"get_lobby_status: {e}")
+        return None
 
 
 def is_player_in_lobby(match_id: int, player_id: int) -> bool:

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
 using NetFlower;
 
 namespace NetFlower.Backend {
@@ -27,6 +28,7 @@ namespace NetFlower.Backend {
         [Serializable]
         public class LobbyState {
             public bool everyoneReady;
+            public string lobbyStatus;
             public int[] redTeamPlayerIds;
             public int[] blueTeamPlayerIds;
         }
@@ -37,10 +39,18 @@ namespace NetFlower.Backend {
         [Tooltip("Lobby WebSocket base (no trailing slash). Empty → derived from HTTP + /ws.")]
         [SerializeField] string lobbyWebSocketBaseUrl = "";
 
+        [Tooltip("Scene to load after the countdown when everyone is ready.")]
+        [SerializeField] string battleSceneName = "";
+
+        [Tooltip("Seconds to wait after everyone readies up before loading the battle scene.")]
+        [SerializeField] float countdownSeconds = 5f;
+
         [SerializeField] TMPro.TextMeshProUGUI redTeamText;
         [SerializeField] TMPro.TextMeshProUGUI blueTeamText;
 
-        Player _player;
+        [Tooltip("Optional — displays the countdown. Leave empty to skip UI text.")]
+        [SerializeField] TMPro.TextMeshProUGUI countdownText;
+
         string _authToken;
         Match _match;
 
@@ -60,11 +70,6 @@ namespace NetFlower.Backend {
                 return;
             }
 
-            _player = ClientPlayer.clientPlayer;
-            if (_player == null) {
-                Debug.LogError("[Matchmaking] ClientPlayer.clientPlayer is null. Log in before entering the Lobby.");
-                return;
-            }
             _authToken = PlayerPrefs.GetString("auth_token", "");
             if (string.IsNullOrEmpty(_authToken)) {
                 Debug.LogError("[Matchmaking] No auth token found. Player must log in before entering the lobby.");
@@ -117,11 +122,40 @@ namespace NetFlower.Backend {
 
             if (_matchStartRequested)
                 return;
-            if (lobbyState.everyoneReady
-                && lobbyState.redTeamPlayerIds != null && lobbyState.redTeamPlayerIds.Length > 0
-                && lobbyState.blueTeamPlayerIds != null && lobbyState.blueTeamPlayerIds.Length > 0) {
+
+            bool teamsPopulated = lobbyState.redTeamPlayerIds != null && lobbyState.redTeamPlayerIds.Length > 0
+                               && lobbyState.blueTeamPlayerIds != null && lobbyState.blueTeamPlayerIds.Length > 0;
+
+            if (lobbyState.everyoneReady && teamsPopulated) {
                 _matchStartRequested = true;
-                _match.CommitFromLobby(_match.dbMatchId, lobbyState.redTeamPlayerIds, lobbyState.blueTeamPlayerIds);
+                Debug.Log($"[Matchmaking] Everyone ready — lobby locked (status={lobbyState.lobbyStatus}). Starting countdown.");
+                DisconnectLobbyWebSocket();
+                StartCoroutine(CountdownThenLoadBattle(lobbyState));
+            }
+        }
+
+        IEnumerator CountdownThenLoadBattle(LobbyState lobbyState) {
+            float remaining = Mathf.Max(countdownSeconds, 0f);
+
+            while (remaining > 0f) {
+                int display = Mathf.CeilToInt(remaining);
+                if (countdownText != null)
+                    countdownText.text = $"Match starting in {display}...";
+                Debug.Log($"[Matchmaking] Match starting in {display}...");
+                yield return new WaitForSeconds(1f);
+                remaining -= 1f;
+            }
+
+            if (countdownText != null)
+                countdownText.text = "GO!";
+
+            _match.CommitFromLobby(_match.dbMatchId, lobbyState.redTeamPlayerIds, lobbyState.blueTeamPlayerIds);
+
+            if (!string.IsNullOrEmpty(battleSceneName)) {
+                Debug.Log($"[Matchmaking] Loading scene \"{battleSceneName}\"");
+                SceneManager.LoadScene(battleSceneName);
+            } else {
+                Debug.LogWarning("[Matchmaking] battleSceneName is empty — skipping scene load. Set it in the Inspector.");
             }
         }
 
