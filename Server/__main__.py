@@ -64,8 +64,9 @@ def _run_uvicorn() -> None:
         host=host,
         port=port,
         log_level="info",
-        # Clean logs in files / non-TTY (e.g. podman logs) without ANSI escapes
         use_colors=sys.stderr.isatty(),
+        ws_ping_interval=20,
+        ws_ping_timeout=10,
     )
     if reload:
         kwargs["reload"] = True

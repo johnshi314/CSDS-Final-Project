@@ -492,6 +492,47 @@ def is_player_in_lobby(match_id: int, player_id: int) -> bool:
         return False
 
 
+def remove_lobby_player(match_id: int, player_id: int) -> bool:
+    """Remove a player from a lobby. Returns True if a row was deleted."""
+    try:
+        with engine.begin() as connection:
+            r = connection.execute(text("""
+                DELETE FROM lobby_players
+                WHERE match_id = :match_id AND player_id = :player_id
+            """), {"match_id": match_id, "player_id": player_id})
+            return r.rowcount > 0
+    except Exception as e:
+        logger.error(f"remove_lobby_player: {e}")
+        return False
+
+
+def lobby_is_empty(match_id: int) -> bool:
+    """Return True if no players remain in the lobby."""
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text(
+                "SELECT COUNT(*) AS cnt FROM lobby_players WHERE match_id = :match_id"
+            ), {"match_id": match_id}).mappings().first()
+            return row["cnt"] == 0 if row else True
+    except Exception as e:
+        logger.error(f"lobby_is_empty: {e}")
+        return False
+
+
+def mark_match_lobby_completed(match_id: int) -> bool:
+    """Mark an empty lobby as completed so it is no longer joinable."""
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("""
+                UPDATE matches SET lobby_status = 'completed'
+                WHERE match_id = :match_id AND lobby_status = 'lobby'
+            """), {"match_id": match_id})
+        return True
+    except Exception as e:
+        logger.error(f"mark_match_lobby_completed: {e}")
+        return False
+
+
 def mark_match_lobby_in_progress(match_id: int) -> bool:
     try:
         with engine.begin() as connection:

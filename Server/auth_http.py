@@ -407,6 +407,26 @@ def get_lobby_updates(match_id: int):
     return queries.get_lobby_snapshot(match_id)
 
 
+@api_router.post("/leave-lobby")
+async def leave_lobby_endpoint(
+    match_id: int = Query(...),
+    player_id: int = Depends(get_current_player),
+):
+    """Remove the authenticated player from a lobby. No-op if the match is already in progress."""
+    status = queries.get_lobby_status(match_id)
+    if status and status != "lobby":
+        raise HTTPException(status_code=409, detail=f"Lobby is {status}")
+    removed = queries.remove_lobby_player(match_id, player_id)
+    if not removed:
+        raise HTTPException(status_code=400, detail="Player not in this lobby")
+    logger.info("Player %s left lobby %s (HTTP)", player_id, match_id)
+    if queries.lobby_is_empty(match_id):
+        queries.mark_match_lobby_completed(match_id)
+    else:
+        await broadcast_lobby_snapshot(match_id)
+    return {"status": "ok", "match_id": match_id}
+
+
 @api_router.post("/set-player-team")
 async def set_player_team_endpoint(
     match_id: int = Query(...),
@@ -438,12 +458,15 @@ async def set_ready_endpoint(match_id: int, player_id: int = Depends(get_current
     return {"status": "ok", "match_id": match_id}
 
 
+LOBBY_WS_HEARTBEAT_SEC = 30
+
 @ws_router.websocket("/lobby/{match_id}")
 async def lobby_websocket(websocket: WebSocket, match_id: int):
     """
     Live lobby updates for all players in the same match_id.
     Requires a valid JWT via ?token= query param or auth_token cookie.
     First message after connect is the current snapshot; later pushes mirror HTTP mutations.
+    Sends a heartbeat ping every LOBBY_WS_HEARTBEAT_SEC so crashed clients are detected quickly.
     """
     if match_id <= 0:
         await websocket.close(code=4000)
@@ -459,15 +482,32 @@ async def lobby_websocket(websocket: WebSocket, match_id: int):
     await _register_lobby_ws(match_id, websocket)
     try:
         await websocket.send_text(json.dumps(queries.get_lobby_snapshot(match_id)))
-        # Use receive() (not receive_text) so ping/pong from proxies work and we don't require client text.
         while True:
-            msg = await websocket.receive()
+            try:
+                msg = await asyncio.wait_for(
+                    websocket.receive(), timeout=LOBBY_WS_HEARTBEAT_SEC
+                )
+            except asyncio.TimeoutError:
+                try:
+                    await websocket.send_text('{"heartbeat":true}')
+                except Exception:
+                    break
+                continue
             if msg.get("type") == "websocket.disconnect":
                 break
     except WebSocketDisconnect:
         pass
     finally:
         await _unregister_lobby_ws(match_id, websocket)
+        status = queries.get_lobby_status(match_id)
+        if status == "lobby":
+            queries.remove_lobby_player(match_id, player_id)
+            logger.info("Player %s left lobby %s (disconnect)", player_id, match_id)
+            if queries.lobby_is_empty(match_id):
+                queries.mark_match_lobby_completed(match_id)
+                logger.info("Lobby %s is now empty — marked completed", match_id)
+            else:
+                await broadcast_lobby_snapshot(match_id)
 
 
 @api_router.post("/update-match", dependencies=[Depends(get_current_player)])

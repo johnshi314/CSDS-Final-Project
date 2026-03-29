@@ -109,6 +109,30 @@ namespace NetFlower.Backend {
             DisconnectLobbyWebSocket();
         }
 
+        /// <summary>
+        /// Explicitly leave the lobby via HTTP. Call this before navigating away from the lobby
+        /// scene (e.g. a "Back" button) when you want an immediate roster update for other players.
+        /// Not needed when the match starts (server keeps roster) or when the WebSocket is
+        /// connected (server auto-removes on disconnect).
+        /// </summary>
+        public void LeaveLobby() {
+            if (_match != null && _match.dbMatchId > 0 && !_matchStartRequested)
+                StartCoroutine(LeaveLobbyRequest());
+        }
+
+        IEnumerator LeaveLobbyRequest() {
+            string url = $"{EffectiveApiBase()}/leave-lobby?match_id={_match.dbMatchId}";
+            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.timeout = 5;
+                yield return request.SendWebRequest();
+                if (request.result == UnityWebRequest.Result.Success)
+                    Debug.Log("[Matchmaking] Left lobby cleanly.");
+                else
+                    Debug.LogWarning($"[Matchmaking] leave-lobby failed: {request.error}");
+            }
+        }
+
         static string IdsToStr(int[] ids) {
             if (ids == null || ids.Length == 0) return "";
             return string.Join(",", ids);
