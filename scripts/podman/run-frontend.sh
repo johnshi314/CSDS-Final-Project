@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
-# Run static + /api proxy on 127.0.0.1:3000.
-# Uses --network=host so it can reach the API at localhost:8000.
+# Restart the netflower-frontend systemd user service.
+# The service unit references localhost/netflower-frontend:latest,
+# so rebuild the image first (build.sh frontend) to pick up code changes.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$ROOT"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
-LOG_DIR_HOST="${NETFLOWER_LOG_DIR:-$ROOT/logs}"
-mkdir -p "$LOG_DIR_HOST"
+SERVICE="netflower-frontend.service"
 
-FE_NAME="${NETFLOWER_FRONTEND_CONTAINER:-netflower-frontend}"
-FRONTEND_TAG="${FRONTEND_IMAGE:-localhost/netflower-frontend:latest}"
-CONTAINER_PORT="${FRONTEND_PORT:-3000}"
-
-AUTH_BACKEND="${AUTH_BACKEND:-http://127.0.0.1:8000}"
-
-podman run -d --replace --name "$FE_NAME" \
-  --network host \
-  -e FRONTEND_PORT="$CONTAINER_PORT" \
-  -e AUTH_BACKEND="$AUTH_BACKEND" \
-  -e AUTH_STRIP_API_PREFIX="${AUTH_STRIP_API_PREFIX:-0}" \
-  -e LOG_DIR=/app/logs \
-  -v "$LOG_DIR_HOST:/app/logs:z" \
-  "$FRONTEND_TAG"
-
-echo "Frontend container $FE_NAME on http://127.0.0.1:${CONTAINER_PORT} → AUTH_BACKEND=$AUTH_BACKEND (host network)"
-echo "Logs: $LOG_DIR_HOST"
+systemctl --user restart "$SERVICE"
+echo "Restarted $SERVICE"
+systemctl --user --no-pager status "$SERVICE"

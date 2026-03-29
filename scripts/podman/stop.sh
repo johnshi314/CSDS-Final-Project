@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
+# Stop both netflower systemd user services.
 set -euo pipefail
-API_NAME="${NETFLOWER_API_CONTAINER:-netflower-api}"
-FE_NAME="${NETFLOWER_FRONTEND_CONTAINER:-netflower-frontend}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
-podman stop "$FE_NAME" 2>/dev/null || true
-podman stop "$API_NAME" 2>/dev/null || true
-podman rm "$FE_NAME" 2>/dev/null || true
-podman rm "$API_NAME" 2>/dev/null || true
-echo "Stopped and removed $FE_NAME and $API_NAME (if they existed)."
+systemctl --user stop netflower-frontend.service 2>/dev/null && echo "Stopped frontend" || echo "Frontend was not running"
+systemctl --user stop netflower-api.service      2>/dev/null && echo "Stopped API"      || echo "API was not running"

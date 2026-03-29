@@ -19,6 +19,7 @@ namespace NetFlower {
         private PlayerMatchStats enemyStats;
         private MatchupStats matchupStats;
 
+        string authToken;
         public int dbMatchId;
 
         public enum TeamSelection { Red, Blue }
@@ -41,6 +42,9 @@ namespace NetFlower {
         }
 
         void Start() {
+            authToken = PlayerPrefs.GetString("auth_token", "");
+            if (string.IsNullOrEmpty(authToken))
+                Debug.LogWarning("[Match] No auth token found. Stats submissions will fail until player logs in.");
             var effective = EffectiveApiBase();
             Debug.Log($"[Match] httpApiBaseUrl=\"{httpApiBaseUrl}\" → REST calls use \"{effective}\"");
             if (!string.Equals(effective, (httpApiBaseUrl ?? "").Trim().TrimEnd('/'), StringComparison.Ordinal))
@@ -131,6 +135,7 @@ namespace NetFlower {
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
                 request.SetRequestHeader("Accept", "application/json");
+                request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result == UnityWebRequest.Result.Success) {

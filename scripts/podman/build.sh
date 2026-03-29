@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build API and/or frontend images (run from anywhere).
+# Build API and/or frontend images, then prune dangling old images.
 # Usage: ./build.sh [all|server|frontend]   (default: all)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -40,3 +40,7 @@ case "$TARGET" in
     exit 1
     ;;
 esac
+
+echo "Pruning dangling images…"
+podman image prune -f
+echo "Build complete ($TARGET)."

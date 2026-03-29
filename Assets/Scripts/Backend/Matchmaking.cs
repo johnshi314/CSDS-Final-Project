@@ -41,6 +41,7 @@ namespace NetFlower.Backend {
         [SerializeField] TMPro.TextMeshProUGUI blueTeamText;
 
         Player _player;
+        string _authToken;
         Match _match;
 
         ClientWebSocket _lobbySocket;
@@ -62,6 +63,11 @@ namespace NetFlower.Backend {
             _player = ClientPlayer.clientPlayer;
             if (_player == null) {
                 Debug.LogError("[Matchmaking] ClientPlayer.clientPlayer is null. Log in before entering the Lobby.");
+                return;
+            }
+            _authToken = PlayerPrefs.GetString("auth_token", "");
+            if (string.IsNullOrEmpty(_authToken)) {
+                Debug.LogError("[Matchmaking] No auth token found. Player must log in before entering the lobby.");
                 return;
             }
 
@@ -130,8 +136,9 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator SetPlayerTeam(string color) {
-            string url = $"{EffectiveApiBase()}/set-player-team?player_id={_player.Id}&match_id={_match.dbMatchId}&team={color}";
+            string url = $"{EffectiveApiBase()}/set-player-team?match_id={_match.dbMatchId}&team={color}";
             using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -147,8 +154,9 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator SetReady() {
-            string url = $"{EffectiveApiBase()}/set-ready?player_id={_player.Id}&match_id={_match.dbMatchId}";
+            string url = $"{EffectiveApiBase()}/set-ready?match_id={_match.dbMatchId}";
             using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -165,6 +173,7 @@ namespace NetFlower.Backend {
                 yield break;
             string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
             using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -178,8 +187,9 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator JoinNewLobby() {
-            string url = $"{EffectiveApiBase()}/join-new-lobby?player_id={_player.Id}";
+            string url = $"{EffectiveApiBase()}/join-new-lobby";
             using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -206,6 +216,7 @@ namespace NetFlower.Backend {
                 while (_match != null && _match.dbMatchId > 0 && enabled) {
                     string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
                     using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                        request.SetRequestHeader("Authorization", "Bearer " + _authToken);
                         request.downloadHandler = new DownloadHandlerBuffer();
                         request.timeout = 10;
                         yield return request.SendWebRequest();
@@ -239,7 +250,7 @@ namespace NetFlower.Backend {
         async Task RunLobbyWebSocketAsync() {
             var token = _lobbyCts.Token;
             var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
-            var uri = new Uri($"{wsBase}/lobby/{_match.dbMatchId}?player_id={_player.Id}");
+            var uri = new Uri($"{wsBase}/lobby/{_match.dbMatchId}?token={Uri.EscapeDataString(_authToken)}");
             try {
                 await _lobbySocket.ConnectAsync(uri, token);
                 Debug.Log($"[Matchmaking] Lobby WebSocket connected {uri}");

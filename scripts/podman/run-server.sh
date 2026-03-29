@@ -1,37 +1,13 @@
 #!/usr/bin/env bash
-# Run FastAPI + lobby WebSocket on 127.0.0.1:8000 (matches SERVER.md nginx example).
-# Uses --network=host so the container shares the host network stack
-# (DB_HOST=localhost reaches the host MariaDB directly).
+# Restart the netflower-api systemd user service.
+# The service unit references localhost/netflower-server:latest,
+# so rebuild the image first (build.sh server) to pick up code changes.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$ROOT"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
-LOG_DIR_HOST="${NETFLOWER_LOG_DIR:-$ROOT/logs}"
-mkdir -p "$LOG_DIR_HOST"
+SERVICE="netflower-api.service"
 
-API_NAME="${NETFLOWER_API_CONTAINER:-netflower-api}"
-SERVER_TAG="${SERVER_IMAGE:-localhost/netflower-server:latest}"
-
-ENV_FILE="${NETFLOWER_ENV_FILE:-$ROOT/.env}"
-ENV_ARGS=()
-if [[ -f "$ENV_FILE" ]]; then
-  ENV_ARGS=(--env-file "$ENV_FILE")
-else
-  echo "Warning: no $ENV_FILE — set DB_* and JWT_SECRET or the API will fail." >&2
-fi
-
-podman run -d --replace --name "$API_NAME" \
-  --network host \
-  "${ENV_ARGS[@]}" \
-  -e API_PREFIX="${API_PREFIX:-/api}" \
-  -e WS_PREFIX="${WS_PREFIX:-/ws}" \
-  -e UVICORN_RELOAD="${UVICORN_RELOAD:-0}" \
-  -e SERVER_SUPERVISE="${SERVER_SUPERVISE:-0}" \
-  -e AUTH_SERVER_HOST=127.0.0.1 \
-  -e AUTH_SERVER_PORT="${AUTH_SERVER_PORT:-8000}" \
-  -e LOG_DIR=/app/logs \
-  -v "$LOG_DIR_HOST:/app/logs:z" \
-  "$SERVER_TAG"
-
-echo "API container $API_NAME on http://127.0.0.1:${AUTH_SERVER_PORT:-8000} (host network)"
-echo "Logs: $LOG_DIR_HOST (mounted at /app/logs in the container)"
+systemctl --user restart "$SERVICE"
+echo "Restarted $SERVICE"
+systemctl --user --no-pager status "$SERVICE"

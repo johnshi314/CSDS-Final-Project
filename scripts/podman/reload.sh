@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild images and recreate containers (podman run --replace picks up new :latest).
+# Rebuild images and restart the corresponding systemd user service(s).
 # Usage: ./reload.sh [all|server|frontend]   (default: all)
 #
 # Faster when you only changed Python/API: ./reload.sh server
