@@ -7,6 +7,7 @@ auth server on port 8000.
 import http.server
 import json
 import os
+import signal
 import sys
 import urllib.request
 import urllib.error
@@ -149,10 +150,13 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     _install_stream_tee("frontend")
     server = http.server.HTTPServer(("0.0.0.0", PORT), FrontendHandler)
+    signal.signal(signal.SIGTERM, lambda _sig, _frame: server.shutdown())
     print(f"Frontend server running on http://0.0.0.0:{PORT}")
     print(f"Proxying /api/* -> {AUTH_BACKEND}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        pass
+    finally:
         print("\nShutting down frontend server.")
         server.server_close()

@@ -82,6 +82,26 @@ for tag in localhost/netflower-server:latest localhost/netflower-frontend:latest
   fi
 done
 
+# --- Service runtime status ---
+echo "Service status:"
+for name in netflower-api netflower-frontend; do
+  state=$(systemctl --user is-active "$name.service" 2>/dev/null || true)
+  case "$state" in
+    active)   ok "$name.service is running" ;;
+    inactive) warn "$name.service is stopped (start with: systemctl --user start $name)" ;;
+    failed)   fail "$name.service is in failed state (check: systemctl --user status $name)" ;;
+    *)        warn "$name.service state: $state" ;;
+  esac
+done
+
+# Check for ghost units from the old podman-generate-systemd era
+for old in container-netflower-api container-netflower-frontend; do
+  state=$(systemctl --user is-active "$old.service" 2>/dev/null || true)
+  if [[ "$state" == "failed" ]]; then
+    warn "Stale unit $old.service is in failed state (run: systemctl --user reset-failed $old.service)"
+  fi
+done
+
 # --- .env file ---
 echo "Environment:"
 ENV_FILE="$ROOT/.env"
