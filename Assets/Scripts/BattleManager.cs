@@ -111,6 +111,8 @@ namespace NetFlower {
             // Winner char name
             // Match ID
             match = GetComponent<Match>();
+            if (match == null)
+                match = Match.GetInstance();
         }
 
         // ------------------------------------------------------------------ //

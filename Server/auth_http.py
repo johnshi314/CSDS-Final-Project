@@ -415,9 +415,11 @@ async def lobby_websocket(websocket: WebSocket, match_id: int, player_id: int = 
     await _register_lobby_ws(match_id, websocket)
     try:
         await websocket.send_text(json.dumps(queries.get_lobby_snapshot(match_id)))
+        # Use receive() (not receive_text) so ping/pong from proxies work and we don't require client text.
         while True:
-            # Keep connection open; ignore client messages (or use for future ping)
-            await websocket.receive_text()
+            msg = await websocket.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
     except WebSocketDisconnect:
         pass
     finally:
