@@ -21,6 +21,9 @@ namespace NetFlower {
         // Temporary static player ID for testing database submission
         public static int testPlayerId = 1;
 
+        [Tooltip("REST base for stats POSTs, no trailing slash. Should match Login / Match / Matchmaking.")]
+        [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
+
         //  Sending stats to database
         public enum RequestType { AbilitySubmit, PlayerSubmit }
 
@@ -45,6 +48,10 @@ namespace NetFlower {
                     IP: "127.0.0.1"
                 );
             }
+
+            authToken = PlayerPrefs.GetString("auth_token", "");
+            if (string.IsNullOrEmpty(authToken))
+                Debug.LogWarning("[Agent] No auth token found. Protected stats endpoints will reject requests until login.");
         }
 
         // Update is called once per frame
@@ -73,6 +80,9 @@ namespace NetFlower {
 
         // PlayerMatchStats reference
         public PlayerMatchStats playerMatchStats;
+        string authToken;
+
+        string EffectiveApiBase() => GameApiEndpoints.EffectiveApiBase(httpApiBaseUrl);
 
         /// <summary>
         /// Add an agent-bound duration effect (Damage, Heal, Status) so it follows this agent and is ticked each turn.
@@ -376,12 +386,12 @@ namespace NetFlower {
         }
 
         IEnumerator SubmitAbilityUsageRoutine(string abilityUsageJson) {
-            string url = "http://localhost:8000/submit-abilityusagestats";
+            string url = $"{EffectiveApiBase()}/submit-abilityusagestats";
             yield return SendRequest(url, abilityUsageJson, RequestType.AbilitySubmit);
         }
 
         IEnumerator SubmitMatchPlayerRoutine(string matchplayerJson) {
-            string url = "http://localhost:8000/submit-playermatchstats";
+            string url = $"{EffectiveApiBase()}/submit-playermatchstats";
             yield return SendRequest(url, matchplayerJson, RequestType.PlayerSubmit);
         }
 
@@ -394,6 +404,9 @@ namespace NetFlower {
 
                 request.SetRequestHeader("Content-Type", "application/json");
                 request.SetRequestHeader("Accept", "application/json");
+                authToken = PlayerPrefs.GetString("auth_token", authToken ?? "");
+                if (!string.IsNullOrEmpty(authToken))
+                    request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.timeout = 10;
 
                 yield return request.SendWebRequest();

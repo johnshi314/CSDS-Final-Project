@@ -439,12 +439,7 @@ def get_lobby_snapshot(match_id: int) -> dict:
     red, blue = [], []
     everyone_ready = True
     if not rows:
-        return {
-            "everyoneReady": False,
-            "lobbyStatus": status,
-            "redTeamPlayerIds": [],
-            "blueTeamPlayerIds": [],
-        }
+        return None
     for r in rows:
         pid = int(r["player_id"])
         team = r["team"]

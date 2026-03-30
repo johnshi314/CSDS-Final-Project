@@ -127,7 +127,6 @@ class LoginRequest(BaseModel):
 class TokenVerifyRequest(BaseModel):
     token: str
 
-
 def generate_jwt_token(player_id: int) -> str:
     payload = {
         'player_id': player_id,
@@ -263,18 +262,25 @@ def verify_token(payload: TokenVerifyRequest):
         "player_id": verified['player_id']
     }
 
-@api_router.post("/submit-playermatchstats", dependencies=[Depends(get_current_player)])
-def submit_playermatchstats(stat: dict):
+@api_router.post("/submit-playermatchstats")
+def submit_playermatchstats(
+    stat: dict,
+    authenticated_player_id: int = Depends(get_current_player),
+):
     """
     Accepts a PlayerMatchStats JSON object from Unity
     and inserts it into the database
     """
     try:
+        claimed_player_id = stat.get("playerId")
+        if claimed_player_id is not None and claimed_player_id != authenticated_player_id:
+            raise HTTPException(status_code=403, detail="playerId does not match authenticated user")
+
         converted_row = {
             # remove match_player_id for AUTO_INCREMENT
             "match_player_id": None,
             "match_id": stat["matchId"],
-            "player_id": stat["playerId"],
+            "player_id": authenticated_player_id,
             "character_id": stat["characterId"],
             "team_id": stat["teamId"],
             "damage_dealt": stat["damageDealt"],
@@ -320,17 +326,23 @@ async def submit_matchupstats(matchup: dict):
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.post("/submit-abilityusagestats", dependencies=[Depends(get_current_player)])
-async def submit_abilityusagestats(ability: dict):
+@api_router.post("/submit-abilityusagestats")
+async def submit_abilityusagestats(
+    ability: dict,
+    authenticated_player_id: int = Depends(get_current_player),
+):
     """
     Accepts an AbilityUsageStats JSON object from Unity and inserts into database.
     """
     try:
+        claimed_player_id = ability.get("playerId")
+        if claimed_player_id is not None and claimed_player_id != authenticated_player_id:
+            raise HTTPException(status_code=403, detail="playerId does not match authenticated user")
 
         row = {
             "ability_usage_id": None,
             "character_id": ability["characterId"],
-            "player_id": ability["playerId"],
+            "player_id": authenticated_player_id,
             "damage_done": ability["damageDone"],
             "downtime": ability["downtime"],
             "ability_name" : ability["abilityName"]
@@ -399,11 +411,16 @@ async def join_new_lobby_endpoint(
     return {"status": "ok", "match_id": mid}
 
 
-@api_router.get("/get-lobby-updates", dependencies=[Depends(get_current_player)])
-def get_lobby_updates(match_id: int):
+@api_router.get("/get-lobby-updates")
+def get_lobby_updates(
+    match_id: int,
+    player_id: int = Depends(get_current_player),
+):
     """Polling fallback: current lobby snapshot as JSON (same shape as WebSocket pushes)."""
     if match_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid match_id")
+    if not queries.is_player_in_lobby(match_id, player_id):
+        raise HTTPException(status_code=403, detail="Player is not part of this lobby")
     return queries.get_lobby_snapshot(match_id)
 
 
