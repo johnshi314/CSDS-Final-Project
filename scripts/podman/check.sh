@@ -74,13 +74,33 @@ done
 
 # --- Container images ---
 echo "Container images:"
-for tag in localhost/netflower-server:latest localhost/netflower-frontend:latest; do
+SERVER_TAG="${SERVER_IMAGE:-localhost/netflower-server:latest}"
+FRONTEND_TAG="${FRONTEND_IMAGE:-localhost/netflower-frontend:latest}"
+
+for tag in "$SERVER_TAG" "$FRONTEND_TAG"; do
   if podman image exists "$tag" 2>/dev/null; then
     ok "$tag exists"
   else
     fail "$tag not built — run: ./build.sh"
   fi
 done
+
+# --- Server image modular route sanity ---
+echo "Server image modular wiring:"
+if podman image exists "$SERVER_TAG" 2>/dev/null; then
+  if podman run --rm --entrypoint python "$SERVER_TAG" -c "from Server.api import app" >/dev/null 2>&1; then
+    ok "Server.api app imports in container"
+  else
+    fail "Container cannot import Server.api app"
+  fi
+
+  # Validate that modular websocket routes are mounted in the container image.
+  if podman run --rm --entrypoint python "$SERVER_TAG" -c "from Server.api import app; paths={r.path for r in app.routes}; required={'/ws/lobby/{match_id}','/ws/lobby-control','/ws/battle/{match_id}'}; import sys; sys.exit(0 if required.issubset(paths) else 1)" >/dev/null 2>&1; then
+    ok "Modular WebSocket routes mounted (/ws/lobby, /ws/lobby-control, /ws/battle)"
+  else
+    fail "Expected modular WebSocket routes are missing in container app"
+  fi
+fi
 
 # --- Service runtime status ---
 echo "Service status:"

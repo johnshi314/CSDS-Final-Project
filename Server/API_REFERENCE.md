@@ -201,74 +201,6 @@ Request schema:
 - Query params: None
 - JSON body: None
 
-### POST /join-new-lobby
-
-- Auth required: Yes
-- Query params: None
-- JSON body required: Yes
-
-Request JSON:
-
-{
-  "maxPlayers": 8
-}
-
-Response:
-
-{
-  "status": "ok",
-  "matchId": 111
-}
-
-### POST /get-lobby-updates
-
-- Auth required: Yes
-- Query params: None
-- JSON body required: Yes
-
-Request JSON:
-
-{
-  "matchId": 111
-}
-
-### POST /leave-lobby
-
-- Auth required: Yes
-- Query params: None
-- JSON body required: Yes
-
-Request JSON:
-
-{
-  "matchId": 111
-}
-
-### POST /set-player-team
-
-- Auth required: Yes
-- Query params: None
-- JSON body required: Yes
-
-Request JSON:
-
-{
-  "matchId": 111,
-  "team": "red"
-}
-
-### POST /set-ready
-
-- Auth required: Yes
-- Query params: None
-- JSON body required: Yes
-
-Request JSON:
-
-{
-  "matchId": 111
-}
-
 ### POST /update-match
 
 - Auth required: Yes
@@ -299,6 +231,63 @@ Behavior:
 - Server pushes subsequent lobby updates
 - Server sends heartbeat JSON messages periodically
 
+### WS /ws/lobby-control
+
+- Auth required: Yes
+- Path params: None
+- Auth input:
+  - preferred: query authToken, for example /ws/lobby-control?authToken=<jwt>
+  - fallback: auth_token cookie
+
+Client message format:
+
+- JSON object with an action field
+
+Supported actions:
+
+- joinNewLobby
+  - request: {"action":"joinNewLobby","maxPlayers":8}
+  - response: {"type":"joinedLobby","matchId":<id>}
+- subscribeLobby
+  - request: {"action":"subscribeLobby","matchId":111}
+  - response: {"type":"subscribed","matchId":111} and snapshot JSON
+- setTeam
+  - request: {"action":"setTeam","team":"red"}
+  - side effect: broadcasts updated lobby snapshot
+- setReady
+  - request: {"action":"setReady"}
+  - side effect: broadcasts updated lobby snapshot
+- leaveLobby
+  - request: {"action":"leaveLobby"}
+  - response: {"type":"leftLobby","matchId":111}
+- snapshot
+  - request: {"action":"snapshot"}
+  - response: current lobby snapshot JSON
+
+Error response format:
+
+- {"type":"error","detail":"..."}
+
+### WS /ws/battle/{match_id}
+
+- Auth required: Yes
+- Path param:
+  - match_id
+- Auth input:
+  - preferred: query authToken, for example /ws/battle/111?authToken=<jwt>
+  - fallback: auth_token cookie
+
+Server text frames:
+
+- you|<playerId>
+- turn|<playerId>
+- said|<playerId>|<msg>
+- epoch|<n>
+
+Client text frames:
+
+- During your turn, send a text payload; server records and relays it in said|... next step.
+
 ## Minimal cURL Examples
 
 Register:
@@ -313,9 +302,8 @@ curl -X POST "http://localhost:8000/login" \
   -H "Content-Type: application/json" \
   -d '{"playerId":15,"password":"password123"}'
 
-Set team (protected):
+Verify (protected):
 
-curl -X POST "http://localhost:8000/set-player-team" \
+curl -X POST "http://localhost:8000/verify" \
   -H "Content-Type: application/json" \
-  -d '{"matchId":111,"team":"red"}' \
-  -H "Authorization: Bearer YOUR_JWT"
+  -d '{"authToken":"YOUR_JWT"}'

@@ -2,13 +2,10 @@
 HTTP Auth Server for Unity Game
 Provides REST endpoints for registration, login, recordkeeping, and token verification.
 """
-from datetime import datetime, timedelta, timezone
 import os
 from contextlib import asynccontextmanager
 
 import bcrypt
-import jwt
-import asyncio
 import json
 
 from fastapi import (
@@ -18,15 +15,14 @@ from fastapi import (
     HTTPException,
     Request,
     Response,
-    Security,
-    WebSocket,
-    WebSocketDisconnect,
 )
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from Database import queries
 from logging_config import get_logger
+from Server.battle_ws import router as battle_ws_router
+from Server.lobby_ws import router as lobby_ws_router
+from Server.security import generate_jwt_token, get_current_player, verify_jwt_token
 
 logger = get_logger(__name__)
 
@@ -46,9 +42,7 @@ API_PREFIX = _norm_prefix(os.getenv("API_PREFIX", ""))
 WS_PREFIX = _norm_prefix(os.getenv("WS_PREFIX", "/ws")) or "/ws"
 
 # JWT Configuration
-JWT_SECRET = os.getenv('JWT_SECRET', 'change_this_secret_key')
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
-JWT_EXPIRATION_HOURS = int(os.getenv('JWT_EXPIRATION_HOURS', 24))
+JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", 24))
 
 
 @asynccontextmanager
@@ -61,7 +55,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Unity Auth Server", lifespan=lifespan)
 api_router = APIRouter()
-ws_router = APIRouter()
 
 
 @app.get("/health")
@@ -70,48 +63,7 @@ def health():
     return {"status": "ok"}
 
 
-# --- Lobby WebSocket registry (same process as HTTP; use this for live pushes) ---
-lobby_connections: dict[int, list[WebSocket]] = {}
-_lobby_conn_lock = asyncio.Lock()
-
-
-async def _register_lobby_ws(match_id: int, ws: WebSocket) -> None:
-    async with _lobby_conn_lock:
-        lobby_connections.setdefault(match_id, []).append(ws)
-
-
-async def _unregister_lobby_ws(match_id: int, ws: WebSocket) -> None:
-    async with _lobby_conn_lock:
-        conns = lobby_connections.get(match_id)
-        if not conns:
-            return
-        lobby_connections[match_id] = [c for c in conns if c is not ws]
-        if not lobby_connections[match_id]:
-            del lobby_connections[match_id]
-
-
-async def broadcast_lobby_snapshot(match_id: int) -> None:
-    """Push current lobby JSON to every client subscribed to this match."""
-    try:
-        snap = queries.get_lobby_snapshot(match_id)
-        body = json.dumps(snap)
-    except Exception:
-        logger.exception("get_lobby_snapshot in broadcast")
-        return
-    async with _lobby_conn_lock:
-        conns = list(lobby_connections.get(match_id, []))
-    dead: list[WebSocket] = []
-    for ws in conns:
-        try:
-            await ws.send_text(body)
-        except Exception:
-            dead.append(ws)
-    if dead:
-        async with _lobby_conn_lock:
-            cur = lobby_connections.get(match_id, [])
-            lobby_connections[match_id] = [c for c in cur if c not in dead]
-            if not lobby_connections[match_id]:
-                del lobby_connections[match_id]
+# Lobby fan-out and websocket routes live in Server.lobby_runtime and Server.lobby_ws.
 
 
 class RegisterRequest(BaseModel):
@@ -125,18 +77,6 @@ class LoginRequest(BaseModel):
 
 class TokenVerifyRequest(BaseModel):
     authToken: str
-
-
-class MatchScopedRequest(BaseModel):
-    matchId: int = Field(gt=0)
-
-
-class JoinNewLobbyRequest(BaseModel):
-    maxPlayers: int = Field(default=8, ge=2)
-
-
-class SetPlayerTeamRequest(MatchScopedRequest):
-    team: str
 
 
 class PlayerMatchStatsRequest(BaseModel):
@@ -171,53 +111,6 @@ class UpdateMatchRequest(BaseModel):
     endTime: str
     duration: float
     winnerTeamId: str
-
-def generate_jwt_token(player_id: int) -> str:
-    payload = {
-        'player_id': player_id,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS),
-        'iat': datetime.now(timezone.utc)
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-
-def verify_jwt_token(token: str):
-    try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-
-
-_bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def get_current_player(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Security(_bearer_scheme),
-) -> int:
-    """Resolve authenticated player_id from Bearer header or auth_token cookie."""
-    token = credentials.credentials if credentials else None
-    if not token:
-        token = request.cookies.get("auth_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    payload = verify_jwt_token(token)
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return payload["player_id"]
-
-
-def _ws_authenticate(websocket: WebSocket) -> int | None:
-    """Extract player_id from a WebSocket's ?authToken= query param or auth_token cookie."""
-    token = websocket.query_params.get("authToken")
-    if not token:
-        token = websocket.cookies.get("auth_token")
-    if not token:
-        return None
-    payload = verify_jwt_token(token)
-    return payload["player_id"] if payload else None
 
 
 @api_router.post("/register")
@@ -417,153 +310,6 @@ def create_match():
         logger.exception("Create match failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.post("/join-new-lobby")
-async def join_new_lobby_endpoint(
-    payload: JoinNewLobbyRequest,
-    player_id: int = Depends(get_current_player),
-):
-    """
-    Assign the logged-in player to an open lobby match (or create one).
-    Requires authentication; player_id is derived from the JWT token.
-    """
-    try:
-        mid = queries.join_new_lobby(player_id, max_players=payload.maxPlayers)
-    except Exception as e:
-        logger.exception("join_new_lobby")
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Lobby database error (usually missing migration). On the MySQL server run "
-                "Database/migrations/001_lobby.sql then restart the API. Underlying error: "
-                f"{type(e).__name__}: {e}"
-            ),
-        ) from e
-    if mid is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Could not create a lobby match row (create_match returned None). Check MySQL and .env DB_* settings.",
-        )
-    try:
-        await broadcast_lobby_snapshot(mid)
-    except Exception:
-        logger.exception("broadcast_lobby_snapshot after join (non-fatal)")
-    return {"status": "ok", "matchId": mid}
-
-
-@api_router.post("/get-lobby-updates")
-def get_lobby_updates(
-    payload: MatchScopedRequest,
-    player_id: int = Depends(get_current_player),
-):
-    """Polling fallback: current lobby snapshot as JSON (same shape as WebSocket pushes)."""
-    if not queries.is_player_in_lobby(payload.matchId, player_id):
-        raise HTTPException(status_code=403, detail="Player is not part of this lobby")
-    return queries.get_lobby_snapshot(payload.matchId)
-
-
-@api_router.post("/leave-lobby")
-async def leave_lobby_endpoint(
-    payload: MatchScopedRequest,
-    player_id: int = Depends(get_current_player),
-):
-    """Remove the authenticated player from a lobby. No-op if the match is already in progress."""
-    status = queries.get_lobby_status(payload.matchId)
-    if status and status != "lobby":
-        raise HTTPException(status_code=409, detail=f"Lobby is {status}")
-    removed = queries.remove_lobby_player(payload.matchId, player_id)
-    if not removed:
-        raise HTTPException(status_code=400, detail="Player not in this lobby")
-    logger.info("Player %s left lobby %s (HTTP)", player_id, payload.matchId)
-    if queries.lobby_is_empty(payload.matchId):
-        queries.mark_match_lobby_completed(payload.matchId)
-    else:
-        await broadcast_lobby_snapshot(payload.matchId)
-    return {"status": "ok", "matchId": payload.matchId}
-
-
-@api_router.post("/set-player-team")
-async def set_player_team_endpoint(
-    payload: SetPlayerTeamRequest,
-    player_id: int = Depends(get_current_player),
-):
-    result = queries.set_lobby_team(payload.matchId, player_id, payload.team)
-    if isinstance(result, str):
-        raise HTTPException(status_code=409, detail=result)
-    if not result:
-        raise HTTPException(status_code=400, detail="Invalid team or player not in this lobby")
-    await broadcast_lobby_snapshot(payload.matchId)
-    return {"status": "ok", "matchId": payload.matchId}
-
-
-@api_router.post("/set-ready")
-async def set_ready_endpoint(
-    payload: MatchScopedRequest,
-    player_id: int = Depends(get_current_player),
-):
-    result = queries.set_lobby_ready(payload.matchId, player_id, True)
-    if isinstance(result, str):
-        raise HTTPException(status_code=409, detail=result)
-    if not result:
-        raise HTTPException(status_code=400, detail="Player not in this lobby")
-    snap = queries.get_lobby_snapshot(payload.matchId)
-    if snap.get("everyoneReady"):
-        queries.mark_match_lobby_in_progress(payload.matchId)
-    await broadcast_lobby_snapshot(payload.matchId)
-    return {"status": "ok", "matchId": payload.matchId}
-
-
-LOBBY_WS_HEARTBEAT_SEC = 30
-
-@ws_router.websocket("/lobby/{match_id}")
-async def lobby_websocket(websocket: WebSocket, match_id: int):
-    """
-    Live lobby updates for all players in the same match_id.
-    Requires a valid JWT via ?authToken= query param or auth_token cookie.
-    First message after connect is the current snapshot; later pushes mirror HTTP mutations.
-    Sends a heartbeat ping every LOBBY_WS_HEARTBEAT_SEC so crashed clients are detected quickly.
-    """
-    if match_id <= 0:
-        await websocket.close(code=4000)
-        return
-    player_id = _ws_authenticate(websocket)
-    if player_id is None:
-        await websocket.close(code=4003)
-        return
-    if not queries.is_player_in_lobby(match_id, player_id):
-        await websocket.close(code=4001)
-        return
-    await websocket.accept()
-    await _register_lobby_ws(match_id, websocket)
-    try:
-        await websocket.send_text(json.dumps(queries.get_lobby_snapshot(match_id)))
-        while True:
-            try:
-                msg = await asyncio.wait_for(
-                    websocket.receive(), timeout=LOBBY_WS_HEARTBEAT_SEC
-                )
-            except asyncio.TimeoutError:
-                try:
-                    await websocket.send_text('{"heartbeat":true}')
-                except Exception:
-                    break
-                continue
-            if msg.get("type") == "websocket.disconnect":
-                break
-    except WebSocketDisconnect:
-        pass
-    finally:
-        await _unregister_lobby_ws(match_id, websocket)
-        status = queries.get_lobby_status(match_id)
-        if status == "lobby":
-            queries.remove_lobby_player(match_id, player_id)
-            logger.info("Player %s left lobby %s (disconnect)", player_id, match_id)
-            if queries.lobby_is_empty(match_id):
-                queries.mark_match_lobby_completed(match_id)
-                logger.info("Lobby %s is now empty — marked completed", match_id)
-            else:
-                await broadcast_lobby_snapshot(match_id)
-
-
 @api_router.post("/update-match", dependencies=[Depends(get_current_player)])
 def update_match(match: UpdateMatchRequest):
     """
@@ -591,12 +337,14 @@ app.include_router(api_router, prefix=API_PREFIX)
 # If routes are at root, also mount under /api so nginx can proxy https://host/api/* unchanged.
 if not API_PREFIX:
     app.include_router(api_router, prefix="/api")
-app.include_router(ws_router, prefix=WS_PREFIX)
+app.include_router(lobby_ws_router, prefix=WS_PREFIX)
+app.include_router(battle_ws_router, prefix=WS_PREFIX)
 logger.info(
-    "HTTP API mounted at %r%s; lobby WebSocket at %r",
+    "HTTP API mounted at %r%s; WebSocket endpoints at %r and %r",
     API_PREFIX or "/",
     " and /api" if not API_PREFIX else "",
     f"{WS_PREFIX}/lobby/{{match_id}}",
+    f"{WS_PREFIX}/battle/{{match_id}}",
 )
 
 
@@ -605,7 +353,7 @@ if __name__ == "__main__":
 
     from logging_config import install_stream_tee
 
-    install_stream_tee("auth_http")
+    install_stream_tee("api")
     import uvicorn
 
     try:
