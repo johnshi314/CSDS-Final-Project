@@ -13,6 +13,8 @@
 /[Bb]uild/
 /[Bb]uilds/
 /[Ll]ogs/
+# Python server / podman runtime logs (project root)
+/logs/
 /[Uu]ser[Ss]ettings/
 *.log
 

@@ -4,22 +4,40 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 using NetFlower.UI;
 
 namespace NetFlower.Backend {
     public class Login : MonoBehaviour {
-        [SerializeField] string authServerBaseUrl = "http://localhost:8000";
+        [Tooltip("REST API base, no trailing slash. Production: https://litecoders.com/api\n" +
+                 "IMPORTANT: The value on your scene/prefab overrides this script default. If you still see requests to localhost:8000, change this field on the Login object in the Inspector.")]
+        [FormerlySerializedAs("authServerBaseUrl")]
+        [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
         [SerializeField] UserInput playerIdInput;
         [SerializeField] UserInput passwordInput;
         [SerializeField] GameObject loginMessage;
+        [Tooltip("Player ID row only. Shown for Login; hidden for Register (password-only).")]
         [SerializeField] CanvasGroup idCanvasGroup;
-        [SerializeField] CanvasGroup registerCanvasGroup;
         [SerializeField] CanvasGroup submitCanvasGroup;
         [SerializeField] CanvasGroup logoutCanvasGroup;
-        [SerializeField] CanvasGroup choiceCanvasGroup;
+        [Tooltip("If false, id/submit stay hidden until OnChooseLogin / OnChooseRegister (separate choice screen).")]
+        [SerializeField] bool showCredentialFormAtStartup = true;
+        [Header("Auth screens")]
+        [Tooltip("Login / register UI (hidden while session is active).")]
+        [SerializeField] CanvasGroup loginCG;
+        [Tooltip("Shown after successful login, register, or token restore.")]
+        [SerializeField] CanvasGroup loggedInCG;
         [SerializeField] long messageClearDelaySeconds = 5;
 
+        [Header("Login / Register tabs (side-by-side buttons)")]
+        [Tooltip("Assign the Login tab Button (or its root) on the prefab.")]
+        [SerializeField] GameObject loginTabObject;
+        [Tooltip("Assign the Register tab Button (or its root) on the prefab.")]
+        [SerializeField] GameObject registerTabObject;
+        [SerializeField] Color tabSelectedColor = new Color(0.18f, 0.18f, 0.22f, 1f);
+        [SerializeField] Color tabUnselectedColor = new Color(0.72f, 0.72f, 0.76f, 1f);
 
         Player player;
         string authToken;
@@ -33,7 +51,18 @@ namespace NetFlower.Backend {
         public enum RequestType { Password = 0, Register = 1, Token = 2 }
         public RequestType CurrentMode { get; private set; }
 
+        void Awake() {
+            WireTabButton(loginTabObject, SwitchToLogin);
+            WireTabButton(registerTabObject, SwitchToRegister);
+        }
+
         void Start() {
+            Debug.Log($"[Login] httpApiBaseUrl (from scene/prefab) = \"{httpApiBaseUrl}\"");
+            if (httpApiBaseUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0
+                || httpApiBaseUrl.IndexOf("127.0.0.1", StringComparison.OrdinalIgnoreCase) >= 0) {
+                Debug.LogWarning(
+                    "[Login] API base is local. For litecoders.com production, set Http Api Base Url on this component to: https://litecoders.com/api");
+            }
 
             player = new Player(
                 Id: -1,
@@ -47,25 +76,26 @@ namespace NetFlower.Backend {
             LoadAuthData();
             Debug.Log($"Start: Loaded auth data. Token: {authToken}, PlayerId: {player.Id}");
 
+            ShowLoginScreen();
 
             if (!string.IsNullOrEmpty(authToken)) {
                 Debug.Log("Start: Found saved token, attempting auto-login");
                 ShowMessage("Restoring Session...");
-                HideCanvasGroup(choiceCanvasGroup);
-                //CurrentMode = RequestType.Token;
-                SwitchTo(RequestType.Token);   
-                //Submit(RequestType.Token);
+                // Keep loginCG visible until verify succeeds; only switch inner layout.
+                SwitchTo(RequestType.Token);
                 Submit(RequestType.Token);
             } else {
-                Debug.Log("Start: No saved token, showing choice panel");
-                ShowCanvasGroup(choiceCanvasGroup);
-
-                // Hide other UI panels while choosing
-                HideCanvasGroup(idCanvasGroup);
-                HideCanvasGroup(registerCanvasGroup);
-                HideCanvasGroup(submitCanvasGroup);
+                Debug.Log("Start: No saved token");
                 HideCanvasGroup(logoutCanvasGroup);
+                if (showCredentialFormAtStartup)
+                    SetLoginRegisterMode(RequestType.Password);
+                else {
+                    HideCanvasGroup(idCanvasGroup);
+                    HideCanvasGroup(submitCanvasGroup);
+                }
             }
+
+            RefreshLoginRegisterTabColors();
         }
 
         void Update() {
@@ -76,13 +106,11 @@ namespace NetFlower.Backend {
         }
 
         public void OnChooseLogin() {
-            HideCanvasGroup(choiceCanvasGroup);
-            SwitchToLogin();
+            EnterCredentialsLayout(RequestType.Password);
         }
 
         public void OnChooseRegister() {
-            HideCanvasGroup(choiceCanvasGroup);
-            SwitchToRegister();
+            EnterCredentialsLayout(RequestType.Register);
         }
 
         #region UI Management
@@ -108,6 +136,20 @@ namespace NetFlower.Backend {
                 cg.blocksRaycasts = true;
             }
         }
+
+        void ShowLoginScreen() {
+            if (loginCG != null)
+                ShowCanvasGroup(loginCG);
+            if (loggedInCG != null)
+                HideCanvasGroup(loggedInCG);
+        }
+
+        void ShowLoggedInScreen() {
+            if (loginCG != null)
+                HideCanvasGroup(loginCG);
+            if (loggedInCG != null)
+                ShowCanvasGroup(loggedInCG);
+        }
         public void ShowMessage() {
             CanvasGroup messageCG = loginMessage.GetComponent<CanvasGroup>();
             ShowCanvasGroup(messageCG);
@@ -131,31 +173,90 @@ namespace NetFlower.Backend {
             }
         }
         public void SwitchTo(RequestType mode) {
-            if (mode == RequestType.Password) {
-                CurrentMode = RequestType.Password;
-                ShowCanvasGroup(idCanvasGroup);
-                HideCanvasGroup(registerCanvasGroup);
-                ShowCanvasGroup(submitCanvasGroup);
-                HideCanvasGroup(logoutCanvasGroup);
-            } else if (mode == RequestType.Register) {
-                CurrentMode = RequestType.Register;
-                HideCanvasGroup(idCanvasGroup);
-                ShowCanvasGroup(registerCanvasGroup);
-                ShowCanvasGroup(submitCanvasGroup);
-                HideCanvasGroup(logoutCanvasGroup);
+            if (mode == RequestType.Password || mode == RequestType.Register) {
+                SetLoginRegisterMode(mode);
             } else if (mode == RequestType.Token) {
                 CurrentMode = RequestType.Token;
                 HideCanvasGroup(idCanvasGroup);
-                HideCanvasGroup(registerCanvasGroup);
                 HideCanvasGroup(submitCanvasGroup);
                 ShowCanvasGroup(logoutCanvasGroup);
             }
         }
-        public void SwitchToLogin() {
-            SwitchTo(RequestType.Password);
+
+        static void ApplyLoginRegisterCanvasLayout(RequestType mode, CanvasGroup playerIdRowCg, CanvasGroup submitCg, CanvasGroup logoutCg) {
+            if (mode == RequestType.Password)
+                ShowCanvasGroup(playerIdRowCg);
+            else
+                HideCanvasGroup(playerIdRowCg);
+            ShowCanvasGroup(submitCg);
+            HideCanvasGroup(logoutCg);
         }
+
+        /// <summary>Credential form + tab tint. Does not call <see cref="SwitchTo"/> (avoids recursion with tab refresh).</summary>
+        void SetLoginRegisterMode(RequestType mode) {
+            if (mode != RequestType.Password && mode != RequestType.Register)
+                return;
+            CurrentMode = mode;
+            ApplyLoginRegisterCanvasLayout(mode, idCanvasGroup, submitCanvasGroup, logoutCanvasGroup);
+            RefreshLoginRegisterTabColors();
+        }
+
+        /// <summary>First entry from the choice screen: show credential panels and set mode + tab colors.</summary>
+        void EnterCredentialsLayout(RequestType mode) {
+            ShowLoginScreen();
+            SetLoginRegisterMode(mode);
+        }
+
+        public void SwitchToLogin() {
+            SetLoginRegisterMode(RequestType.Password);
+        }
+
         public void SwitchToRegister() {
-            SwitchTo(RequestType.Register);
+            SetLoginRegisterMode(RequestType.Register);
+        }
+
+        void RefreshLoginRegisterTabColors() {
+            ApplyTabVisual(loginTabObject, CurrentMode == RequestType.Password);
+            ApplyTabVisual(registerTabObject, CurrentMode == RequestType.Register);
+        }
+
+        static Button FindButtonOnTab(GameObject tab) {
+            if (tab == null)
+                return null;
+            return tab.GetComponent<Button>() ?? tab.GetComponentInParent<Button>();
+        }
+
+        void WireTabButton(GameObject tab, UnityEngine.Events.UnityAction handler) {
+            Button btn = FindButtonOnTab(tab);
+            if (btn == null) {
+                if (tab != null)
+                    Debug.LogWarning($"[Login] Tab '{tab.name}' has no Button (self or parent); wire OnClick manually or assign the Button object.");
+                return;
+            }
+            btn.onClick.AddListener(handler);
+        }
+
+        void ApplyTabVisual(GameObject tab, bool selected) {
+            if (tab == null)
+                return;
+            Color c = selected ? tabSelectedColor : tabUnselectedColor;
+            var button = FindButtonOnTab(tab);
+            if (button != null) {
+                ColorBlock cb = button.colors;
+                cb.normalColor = c;
+                cb.highlightedColor = c;
+                cb.selectedColor = c;
+                cb.pressedColor = c;
+                cb.disabledColor = c;
+                button.colors = cb;
+                var g = button.targetGraphic;
+                if (g != null)
+                    g.color = Color.white;
+                return;
+            }
+            var graphic = tab.GetComponent<Graphic>() ?? tab.GetComponentInChildren<Graphic>(true);
+            if (graphic != null)
+                graphic.color = c;
         }
         #endregion
 
@@ -189,6 +290,7 @@ namespace NetFlower.Backend {
                     Debug.LogWarning("No auth token available for verification.");
                     ShowMessage("No session found. Please log in.");
                     SwitchTo(RequestType.Password);
+                    ShowLoginScreen();
                     return;
                 }
                 StartCoroutine(TokenRoutine(authToken));
@@ -208,19 +310,19 @@ namespace NetFlower.Backend {
 
         #region Network Requests
         IEnumerator TokenRoutine(string token) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/verify";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/verify";
             var payload = new TokenVerifyRequest { token = token };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Token);
         }
 
         IEnumerator RegisterRoutine(string password) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/register";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/register";
             var payload = new RegisterRequest { password = password };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Register);
         }
 
         IEnumerator PasswordRoutine(int playerId, string password) {
-            string url = $"{authServerBaseUrl.TrimEnd('/')}/login";
+            string url = $"{httpApiBaseUrl.TrimEnd('/')}/login";
             var payload = new LoginRequest { player_id = playerId, password = password };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Password);
         }
@@ -266,7 +368,7 @@ namespace NetFlower.Backend {
                     }
                 } else {
                     string detail = !string.IsNullOrEmpty(body) ? body : request.error;
-                    Debug.LogError($"Request Failed ({code}): {detail}");
+                    Debug.LogError($"Request Failed ({code}) {url}: {detail}");
                     ShowMessage("An error occurred while communicating with the server. Please try again later.");
 
                     // If you want to reduce EventSystem weirdness after real failures:
@@ -289,35 +391,42 @@ namespace NetFlower.Backend {
                         var registerResponse = JsonUtility.FromJson<RegisterResponse>(jsonResponse);
                         if (registerResponse.status == "success") {
                             player.Id = registerResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
                             authToken = registerResponse.token;
                             SaveAuthData();
                             ShowMessage("Registration successful! You are now logged in.");
                             playerIdInput.SetText(player.Id.ToString());
-                            SwitchTo(RequestType.Password);
+                            SwitchTo(RequestType.Token);
+                            ShowLoggedInScreen();
                         }
                         break;
                     case RequestType.Password:
                         var loginResponse = JsonUtility.FromJson<LoginResponse>(jsonResponse);
                         if (loginResponse.status == "success") {
                             player.Id = loginResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
                             authToken = loginResponse.token;
                             SaveAuthData();
                             ShowMessage("Login successful!");
                             SwitchTo(RequestType.Token);
+                            ShowLoggedInScreen();
                         }
                         break;
                     case RequestType.Token:
                         var tokenResponse = JsonUtility.FromJson<TokenVerifyResponse>(jsonResponse);
                         if (tokenResponse.status == "success" && tokenResponse.valid) {
                             player.Id = tokenResponse.player_id;
+                            player.Name = $"Player #{player.Id}";
                             SaveAuthData();
                             ShowMessage("Session restored. Welcome back!");
                             SwitchTo(RequestType.Token);
+                            ShowLoggedInScreen();
                         } else {
                             // Token was invalid, clear saved data and switch to login.
                             ClearAuthData();
                             ShowMessage("Session expired. Please log in again.");
                             SwitchTo(RequestType.Password);
+                            ShowLoginScreen();
 
                             Debug.LogWarning("Saved auth token was invalid. Please log in again.");
 
@@ -340,7 +449,14 @@ namespace NetFlower.Backend {
             ClearAuthData();
             ShowMessage("Logged out successfully.");
             SwitchTo(RequestType.Password);
+            ShowLoginScreen();
         }
+
+        public void JoinLobby() {
+            // Go to "Lobby" scene
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Lobby");
+        }
+
         void SaveAuthData() {
             if (!string.IsNullOrEmpty(authToken)) PlayerPrefs.SetString("auth_token", authToken);
             if (player.Id > 0) PlayerPrefs.SetInt("player_id", player.Id);
@@ -350,6 +466,7 @@ namespace NetFlower.Backend {
         void ClearAuthData() {
             authToken = null;
             player.Id = -1;
+            player.Name = "Guest";
             PlayerPrefs.DeleteKey("auth_token");
             PlayerPrefs.DeleteKey("player_id");
             PlayerPrefs.Save();

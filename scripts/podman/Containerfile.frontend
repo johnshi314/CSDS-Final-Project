@@ -1,0 +1,14 @@
+# Build from repository root:
+#   podman build -f scripts/podman/Containerfile.frontend -t netflower-frontend:latest .
+FROM docker.io/python:3.12-slim-bookworm
+
+WORKDIR /app
+COPY Server/frontend/ ./
+
+ENV FRONTEND_PORT=3000
+ENV PYTHONUNBUFFERED=1
+ENV LOG_DIR=/app/logs
+
+EXPOSE 3000
+
+CMD ["python", "server.py"]

@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+**/__pycache__
+*.pyc
+*.md
+Assets
+*.unity
+Library
+Logs
+logs
+Temp
+UserSettings
+ProjectSettings
+Packages
+*.csproj
+*.sln
