@@ -83,12 +83,14 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
             self._serve_file(STATIC_DIR / "index.html", "text/html")
+        elif self.path.startswith("/api/"):
+            self._proxy_to_backend("GET")
         else:
             self.send_error(404)
 
     def do_POST(self):
         if self.path.startswith("/api/"):
-            self._proxy_to_backend()
+            self._proxy_to_backend("POST")
         else:
             self.send_error(404)
 
@@ -103,7 +105,7 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
         except FileNotFoundError:
             self.send_error(404)
 
-    def _proxy_to_backend(self):
+    def _proxy_to_backend(self, method: str):
         if AUTH_STRIP_API_PREFIX and self.path.startswith("/api"):
             backend_path = self.path[len("/api"):]  # /api/login → /login (legacy local backend)
             url = AUTH_BACKEND.rstrip("/") + backend_path
@@ -113,11 +115,20 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length) if content_length else b""
 
+        forward_headers = {}
+        for name in ("Content-Type", "Authorization", "Cookie", "Accept"):
+            value = self.headers.get(name)
+            if value:
+                forward_headers[name] = value
+
+        if method == "POST" and "Content-Type" not in forward_headers:
+            forward_headers["Content-Type"] = "application/json"
+
         req = urllib.request.Request(
             url,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
+            data=body if method == "POST" else None,
+            headers=forward_headers,
+            method=method,
         )
 
         try:

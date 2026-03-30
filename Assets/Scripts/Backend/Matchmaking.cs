@@ -21,7 +21,23 @@ namespace NetFlower.Backend {
         [Serializable]
         public class MatchIdResponse {
             public string status;
-            public int match_id;
+            public int matchId;
+        }
+
+        [Serializable]
+        class MatchScopedRequest {
+            public int matchId;
+        }
+
+        [Serializable]
+        class JoinLobbyRequest {
+            public int maxPlayers = 8;
+        }
+
+        [Serializable]
+        class TeamSelectionRequest {
+            public int matchId;
+            public string team;
         }
 
         /// <summary>JsonUtility-friendly snapshot (arrays, not List).</summary>
@@ -121,9 +137,14 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator LeaveLobbyRequest() {
-            string url = $"{EffectiveApiBase()}/leave-lobby?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+            string url = $"{EffectiveApiBase()}/leave-lobby";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new MatchScopedRequest {
+                matchId = _match.dbMatchId,
+            }));
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.SetRequestHeader("Content-Type", "application/json");
                 request.timeout = 5;
                 yield return request.SendWebRequest();
                 if (request.result == UnityWebRequest.Result.Success)
@@ -194,9 +215,15 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator SetPlayerTeam(string color) {
-            string url = $"{EffectiveApiBase()}/set-player-team?match_id={_match.dbMatchId}&team={color}";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+            string url = $"{EffectiveApiBase()}/set-player-team";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new TeamSelectionRequest {
+                matchId = _match.dbMatchId,
+                team = color,
+            }));
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.SetRequestHeader("Content-Type", "application/json");
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -212,9 +239,14 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator SetReady() {
-            string url = $"{EffectiveApiBase()}/set-ready?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+            string url = $"{EffectiveApiBase()}/set-ready";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new MatchScopedRequest {
+                matchId = _match.dbMatchId,
+            }));
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.SetRequestHeader("Content-Type", "application/json");
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -229,9 +261,14 @@ namespace NetFlower.Backend {
         IEnumerator FetchLobbySnapshotOnce() {
             if (_match == null || _match.dbMatchId <= 0)
                 yield break;
-            string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+            string url = $"{EffectiveApiBase()}/get-lobby-updates";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new MatchScopedRequest {
+                matchId = _match.dbMatchId,
+            }));
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.SetRequestHeader("Content-Type", "application/json");
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -246,8 +283,11 @@ namespace NetFlower.Backend {
 
         IEnumerator JoinNewLobby() {
             string url = $"{EffectiveApiBase()}/join-new-lobby";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new JoinLobbyRequest()));
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                request.SetRequestHeader("Content-Type", "application/json");
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = 10;
                 yield return request.SendWebRequest();
@@ -261,7 +301,7 @@ namespace NetFlower.Backend {
                     Debug.LogError("join-new-lobby: bad JSON");
                     yield break;
                 }
-                _match.dbMatchId = response.match_id;
+                _match.dbMatchId = response.matchId;
                 Debug.Log($"[Matchmaking] Joined lobby match_id={_match.dbMatchId}");
                 ConnectLobbyWebSocket();
                 yield return FetchLobbySnapshotOnce();
@@ -272,9 +312,14 @@ namespace NetFlower.Backend {
             var wait = new WaitForSeconds(0.05f);
             try {
                 while (_match != null && _match.dbMatchId > 0 && enabled) {
-                    string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
-                    using (UnityWebRequest request = UnityWebRequest.Get(url)) {
+                    string url = $"{EffectiveApiBase()}/get-lobby-updates";
+                    byte[] bodyRaw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(new MatchScopedRequest {
+                        matchId = _match.dbMatchId,
+                    }));
+                    using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                         request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+                        request.SetRequestHeader("Content-Type", "application/json");
                         request.downloadHandler = new DownloadHandlerBuffer();
                         request.timeout = 10;
                         yield return request.SendWebRequest();
@@ -308,7 +353,7 @@ namespace NetFlower.Backend {
         async Task RunLobbyWebSocketAsync() {
             var token = _lobbyCts.Token;
             var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
-            var uri = new Uri($"{wsBase}/lobby/{_match.dbMatchId}?token={Uri.EscapeDataString(_authToken)}");
+            var uri = new Uri($"{wsBase}/lobby/{_match.dbMatchId}?authToken={Uri.EscapeDataString(_authToken)}");
             try {
                 await _lobbySocket.ConnectAsync(uri, token);
                 Debug.Log($"[Matchmaking] Lobby WebSocket connected {uri}");

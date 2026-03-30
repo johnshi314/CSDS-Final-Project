@@ -6,7 +6,7 @@
 |--------|------------|-------------------------------|
 | Web app | `https://litecoders.com` | Static / frontend |
 | REST API | `https://litecoders.com/api/*` | `http://127.0.0.1:8000/api/*` |
-| Lobby WebSocket | `wss://litecoders.com/ws/lobby/{match_id}?player_id=` | `http://127.0.0.1:8000/ws/lobby/...` |
+| Lobby WebSocket | `wss://litecoders.com/ws/lobby/{match_id}?authToken=` | `http://127.0.0.1:8000/ws/lobby/...` |
 
 Set environment on the **Python** host:
 
@@ -40,16 +40,18 @@ If your WS public URL ever differs from “same host as API + `/ws`”, set **`l
 
 | Path | Purpose |
 |------|---------|
-| `GET /join-new-lobby?player_id=` | Enter or create lobby |
-| `GET /get-lobby-updates?match_id=` | Polling snapshot |
-| `POST /set-player-team?...` | Pick team |
-| `GET /set-ready?...` | Mark ready |
+| `POST /join-new-lobby` | Enter or create lobby (auth identity comes from JWT) |
+| `POST /get-lobby-updates` | Polling snapshot |
+| `POST /set-player-team` | Pick team |
+| `POST /set-ready` | Mark ready |
+
+Full endpoint contract (methods, auth, JSON vs query parameters, and examples): see [Server/API_REFERENCE.md](Server/API_REFERENCE.md).
 
 With **`API_PREFIX=/api`**, Unity calls `https://litecoders.com/api/join-new-lobby`, etc.
 
 ## WebSocket
 
-- Path: `{WS_PREFIX}/lobby/{match_id}?player_id={id}` (default **`/ws/lobby/...`**).
+- Path: `{WS_PREFIX}/lobby/{match_id}?authToken={jwt}` (default **`/ws/lobby/...`**).
 - Messages: JSON snapshot (`everyoneReady`, `redTeamPlayerIds`, `blueTeamPlayerIds`).
 
 ## Run (repo root)

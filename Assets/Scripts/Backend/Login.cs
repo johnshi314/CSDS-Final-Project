@@ -309,9 +309,9 @@ namespace NetFlower.Backend {
         #endregion
 
         #region Network Requests
-        IEnumerator TokenRoutine(string token) {
+        IEnumerator TokenRoutine(string authTokenValue) {
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/verify";
-            var payload = new TokenVerifyRequest { token = token };
+            var payload = new TokenVerifyRequest { authToken = authTokenValue };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Token);
         }
 
@@ -323,7 +323,7 @@ namespace NetFlower.Backend {
 
         IEnumerator PasswordRoutine(int playerId, string password) {
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/login";
-            var payload = new LoginRequest { player_id = playerId, password = password };
+            var payload = new LoginRequest { playerId = playerId, password = password };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Password);
         }
 
@@ -390,9 +390,9 @@ namespace NetFlower.Backend {
                     case RequestType.Register:
                         var registerResponse = JsonUtility.FromJson<RegisterResponse>(jsonResponse);
                         if (registerResponse.status == "success") {
-                            player.Id = registerResponse.player_id;
+                            player.Id = registerResponse.playerId;
                             player.Name = $"Player #{player.Id}";
-                            authToken = registerResponse.token;
+                            authToken = registerResponse.authToken;
                             SaveAuthData();
                             ShowMessage("Registration successful! You are now logged in.");
                             playerIdInput.SetText(player.Id.ToString());
@@ -403,9 +403,9 @@ namespace NetFlower.Backend {
                     case RequestType.Password:
                         var loginResponse = JsonUtility.FromJson<LoginResponse>(jsonResponse);
                         if (loginResponse.status == "success") {
-                            player.Id = loginResponse.player_id;
+                            player.Id = loginResponse.playerId;
                             player.Name = $"Player #{player.Id}";
-                            authToken = loginResponse.token;
+                            authToken = loginResponse.authToken;
                             SaveAuthData();
                             ShowMessage("Login successful!");
                             SwitchTo(RequestType.Token);
@@ -415,7 +415,7 @@ namespace NetFlower.Backend {
                     case RequestType.Token:
                         var tokenResponse = JsonUtility.FromJson<TokenVerifyResponse>(jsonResponse);
                         if (tokenResponse.status == "success" && tokenResponse.valid) {
-                            player.Id = tokenResponse.player_id;
+                            player.Id = tokenResponse.playerId;
                             player.Name = $"Player #{player.Id}";
                             SaveAuthData();
                             ShowMessage("Session restored. Welcome back!");
@@ -484,26 +484,26 @@ namespace NetFlower.Backend {
         [Serializable] class RegisterResponse {
             public string status;
             public string message;
-            public int player_id;
-            public string token;
+            public int playerId;
+            public string authToken;
         }
         [Serializable] class LoginRequest {
-            public int player_id;
+            public int playerId;
             public string password;
         }
         [Serializable] class LoginResponse {
             public string status;
             public string message;
-            public int player_id;
-            public string token;
+            public int playerId;
+            public string authToken;
         }
         [Serializable] class TokenVerifyRequest {
-            public string token;
+            public string authToken;
         }
         [Serializable] class TokenVerifyResponse {
             public string status;
             public bool valid;
-            public int player_id;
+            public int playerId;
         }
     }
 }

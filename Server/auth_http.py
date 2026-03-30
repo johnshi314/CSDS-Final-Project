@@ -16,7 +16,6 @@ from fastapi import (
     Depends,
     FastAPI,
     HTTPException,
-    Query,
     Request,
     Response,
     Security,
@@ -120,12 +119,58 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    player_id: int
+    playerId: int
     password: str
 
 
 class TokenVerifyRequest(BaseModel):
-    token: str
+    authToken: str
+
+
+class MatchScopedRequest(BaseModel):
+    matchId: int = Field(gt=0)
+
+
+class JoinNewLobbyRequest(BaseModel):
+    maxPlayers: int = Field(default=8, ge=2)
+
+
+class SetPlayerTeamRequest(MatchScopedRequest):
+    team: str
+
+
+class PlayerMatchStatsRequest(BaseModel):
+    matchId: int
+    playerId: int | None = None
+    characterId: str
+    teamId: str
+    damageDealt: int
+    damageTaken: int
+    turnsTaken: int
+    won: bool
+    disconnected: bool
+
+
+class MatchupStatsRequest(BaseModel):
+    matchId: int
+    characterAId: str
+    characterBId: str
+    winnerCharacterId: str
+
+
+class AbilityUsageStatsRequest(BaseModel):
+    characterId: str
+    playerId: int | None = None
+    damageDone: int
+    downtime: int
+    abilityName: str
+
+
+class UpdateMatchRequest(BaseModel):
+    matchId: int
+    endTime: str
+    duration: float
+    winnerTeamId: str
 
 def generate_jwt_token(player_id: int) -> str:
     payload = {
@@ -165,8 +210,8 @@ def get_current_player(
 
 
 def _ws_authenticate(websocket: WebSocket) -> int | None:
-    """Extract player_id from a WebSocket's ?token= query param or auth_token cookie."""
-    token = websocket.query_params.get("token")
+    """Extract player_id from a WebSocket's ?authToken= query param or auth_token cookie."""
+    token = websocket.query_params.get("authToken")
     if not token:
         token = websocket.cookies.get("auth_token")
     if not token:
@@ -200,14 +245,14 @@ def register(payload: RegisterRequest, response: Response):
     return {
         "status": "success",
         "message": "Registration successful",
-        "player_id": player_id,
-        "token": token
+        "playerId": player_id,
+        "authToken": token,
     }
 
 
 @api_router.post("/login")
 def login(payload: LoginRequest, request: Request, response: Response):
-    player_id = payload.player_id
+    player_id = payload.playerId
     password = payload.password
 
     if player_id <= 0 or not password:
@@ -239,14 +284,14 @@ def login(payload: LoginRequest, request: Request, response: Response):
     return {
         "status": "success",
         "message": "Login successful",
-        "player_id": player_id,
-        "token": token
+        "playerId": player_id,
+        "authToken": token,
     }
 
 
 @api_router.post("/verify")
 def verify_token(payload: TokenVerifyRequest):
-    token = payload.token
+    token = payload.authToken
     verified = verify_jwt_token(token)
 
     if not verified:
@@ -259,12 +304,12 @@ def verify_token(payload: TokenVerifyRequest):
     return {
         "status": "success",
         "valid": True,
-        "player_id": verified['player_id']
+        "playerId": verified['player_id']
     }
 
 @api_router.post("/submit-playermatchstats")
 def submit_playermatchstats(
-    stat: dict,
+    stat: PlayerMatchStatsRequest,
     authenticated_player_id: int = Depends(get_current_player),
 ):
     """
@@ -272,22 +317,22 @@ def submit_playermatchstats(
     and inserts it into the database
     """
     try:
-        claimed_player_id = stat.get("playerId")
+        claimed_player_id = stat.playerId
         if claimed_player_id is not None and claimed_player_id != authenticated_player_id:
             raise HTTPException(status_code=403, detail="playerId does not match authenticated user")
 
         converted_row = {
             # remove match_player_id for AUTO_INCREMENT
             "match_player_id": None,
-            "match_id": stat["matchId"],
+            "match_id": stat.matchId,
             "player_id": authenticated_player_id,
-            "character_id": stat["characterId"],
-            "team_id": stat["teamId"],
-            "damage_dealt": stat["damageDealt"],
-            "damage_taken": stat["damageTaken"],
-            "turns_taken": stat["turnsTaken"],
-            "won": stat["won"],
-            "disconnected": stat["disconnected"]
+            "character_id": stat.characterId,
+            "team_id": stat.teamId,
+            "damage_dealt": stat.damageDealt,
+            "damage_taken": stat.damageTaken,
+            "turns_taken": stat.turnsTaken,
+            "won": stat.won,
+            "disconnected": stat.disconnected,
         }
         json_string = json.dumps([converted_row])
         queries.insert_match_players(json_string)
@@ -297,13 +342,11 @@ def submit_playermatchstats(
             "message": "Player Match stat inserted successfully"
         }
 
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
    
 @api_router.post("/submit-matchupstats", dependencies=[Depends(get_current_player)])
-async def submit_matchupstats(matchup: dict):
+async def submit_matchupstats(matchup: MatchupStatsRequest):
     """
     Accepts a MatchStats JSON object from Unity and inserts into database.
     """
@@ -311,48 +354,44 @@ async def submit_matchupstats(matchup: dict):
 
         row = {
             "matchup_id": None,
-            "match_id": matchup["matchId"],
-            "character_a_id": matchup["characterAId"],
-            "character_b_id": matchup["characterBId"],
-            "winner_character_id": matchup["winnerCharacterId"]
+            "match_id": matchup.matchId,
+            "character_a_id": matchup.characterAId,
+            "character_b_id": matchup.characterBId,
+            "winner_character_id": matchup.winnerCharacterId,
         }
 
         queries.insert_matchups(json.dumps([row]))
         return {"status": "success", "message": "MatchupStats inserted successfully"}
 
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/submit-abilityusagestats")
 async def submit_abilityusagestats(
-    ability: dict,
+    ability: AbilityUsageStatsRequest,
     authenticated_player_id: int = Depends(get_current_player),
 ):
     """
     Accepts an AbilityUsageStats JSON object from Unity and inserts into database.
     """
     try:
-        claimed_player_id = ability.get("playerId")
+        claimed_player_id = ability.playerId
         if claimed_player_id is not None and claimed_player_id != authenticated_player_id:
             raise HTTPException(status_code=403, detail="playerId does not match authenticated user")
 
         row = {
             "ability_usage_id": None,
-            "character_id": ability["characterId"],
+            "character_id": ability.characterId,
             "player_id": authenticated_player_id,
-            "damage_done": ability["damageDone"],
-            "downtime": ability["downtime"],
-            "ability_name" : ability["abilityName"]
+            "damage_done": ability.damageDone,
+            "downtime": ability.downtime,
+            "ability_name" : ability.abilityName,
         }
 
         queries.insert_ability_usage(json.dumps([row]))
         return {"status": "success", "message": "AbilityStats inserted successfully"}
 
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
     except Exception as e:
         logger.exception("Submit abilitystats failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -378,17 +417,17 @@ def create_match():
         logger.exception("Create match failed")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.api_route("/join-new-lobby", methods=["GET", "POST"])
+@api_router.post("/join-new-lobby")
 async def join_new_lobby_endpoint(
+    payload: JoinNewLobbyRequest,
     player_id: int = Depends(get_current_player),
-    max_players: int = Query(8),
 ):
     """
     Assign the logged-in player to an open lobby match (or create one).
     Requires authentication; player_id is derived from the JWT token.
     """
     try:
-        mid = queries.join_new_lobby(player_id, max_players=max_players)
+        mid = queries.join_new_lobby(player_id, max_players=payload.maxPlayers)
     except Exception as e:
         logger.exception("join_new_lobby")
         raise HTTPException(
@@ -408,71 +447,69 @@ async def join_new_lobby_endpoint(
         await broadcast_lobby_snapshot(mid)
     except Exception:
         logger.exception("broadcast_lobby_snapshot after join (non-fatal)")
-    return {"status": "ok", "match_id": mid}
+    return {"status": "ok", "matchId": mid}
 
 
-@api_router.get("/get-lobby-updates")
+@api_router.post("/get-lobby-updates")
 def get_lobby_updates(
-    match_id: int,
+    payload: MatchScopedRequest,
     player_id: int = Depends(get_current_player),
 ):
     """Polling fallback: current lobby snapshot as JSON (same shape as WebSocket pushes)."""
-    if match_id <= 0:
-        raise HTTPException(status_code=400, detail="Invalid match_id")
-    if not queries.is_player_in_lobby(match_id, player_id):
+    if not queries.is_player_in_lobby(payload.matchId, player_id):
         raise HTTPException(status_code=403, detail="Player is not part of this lobby")
-    return queries.get_lobby_snapshot(match_id)
+    return queries.get_lobby_snapshot(payload.matchId)
 
 
 @api_router.post("/leave-lobby")
 async def leave_lobby_endpoint(
-    match_id: int = Query(...),
+    payload: MatchScopedRequest,
     player_id: int = Depends(get_current_player),
 ):
     """Remove the authenticated player from a lobby. No-op if the match is already in progress."""
-    status = queries.get_lobby_status(match_id)
+    status = queries.get_lobby_status(payload.matchId)
     if status and status != "lobby":
         raise HTTPException(status_code=409, detail=f"Lobby is {status}")
-    removed = queries.remove_lobby_player(match_id, player_id)
+    removed = queries.remove_lobby_player(payload.matchId, player_id)
     if not removed:
         raise HTTPException(status_code=400, detail="Player not in this lobby")
-    logger.info("Player %s left lobby %s (HTTP)", player_id, match_id)
-    if queries.lobby_is_empty(match_id):
-        queries.mark_match_lobby_completed(match_id)
+    logger.info("Player %s left lobby %s (HTTP)", player_id, payload.matchId)
+    if queries.lobby_is_empty(payload.matchId):
+        queries.mark_match_lobby_completed(payload.matchId)
     else:
-        await broadcast_lobby_snapshot(match_id)
-    return {"status": "ok", "match_id": match_id}
+        await broadcast_lobby_snapshot(payload.matchId)
+    return {"status": "ok", "matchId": payload.matchId}
 
 
 @api_router.post("/set-player-team")
 async def set_player_team_endpoint(
-    match_id: int = Query(...),
-    team: str = Query(...),
+    payload: SetPlayerTeamRequest,
     player_id: int = Depends(get_current_player),
 ):
-    result = queries.set_lobby_team(match_id, player_id, team)
+    result = queries.set_lobby_team(payload.matchId, player_id, payload.team)
     if isinstance(result, str):
         raise HTTPException(status_code=409, detail=result)
     if not result:
         raise HTTPException(status_code=400, detail="Invalid team or player not in this lobby")
-    await broadcast_lobby_snapshot(match_id)
-    return {"status": "ok", "match_id": match_id}
+    await broadcast_lobby_snapshot(payload.matchId)
+    return {"status": "ok", "matchId": payload.matchId}
 
 
-@api_router.get("/set-ready")
-async def set_ready_endpoint(match_id: int, player_id: int = Depends(get_current_player)):
-    if match_id <= 0:
-        raise HTTPException(status_code=400, detail="Invalid match_id")
-    result = queries.set_lobby_ready(match_id, player_id, True)
+@api_router.post("/set-ready")
+async def set_ready_endpoint(
+    payload: MatchScopedRequest,
+    player_id: int = Depends(get_current_player),
+):
+    result = queries.set_lobby_ready(payload.matchId, player_id, True)
     if isinstance(result, str):
         raise HTTPException(status_code=409, detail=result)
     if not result:
         raise HTTPException(status_code=400, detail="Player not in this lobby")
-    snap = queries.get_lobby_snapshot(match_id)
+    snap = queries.get_lobby_snapshot(payload.matchId)
     if snap.get("everyoneReady"):
-        queries.mark_match_lobby_in_progress(match_id)
-    await broadcast_lobby_snapshot(match_id)
-    return {"status": "ok", "match_id": match_id}
+        queries.mark_match_lobby_in_progress(payload.matchId)
+    await broadcast_lobby_snapshot(payload.matchId)
+    return {"status": "ok", "matchId": payload.matchId}
 
 
 LOBBY_WS_HEARTBEAT_SEC = 30
@@ -481,7 +518,7 @@ LOBBY_WS_HEARTBEAT_SEC = 30
 async def lobby_websocket(websocket: WebSocket, match_id: int):
     """
     Live lobby updates for all players in the same match_id.
-    Requires a valid JWT via ?token= query param or auth_token cookie.
+    Requires a valid JWT via ?authToken= query param or auth_token cookie.
     First message after connect is the current snapshot; later pushes mirror HTTP mutations.
     Sends a heartbeat ping every LOBBY_WS_HEARTBEAT_SEC so crashed clients are detected quickly.
     """
@@ -528,25 +565,22 @@ async def lobby_websocket(websocket: WebSocket, match_id: int):
 
 
 @api_router.post("/update-match", dependencies=[Depends(get_current_player)])
-def update_match(match: dict):
+def update_match(match: UpdateMatchRequest):
     """
     Updates match stats when the game ends.
     """
     try:
         queries.update_match(
-            match_id=match["matchId"],
-            end_time=match["endTime"],
-            duration=match["duration"],
-            winner_team_id=match["winnerTeamId"]
+            match_id=match.matchId,
+            end_time=match.endTime,
+            duration=match.duration,
+            winner_team_id=match.winnerTeamId,
         )
 
         return {
             "status": "success",
             "message": "Match updated successfully"
         }
-
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
     except Exception as e:
         logger.exception("Update match failed")
