@@ -137,6 +137,9 @@ async def lobby_control_websocket(websocket: WebSocket):
                 continue
 
             action = msg.get("action")
+            if not action:
+                # Some WS clients send an initial empty JSON frame; ignore it.
+                continue
             logger.info(
                 "Lobby-control action peer=%s player=%s match=%s action=%s",
                 _peer(websocket),
@@ -242,3 +245,17 @@ async def lobby_control_websocket(websocket: WebSocket):
         )
         if current_match_id is not None:
             await unregister_lobby_ws(current_match_id, websocket)
+            status = queries.get_lobby_status(current_match_id)
+            if status == "lobby":
+                removed = queries.remove_lobby_player(current_match_id, player_id)
+                if removed:
+                    logger.info(
+                        "Player %s left lobby %s (lobby-control disconnect)",
+                        player_id,
+                        current_match_id,
+                    )
+                    if queries.lobby_is_empty(current_match_id):
+                        queries.mark_match_lobby_completed(current_match_id)
+                        logger.info("Lobby %s is now empty - marked completed", current_match_id)
+                    else:
+                        await broadcast_lobby_snapshot(current_match_id)
