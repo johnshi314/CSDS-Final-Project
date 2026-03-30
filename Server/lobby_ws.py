@@ -18,6 +18,13 @@ router = APIRouter()
 LOBBY_WS_HEARTBEAT_SEC = 30
 
 
+def _peer(websocket: WebSocket) -> str:
+    client = websocket.client
+    if client is None:
+        return "unknown"
+    return f"{client.host}:{client.port}"
+
+
 @router.websocket("/lobby/{match_id}")
 async def lobby_websocket(websocket: WebSocket, match_id: int):
     """
@@ -25,16 +32,25 @@ async def lobby_websocket(websocket: WebSocket, match_id: int):
     Auth via ?authToken=... or auth_token cookie.
     """
     if match_id <= 0:
+        logger.info("Reject lobby ws peer=%s match=%s reason=invalid_match", _peer(websocket), match_id)
         await websocket.close(code=4000)
         return
     player_id = get_player_id_from_websocket(websocket)
     if player_id is None:
+        logger.info("Reject lobby ws peer=%s match=%s reason=unauthenticated", _peer(websocket), match_id)
         await websocket.close(code=4003)
         return
     if not queries.is_player_in_lobby(match_id, player_id):
+        logger.info(
+            "Reject lobby ws peer=%s player=%s match=%s reason=not_in_lobby",
+            _peer(websocket),
+            player_id,
+            match_id,
+        )
         await websocket.close(code=4001)
         return
     await websocket.accept()
+    logger.info("Lobby ws connected peer=%s player=%s match=%s", _peer(websocket), player_id, match_id)
     await register_lobby_ws(match_id, websocket)
     try:
         await websocket.send_text(json.dumps(queries.get_lobby_snapshot(match_id)))
@@ -54,6 +70,7 @@ async def lobby_websocket(websocket: WebSocket, match_id: int):
     except WebSocketDisconnect:
         pass
     finally:
+        logger.info("Lobby ws disconnect peer=%s player=%s match=%s", _peer(websocket), player_id, match_id)
         await unregister_lobby_ws(match_id, websocket)
         status = queries.get_lobby_status(match_id)
         if status == "lobby":
@@ -81,13 +98,22 @@ async def lobby_control_websocket(websocket: WebSocket):
     """
     player_id = get_player_id_from_websocket(websocket)
     if player_id is None:
+        logger.info("Reject lobby-control ws peer=%s reason=unauthenticated", _peer(websocket))
         await websocket.close(code=4003)
         return
 
     current_match_id: int | None = None
     await websocket.accept()
+    logger.info("Lobby-control ws connected peer=%s player=%s", _peer(websocket), player_id)
 
     async def send_error(detail: str):
+        logger.info(
+            "Lobby-control error peer=%s player=%s match=%s detail=%s",
+            _peer(websocket),
+            player_id,
+            current_match_id,
+            detail,
+        )
         await websocket.send_text(json.dumps({"type": "error", "detail": detail}))
 
     async def subscribe(mid: int):
@@ -98,6 +124,7 @@ async def lobby_control_websocket(websocket: WebSocket):
             await unregister_lobby_ws(current_match_id, websocket)
         await register_lobby_ws(mid, websocket)
         current_match_id = mid
+        logger.info("Lobby-control subscribed peer=%s player=%s match=%s", _peer(websocket), player_id, mid)
 
     try:
         await websocket.send_text(json.dumps({"type": "connected", "playerId": player_id}))
@@ -110,6 +137,13 @@ async def lobby_control_websocket(websocket: WebSocket):
                 continue
 
             action = msg.get("action")
+            logger.info(
+                "Lobby-control action peer=%s player=%s match=%s action=%s",
+                _peer(websocket),
+                player_id,
+                current_match_id,
+                action,
+            )
             if action == "joinNewLobby":
                 max_players = int(msg.get("maxPlayers", 8))
                 mid = queries.join_new_lobby(player_id, max_players=max_players)
@@ -200,5 +234,11 @@ async def lobby_control_websocket(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
+        logger.info(
+            "Lobby-control ws disconnect peer=%s player=%s match=%s",
+            _peer(websocket),
+            player_id,
+            current_match_id,
+        )
         if current_match_id is not None:
             await unregister_lobby_ws(current_match_id, websocket)

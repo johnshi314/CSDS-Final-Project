@@ -14,7 +14,9 @@ _lobby_conn_lock = asyncio.Lock()
 
 async def register_lobby_ws(match_id: int, ws: WebSocket) -> None:
     async with _lobby_conn_lock:
-        lobby_connections.setdefault(match_id, []).append(ws)
+        conns = lobby_connections.setdefault(match_id, [])
+        conns.append(ws)
+        logger.info("Lobby runtime register match=%s subscribers=%s", match_id, len(conns))
 
 
 async def unregister_lobby_ws(match_id: int, ws: WebSocket) -> None:
@@ -25,6 +27,13 @@ async def unregister_lobby_ws(match_id: int, ws: WebSocket) -> None:
         lobby_connections[match_id] = [c for c in conns if c is not ws]
         if not lobby_connections[match_id]:
             del lobby_connections[match_id]
+            logger.info("Lobby runtime unregister match=%s subscribers=0", match_id)
+        else:
+            logger.info(
+                "Lobby runtime unregister match=%s subscribers=%s",
+                match_id,
+                len(lobby_connections[match_id]),
+            )
 
 
 async def broadcast_lobby_snapshot(match_id: int) -> None:
@@ -37,6 +46,7 @@ async def broadcast_lobby_snapshot(match_id: int) -> None:
         return
     async with _lobby_conn_lock:
         conns = list(lobby_connections.get(match_id, []))
+    logger.info("Lobby runtime broadcast match=%s subscribers=%s", match_id, len(conns))
     dead: list[WebSocket] = []
     for ws in conns:
         try:
