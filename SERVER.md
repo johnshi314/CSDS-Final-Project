@@ -1,4 +1,4 @@
-# Game server (HTTP + lobby WebSocket)
+# Game server (HTTP + WebSockets)
 
 ## Public layout (nginx on litecoders.com)
 
@@ -6,7 +6,9 @@
 |--------|------------|-------------------------------|
 | Web app | `https://litecoders.com` | Static / frontend |
 | REST API | `https://litecoders.com/api/*` | `http://127.0.0.1:8000/api/*` |
-| Lobby WebSocket | `wss://litecoders.com/ws/lobby/{match_id}?player_id=` | `http://127.0.0.1:8000/ws/lobby/...` |
+| Lobby snapshot WebSocket | `wss://litecoders.com/ws/lobby/{match_id}?authToken=` | `http://127.0.0.1:8000/ws/lobby/...` |
+| Lobby control WebSocket | `wss://litecoders.com/ws/lobby-control?authToken=` | `http://127.0.0.1:8000/ws/lobby-control` |
+| Battle WebSocket | `wss://litecoders.com/ws/battle/{match_id}?authToken=` | `http://127.0.0.1:8000/ws/battle/...` |
 
 Set environment on the **Python** host:
 
@@ -15,7 +17,7 @@ API_PREFIX=/api
 WS_PREFIX=/ws
 ```
 
-Leave **`API_PREFIX` unset** for local dev so routes stay at `http://localhost:8000/join-new-lobby` (no `/api`).
+Leave **`API_PREFIX` unset** for local dev so routes stay at `http://localhost:8000/login` (no `/api`).
 
 **`WS_PREFIX`** defaults to `/ws` if unset; lobby sockets are always `{WS_PREFIX}/lobby/{match_id}`.
 
@@ -32,25 +34,23 @@ If your WS public URL ever differs from “same host as API + `/ws`”, set **`l
 
 ## Architecture (demo scale)
 
-- **One Python process** (`python -m Server`) runs FastAPI on port **8000**: auth, match stats, lobby REST, lobby WebSocket.
+- **One Python process** (`python -m Server`) runs FastAPI on port **8000**: auth, match stats, lobby WebSockets, and battle WebSocket.
 - **MySQL** holds `lobby_players` and `matches.lobby_status`. Apply `Database/migrations/001_lobby.sql` once.
 - **Optional:** `python -m Server.multiplayer_echo` — separate turn demo on port **8765**.
 
 ## REST (relative to `httpApiBaseUrl`)
 
-| Path | Purpose |
-|------|---------|
-| `GET /join-new-lobby?player_id=` | Enter or create lobby |
-| `GET /get-lobby-updates?match_id=` | Polling snapshot |
-| `POST /set-player-team?...` | Pick team |
-| `GET /set-ready?...` | Mark ready |
+Lobby behavior is now WebSocket-only. REST remains for auth and match stats endpoints.
 
-With **`API_PREFIX=/api`**, Unity calls `https://litecoders.com/api/join-new-lobby`, etc.
+Full endpoint contract (methods, auth, JSON examples, and WebSocket actions): see [Server/API_REFERENCE.md](Server/API_REFERENCE.md).
 
 ## WebSocket
 
-- Path: `{WS_PREFIX}/lobby/{match_id}?player_id={id}` (default **`/ws/lobby/...`**).
-- Messages: JSON snapshot (`everyoneReady`, `redTeamPlayerIds`, `blueTeamPlayerIds`).
+- Snapshot feed: `{WS_PREFIX}/lobby/{match_id}?authToken={jwt}` (default **`/ws/lobby/...`**).
+- Lobby control: `{WS_PREFIX}/lobby-control?authToken={jwt}`.
+- JSON actions: `joinNewLobby`, `subscribeLobby`, `setTeam`, `setReady`, `leaveLobby`, `snapshot`.
+- Battle: `{WS_PREFIX}/battle/{match_id}?authToken={jwt}`.
+- Text frames: `you|<playerId>`, `turn|<playerId>`, `said|<playerId>|<msg>`, `epoch|<n>`.
 
 ## Run (repo root)
 

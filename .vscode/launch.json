@@ -17,7 +17,7 @@
             "name": "Auth Server",
             "type": "debugpy",
             "request": "launch",
-            "module": "Server.auth_http",
+            "module": "Server.api",
             "console": "integratedTerminal"
         },
         {

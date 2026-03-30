@@ -225,12 +225,12 @@
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: playerId, password: password })
+        body: JSON.stringify({ playerId: playerId, password: password })
       });
       const data = await res.json();
 
       if (res.ok) {
-        showResult('Login successful! Welcome back, Player #' + data.player_id + '.', false);
+        showResult('Login successful! Welcome back, Player #' + data.playerId + '.', false);
       } else {
         showResult(data.detail || 'Login failed.', true);
       }
@@ -260,7 +260,7 @@
       const data = await res.json();
 
       if (res.ok) {
-        showResult('Registration successful! Your Player ID is #' + data.player_id + '. Remember this ID to log in.', false);
+        showResult('Registration successful! Your Player ID is #' + data.playerId + '. Remember this ID to log in.', false);
       } else {
         showResult(data.detail || 'Registration failed.', true);
       }

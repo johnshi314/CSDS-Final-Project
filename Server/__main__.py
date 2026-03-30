@@ -4,7 +4,7 @@
 # Optional: run turn-based demo WebSocket on port 8765 in a second terminal.
 ##############################################################
 """
-Run the game backend: HTTP (auth, stats, lobby REST) + lobby WebSocket on the same port.
+Run the game backend: HTTP (auth, stats, lobby REST) + modular WebSockets on the same port.
 
     python -m Server
 
@@ -56,7 +56,7 @@ def _run_uvicorn() -> None:
             "Uvicorn auto-reload enabled for Server/ and Database/ (set UVICORN_RELOAD=0 to disable)"
         )
     logger.info(
-        "Starting unified server on http://%s:%s (lobby WS: /ws/lobby/{match_id})",
+        "Starting unified server on http://%s:%s (WS: /ws/lobby/{match_id}, /ws/lobby-control, /ws/battle/{match_id})",
         host,
         port,
     )
@@ -71,7 +71,7 @@ def _run_uvicorn() -> None:
     if reload:
         kwargs["reload"] = True
         kwargs["reload_dirs"] = reload_dirs
-    uvicorn.run("Server.auth_http:app", **kwargs)
+    uvicorn.run("Server.api:app", **kwargs)
 
 
 def _run_supervised() -> None:

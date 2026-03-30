@@ -7,21 +7,30 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using NetFlower;
 
 namespace NetFlower.Backend {
     /// <summary>
-    /// Lobby phase only: join-new-lobby, team / ready HTTP, WebSocket (or poll) for roster updates.
+    /// Lobby phase only: lobby-control WebSocket actions + snapshot updates.
     /// When everyone is ready, commits roster into <see cref="Match"/> for the battle scene.
     /// Put this on your Lobby scene (not necessarily DontDestroyOnLoad).
     /// </summary>
     public class Matchmaking : MonoBehaviour {
         [Serializable]
-        public class MatchIdResponse {
-            public string status;
-            public int match_id;
+        class LobbyControlAction {
+            public string action;
+            public int maxPlayers;
+            public int matchId;
+            public string team;
+        }
+
+        [Serializable]
+        class LobbyControlEvent {
+            public string type;
+            public int playerId;
+            public int matchId;
+            public string detail;
         }
 
         /// <summary>JsonUtility-friendly snapshot (arrays, not List).</summary>
@@ -38,6 +47,9 @@ namespace NetFlower.Backend {
 
         [Tooltip("Lobby WebSocket base (no trailing slash). Empty → derived from HTTP + /ws.")]
         [SerializeField] string lobbyWebSocketBaseUrl = "";
+
+        [Tooltip("Maximum players used when requesting joinNewLobby over WebSocket.")]
+        [SerializeField] int lobbyMaxPlayers = 8;
 
         [Tooltip("Scene to load after the countdown when everyone is ready.")]
         [SerializeField] string battleSceneName = "";
@@ -57,8 +69,7 @@ namespace NetFlower.Backend {
         ClientWebSocket _lobbySocket;
         CancellationTokenSource _lobbyCts;
         readonly ConcurrentQueue<string> _lobbyIncoming = new ConcurrentQueue<string>();
-        bool _lobbyPollStarted;
-        bool _lobbyPollRunning;
+        readonly SemaphoreSlim _lobbySendLock = new SemaphoreSlim(1, 1);
         bool _matchStartRequested;
 
         string EffectiveApiBase() => GameApiEndpoints.EffectiveApiBase(httpApiBaseUrl);
@@ -76,32 +87,21 @@ namespace NetFlower.Backend {
                 return;
             }
 
-            var effective = EffectiveApiBase();
-            Debug.Log($"[Matchmaking] httpApiBaseUrl=\"{httpApiBaseUrl}\" → REST \"{effective}\"");
-            StartCoroutine(JoinNewLobby());
+            var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
+            Debug.Log($"[Matchmaking] Lobby control WebSocket base: \"{wsBase}\"");
+            ConnectLobbyWebSocket();
         }
 
         void Update() {
-            if (_lobbyPollStarted && !_lobbyPollRunning) {
-                _lobbyPollStarted = false;
-                _lobbyPollRunning = true;
-                StartCoroutine(PollLobbyUpdates());
-            }
             DrainLobbyJsonQueue();
         }
 
-        /// <summary>Process snapshots from WebSocket or HTTP (main thread — safe for TMP).</summary>
+        /// <summary>Process messages from WebSocket on the main thread (safe for TMP/UI).</summary>
         void DrainLobbyJsonQueue() {
             while (_lobbyIncoming.TryDequeue(out var json)) {
                 if (string.IsNullOrWhiteSpace(json))
                     continue;
-                try {
-                    var lobbyState = JsonUtility.FromJson<LobbyState>(json);
-                    if (lobbyState != null)
-                        UpdateLobbyGui(lobbyState);
-                } catch (Exception e) {
-                    Debug.LogWarning($"[Matchmaking] Bad lobby JSON: {e.Message}\n{json}");
-                }
+                HandleLobbyMessage(json);
             }
         }
 
@@ -109,28 +109,10 @@ namespace NetFlower.Backend {
             DisconnectLobbyWebSocket();
         }
 
-        /// <summary>
-        /// Explicitly leave the lobby via HTTP. Call this before navigating away from the lobby
-        /// scene (e.g. a "Back" button) when you want an immediate roster update for other players.
-        /// Not needed when the match starts (server keeps roster) or when the WebSocket is
-        /// connected (server auto-removes on disconnect).
-        /// </summary>
+        /// <summary>Leave the current lobby via websocket action.</summary>
         public void LeaveLobby() {
             if (_match != null && _match.dbMatchId > 0 && !_matchStartRequested)
-                StartCoroutine(LeaveLobbyRequest());
-        }
-
-        IEnumerator LeaveLobbyRequest() {
-            string url = $"{EffectiveApiBase()}/leave-lobby?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
-                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                request.timeout = 5;
-                yield return request.SendWebRequest();
-                if (request.result == UnityWebRequest.Result.Success)
-                    Debug.Log("[Matchmaking] Left lobby cleanly.");
-                else
-                    Debug.LogWarning($"[Matchmaking] leave-lobby failed: {request.error}");
-            }
+                _ = SendLobbyActionAsync("leaveLobby");
         }
 
         static string IdsToStr(int[] ids) {
@@ -185,107 +167,16 @@ namespace NetFlower.Backend {
 
         public void PressJoinRedTeam() {
             _match.SetSelectedTeam(Match.TeamSelection.Red);
-            StartCoroutine(SetPlayerTeam("red"));
+            _ = SendLobbyActionAsync("setTeam", team: "red");
         }
 
         public void PressJoinBlueTeam() {
             _match.SetSelectedTeam(Match.TeamSelection.Blue);
-            StartCoroutine(SetPlayerTeam("blue"));
-        }
-
-        IEnumerator SetPlayerTeam(string color) {
-            string url = $"{EffectiveApiBase()}/set-player-team?match_id={_match.dbMatchId}&team={color}";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
-                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.timeout = 10;
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success)
-                    Debug.LogError($"set-player-team failed: {request.error}");
-                else
-                    yield return FetchLobbySnapshotOnce();
-            }
+            _ = SendLobbyActionAsync("setTeam", team: "blue");
         }
 
         public void PressReadyButton() {
-            StartCoroutine(SetReady());
-        }
-
-        IEnumerator SetReady() {
-            string url = $"{EffectiveApiBase()}/set-ready?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
-                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.timeout = 10;
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success)
-                    Debug.LogError($"set-ready failed: {request.error}");
-                else
-                    yield return FetchLobbySnapshotOnce();
-            }
-        }
-
-        /// <summary>Pull current lobby JSON from server (same shape as WebSocket pushes). Updates UI on main thread.</summary>
-        IEnumerator FetchLobbySnapshotOnce() {
-            if (_match == null || _match.dbMatchId <= 0)
-                yield break;
-            string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
-            using (UnityWebRequest request = UnityWebRequest.Get(url)) {
-                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.timeout = 10;
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success)
-                    yield break;
-                var body = request.downloadHandler.text;
-                if (!string.IsNullOrEmpty(body))
-                    _lobbyIncoming.Enqueue(body);
-            }
-            DrainLobbyJsonQueue();
-        }
-
-        IEnumerator JoinNewLobby() {
-            string url = $"{EffectiveApiBase()}/join-new-lobby";
-            using (UnityWebRequest request = UnityWebRequest.PostWwwForm(url, "")) {
-                request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.timeout = 10;
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success) {
-                    var errBody = request.downloadHandler != null ? request.downloadHandler.text : "";
-                    Debug.LogError($"join-new-lobby failed ({request.responseCode}) {url}: {request.error}\n{errBody}");
-                    yield break;
-                }
-                var response = JsonUtility.FromJson<MatchIdResponse>(request.downloadHandler.text);
-                if (response == null) {
-                    Debug.LogError("join-new-lobby: bad JSON");
-                    yield break;
-                }
-                _match.dbMatchId = response.match_id;
-                Debug.Log($"[Matchmaking] Joined lobby match_id={_match.dbMatchId}");
-                ConnectLobbyWebSocket();
-                yield return FetchLobbySnapshotOnce();
-            }
-        }
-
-        IEnumerator PollLobbyUpdates() {
-            var wait = new WaitForSeconds(0.05f);
-            try {
-                while (_match != null && _match.dbMatchId > 0 && enabled) {
-                    string url = $"{EffectiveApiBase()}/get-lobby-updates?match_id={_match.dbMatchId}";
-                    using (UnityWebRequest request = UnityWebRequest.Get(url)) {
-                        request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-                        request.downloadHandler = new DownloadHandlerBuffer();
-                        request.timeout = 10;
-                        yield return request.SendWebRequest();
-                        if (request.result == UnityWebRequest.Result.Success)
-                            _lobbyIncoming.Enqueue(request.downloadHandler.text);
-                    }
-                    yield return wait;
-                }
-            } finally {
-                _lobbyPollRunning = false;
-            }
+            _ = SendLobbyActionAsync("setReady");
         }
 
         void ConnectLobbyWebSocket() {
@@ -308,18 +199,108 @@ namespace NetFlower.Backend {
         async Task RunLobbyWebSocketAsync() {
             var token = _lobbyCts.Token;
             var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
-            var uri = new Uri($"{wsBase}/lobby/{_match.dbMatchId}?token={Uri.EscapeDataString(_authToken)}");
+            var uri = new Uri($"{wsBase}/lobby-control?authToken={Uri.EscapeDataString(_authToken)}");
             try {
                 await _lobbySocket.ConnectAsync(uri, token);
-                Debug.Log($"[Matchmaking] Lobby WebSocket connected {uri}");
+                Debug.Log($"[Matchmaking] Lobby control WebSocket connected {uri}");
+                if (_match != null && _match.dbMatchId > 0)
+                    await SendLobbyActionAsync("subscribeLobby", matchId: _match.dbMatchId);
+                else
+                    await SendLobbyActionAsync("joinNewLobby", maxPlayers: lobbyMaxPlayers);
                 await ReceiveLobbyLoopAsync(token);
             } catch (OperationCanceledException) { }
             catch (Exception e) {
-                Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {e.Message} — falling back to HTTP poll.");
-                _lobbyPollStarted = true;
+                Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {e.Message}");
             } finally {
                 try { _lobbySocket?.Dispose(); } catch { }
                 _lobbySocket = null;
+            }
+        }
+
+        void HandleLobbyMessage(string json) {
+            try {
+                var evt = JsonUtility.FromJson<LobbyControlEvent>(json);
+                if (evt != null && !string.IsNullOrEmpty(evt.type)) {
+                    HandleLobbyControlEvent(evt);
+                    return;
+                }
+
+                var lobbyState = JsonUtility.FromJson<LobbyState>(json);
+                if (lobbyState != null)
+                    UpdateLobbyGui(lobbyState);
+            } catch (Exception e) {
+                Debug.LogWarning($"[Matchmaking] Bad lobby JSON: {e.Message}\\n{json}");
+            }
+        }
+
+        void HandleLobbyControlEvent(LobbyControlEvent evt) {
+            if (evt.type == "connected") {
+                Debug.Log($"[Matchmaking] lobby-control connected as player {evt.playerId}");
+                return;
+            }
+
+            if (evt.type == "joinedLobby") {
+                _match.dbMatchId = evt.matchId;
+                Debug.Log($"[Matchmaking] Joined lobby matchId={evt.matchId}");
+                _ = SendLobbyActionAsync("snapshot");
+                return;
+            }
+
+            if (evt.type == "subscribed") {
+                _match.dbMatchId = evt.matchId;
+                Debug.Log($"[Matchmaking] Subscribed to lobby matchId={evt.matchId}");
+                _ = SendLobbyActionAsync("snapshot");
+                return;
+            }
+
+            if (evt.type == "leftLobby") {
+                Debug.Log($"[Matchmaking] Left lobby matchId={evt.matchId}");
+                if (_match != null && _match.dbMatchId == evt.matchId)
+                    _match.dbMatchId = 0;
+                return;
+            }
+
+            if (evt.type == "error") {
+                Debug.LogWarning($"[Matchmaking] Lobby control error: {evt.detail}");
+                return;
+            }
+        }
+
+        async Task<bool> SendLobbyActionAsync(
+            string action,
+            int matchId = 0,
+            string team = null,
+            int maxPlayers = 0
+        ) {
+            if (_lobbySocket == null || _lobbySocket.State != WebSocketState.Open) {
+                Debug.LogWarning($"[Matchmaking] Cannot send lobby action '{action}' - socket not connected");
+                return false;
+            }
+
+            var payload = new LobbyControlAction {
+                action = action,
+                matchId = matchId,
+                team = team,
+                maxPlayers = maxPlayers,
+            };
+
+            var json = JsonUtility.ToJson(payload);
+            var data = Encoding.UTF8.GetBytes(json);
+
+            await _lobbySendLock.WaitAsync();
+            try {
+                await _lobbySocket.SendAsync(
+                    new ArraySegment<byte>(data),
+                    WebSocketMessageType.Text,
+                    true,
+                    _lobbyCts.Token
+                );
+                return true;
+            } catch (Exception e) {
+                Debug.LogWarning($"[Matchmaking] Failed to send lobby action '{action}': {e.Message}");
+                return false;
+            } finally {
+                _lobbySendLock.Release();
             }
         }
 
