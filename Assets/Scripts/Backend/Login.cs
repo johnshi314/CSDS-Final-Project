@@ -14,9 +14,11 @@ namespace NetFlower.Backend {
         [Tooltip("REST API base, no trailing slash. Production: https://litecoders.com/api\n" +
                  "IMPORTANT: The value on your scene/prefab overrides this script default. If you still see requests to localhost:8000, change this field on the Login object in the Inspector.")]
         [FormerlySerializedAs("authServerBaseUrl")]
-        [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
+        //[SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
+        [SerializeField] string httpApiBaseUrl = "http://localhost:8000/api";
         [SerializeField] UserInput playerIdInput;
         [SerializeField] UserInput passwordInput;
+        [SerializeField] UserInput usernameInput;
         [SerializeField] GameObject loginMessage;
         [Tooltip("Player ID row only. Shown for Login; hidden for Register (password-only).")]
         [SerializeField] CanvasGroup idCanvasGroup;
@@ -184,10 +186,11 @@ namespace NetFlower.Backend {
         }
 
         static void ApplyLoginRegisterCanvasLayout(RequestType mode, CanvasGroup playerIdRowCg, CanvasGroup submitCg, CanvasGroup logoutCg) {
-            if (mode == RequestType.Password)
-                ShowCanvasGroup(playerIdRowCg);
-            else
-                HideCanvasGroup(playerIdRowCg);
+            //if (mode == RequestType.Password)
+            //   ShowCanvasGroup(playerIdRowCg);
+            // else
+            //    HideCanvasGroup(playerIdRowCg);
+            ShowCanvasGroup(playerIdRowCg);
             ShowCanvasGroup(submitCg);
             HideCanvasGroup(logoutCg);
         }
@@ -268,23 +271,27 @@ namespace NetFlower.Backend {
             if (requestInFlight)
                 return;
             if (mode == RequestType.Password) {
-                string playerIdStr = playerIdInput.GetText();
                 string password = passwordInput.GetText();
+                string username = usernameInput.GetText();
 
-                if (!int.TryParse(playerIdStr, out int id) || id <= 0 || password.Length < 8) {
+                if (password.Length < 8) {
                     Debug.LogWarning("Invalid Input.");
                     ShowMessage("Please enter valid player ID and password (8+ characters).");
                     return;
                 }
-                StartCoroutine(PasswordRoutine(id, password));
+                StartCoroutine(PasswordRoutine(password, username));
             } else if (mode == RequestType.Register) {
                 string password = passwordInput.GetText();
+                Debug.Log(password);
+                string username = usernameInput.GetText();
+                Debug.Log(username);
                 if (string.IsNullOrEmpty(password) || password.Length < 8) {
                     Debug.LogWarning("Password too short.");
                     ShowMessage("Password must be at least 8 characters long.");
                     return;
                 }
-                StartCoroutine(RegisterRoutine(password));
+                Debug.Log("about to start register routine");
+                StartCoroutine(RegisterRoutine(password, username));
             } else if (mode == RequestType.Token) {
                 if (string.IsNullOrEmpty(authToken)) {
                     Debug.LogWarning("No auth token available for verification.");
@@ -315,40 +322,56 @@ namespace NetFlower.Backend {
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Token);
         }
 
-        IEnumerator RegisterRoutine(string password) {
+        IEnumerator RegisterRoutine(string password, string username) {
+            Debug.Log("In register routine");
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/register";
-            var payload = new RegisterRequest { password = password };
+            Debug.Log(url);
+            var payload = new RegisterRequest { password = password, username = username };
+            Debug.Log("payload created");
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Register);
         }
 
-        IEnumerator PasswordRoutine(int playerId, string password) {
+        IEnumerator PasswordRoutine(string password, string username) {
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/login";
-            var payload = new LoginRequest { playerId = playerId, password = password };
+            var payload = new LoginRequest { password = password, username = username, playerId = player.Id };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Password);
         }
 
         // Shared helper to prevent code duplication and handle errors safely without freezing the Editor.
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
+            Debug.Log(url);
+            Debug.Log(jsonBody);
+            Debug.Log(requestType);
+            Debug.Log("try1");
             requestInFlight = true;
 
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
+            Debug.Log("try2");
 
             using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+                Debug.Log("try3");
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                Debug.Log("try4");
                 request.downloadHandler = new DownloadHandlerBuffer();
+                Debug.Log("try5");
                 request.SetRequestHeader("Content-Type", "application/json");
+                Debug.Log("try6");
                 request.SetRequestHeader("Accept", "application/json");
+                Debug.Log("try7");
 
                 // Prevent infinite hang if something goes wrong at network level.
                 request.timeout = 10;
 
                 yield return request.SendWebRequest();
+                Debug.Log("try8");
 
                 long code = request.responseCode;
                 string body = request.downloadHandler != null ? request.downloadHandler.text : null;
 
                 if (request.result == UnityWebRequest.Result.Success) {
+                    Debug.Log("try10");
                     HandleSuccess(body, requestType);
+                    Debug.Log("try9");
                 }
                 else if (request.result == UnityWebRequest.Result.ProtocolError && code == 401) {
                     // IMPORTANT: 401 is an expected auth failure, not a "hard" engine error.
@@ -385,6 +408,8 @@ namespace NetFlower.Backend {
         }
 
         void HandleSuccess(string jsonResponse, RequestType requestType) {
+            Debug.Log("json response");
+            Debug.Log(requestType);
             try {
                 switch (requestType) {
                     case RequestType.Register:
@@ -395,7 +420,8 @@ namespace NetFlower.Backend {
                             authToken = registerResponse.authToken;
                             SaveAuthData();
                             ShowMessage("Registration successful! You are now logged in.");
-                            playerIdInput.SetText(player.Id.ToString());
+                            Debug.Log(jsonResponse);
+                            //playerIdInput.SetText(player.Id.ToString());
                             SwitchTo(RequestType.Token);
                             ShowLoggedInScreen();
                         }
@@ -480,6 +506,7 @@ namespace NetFlower.Backend {
 
         [Serializable] class RegisterRequest {
             public string password;
+            public string username;
         }
         [Serializable] class RegisterResponse {
             public string status;
@@ -488,8 +515,9 @@ namespace NetFlower.Backend {
             public string authToken;
         }
         [Serializable] class LoginRequest {
-            public int playerId;
             public string password;
+            public string username;
+            public int playerId;
         }
         [Serializable] class LoginResponse {
             public string status;
