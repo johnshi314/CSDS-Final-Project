@@ -107,6 +107,7 @@ DROP TABLE IF EXISTS `players`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `players` (
   `player_id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
   `hashedpw` varchar(255) NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `elo` int DEFAULT '1000',
