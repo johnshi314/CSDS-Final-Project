@@ -63,7 +63,9 @@ ALTER TABLE matches
   ADD COLUMN lobby_status VARCHAR(32) NOT NULL DEFAULT 'lobby'
   COMMENT 'lobby | in_progress | completed';
 
-CREATE TABLE IF NOT EXISTS lobby_players (
+
+DROP TABLE IF EXISTS `lobby_players`;
+CREATE TABLE `lobby_players` (
   match_id INT NOT NULL,
   player_id INT NOT NULL,
   team VARCHAR(16) NULL COMMENT 'red | blue',
