@@ -1,4 +1,33 @@
+-- Drop child / dependent tables first, then parents (foreign keys).
 DROP TABLE IF EXISTS `ability_usage_stats`;
+DROP TABLE IF EXISTS `matchup_stats`;
+DROP TABLE IF EXISTS `player_match_stats`;
+DROP TABLE IF EXISTS `lobby_players`;
+DROP TABLE IF EXISTS `matches`;
+DROP TABLE IF EXISTS `players`;
+
+-- Create parents first, then tables that reference them.
+CREATE TABLE `players` (
+  `player_id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `hashedpw` varchar(255) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `elo` int DEFAULT '1000',
+  PRIMARY KEY (`player_id`)
+);
+
+CREATE TABLE `matches` (
+  `match_id` int NOT NULL AUTO_INCREMENT,
+  `start_time` datetime DEFAULT NULL,
+  `end_time` datetime DEFAULT NULL,
+  `duration` float DEFAULT NULL,
+  `queue_time` float DEFAULT NULL,
+  `winner_team_id` varchar(50) DEFAULT NULL,
+  `lobby_status` VARCHAR(32) NOT NULL DEFAULT 'lobby'
+    COMMENT 'lobby | in_progress | completed',
+  PRIMARY KEY (`match_id`)
+);
+
 CREATE TABLE `ability_usage_stats` (
   `ability_usage_id` int NOT NULL AUTO_INCREMENT,
   `character_id` varchar(255) NOT NULL,
@@ -10,17 +39,7 @@ CREATE TABLE `ability_usage_stats` (
   KEY `fk_ability_usage_player` (`player_id`),
   CONSTRAINT `fk_ability_usage_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`player_id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
-DROP TABLE IF EXISTS `matches`;
-CREATE TABLE `matches` (
-  `match_id` int NOT NULL AUTO_INCREMENT,
-  `start_time` datetime DEFAULT NULL,
-  `end_time` datetime DEFAULT NULL,
-  `duration` float DEFAULT NULL,
-  `queue_time` float DEFAULT NULL,
-  `winner_team_id` varchar(50) DEFAULT NULL,
-  PRIMARY KEY (`match_id`)
-);
-DROP TABLE IF EXISTS `matchup_stats`;
+
 CREATE TABLE `matchup_stats` (
   `matchup_id` int NOT NULL AUTO_INCREMENT,
   `match_id` int NOT NULL,
@@ -31,7 +50,7 @@ CREATE TABLE `matchup_stats` (
   KEY `match_id` (`match_id`),
   CONSTRAINT `matchup_stats_ibfk_1` FOREIGN KEY (`match_id`) REFERENCES `matches` (`match_id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
-DROP TABLE IF EXISTS `player_match_stats`;
+
 CREATE TABLE `player_match_stats` (
   `match_player_id` int NOT NULL AUTO_INCREMENT,
   `match_id` int NOT NULL,
@@ -49,31 +68,15 @@ CREATE TABLE `player_match_stats` (
   CONSTRAINT `player_match_stats_ibfk_1` FOREIGN KEY (`match_id`) REFERENCES `matches` (`match_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `player_match_stats_ibfk_2` FOREIGN KEY (`player_id`) REFERENCES `players` (`player_id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
-DROP TABLE IF EXISTS `players`;
-CREATE TABLE `players` (
-  `player_id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL,
-  `hashedpw` varchar(255) NOT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  `elo` int DEFAULT '1000',
-  PRIMARY KEY (`player_id`)
-);
 
-ALTER TABLE matches
-  ADD COLUMN lobby_status VARCHAR(32) NOT NULL DEFAULT 'lobby'
-  COMMENT 'lobby | in_progress | completed';
-
-
-DROP TABLE IF EXISTS `lobby_players`;
 CREATE TABLE `lobby_players` (
-  match_id INT NOT NULL,
-  player_id INT NOT NULL,
-  team VARCHAR(16) NULL COMMENT 'red | blue',
-  ready TINYINT(1) NOT NULL DEFAULT 0,
-  joined_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (match_id, player_id),
-  KEY idx_lobby_match (match_id),
-  CONSTRAINT fk_lobby_match FOREIGN KEY (match_id) REFERENCES matches (match_id)
+  `match_id` INT NOT NULL,
+  `player_id` INT NOT NULL,
+  `team` VARCHAR(16) NULL COMMENT 'red | blue',
+  `ready` TINYINT(1) NOT NULL DEFAULT 0,
+  `joined_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`match_id`, `player_id`),
+  KEY `idx_lobby_match` (`match_id`),
+  CONSTRAINT `fk_lobby_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`match_id`)
     ON DELETE CASCADE
 );
-
