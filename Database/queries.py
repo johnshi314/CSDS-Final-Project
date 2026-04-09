@@ -80,7 +80,7 @@ def get_player_by_username(player_username):
         with engine.connect() as connection:
             result = connection.execute(text(
                 "SELECT player_id, created_at, hashedpw FROM players WHERE username = :player_username"
-            ), {"username": player_username})
+            ), {"player_username": player_username})
             row = result.mappings().first()
             return dict(row) if row else None
     except Exception as e:
