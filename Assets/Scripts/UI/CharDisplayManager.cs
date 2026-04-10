@@ -3,6 +3,8 @@ using UnityEngine.UI;
 //using UnityEngine.UIElements;
 using TMPro;
 using System.Collections;
+using UnityEngine.SceneManagement;
+using System.Security.Cryptography.X509Certificates;
 
 /*
 Sara Wang
@@ -108,6 +110,16 @@ public class CharDisplayManager : MonoBehaviour
 
                 
             }
+        }
+    }
+    public void OnReady() {
+
+        PersistentPlayerPreferences.instance.characterName = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>().internal_name;
+        PersistentPlayerPreferences.instance.characterId = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>().char_id;
+        if (PersistentPlayerPreferences.instance.isPlayingOnline) {
+            SceneManager.LoadScene("Lobby");
+        } else {
+            SceneManager.LoadScene("GameplayTest");
         }
     }
 }

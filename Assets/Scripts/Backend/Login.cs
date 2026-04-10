@@ -452,15 +452,17 @@ namespace NetFlower.Backend {
             ShowLoginScreen();
         }
 
-        public void JoinLobby() {
+        public void SelectCharacter() {
             // Go to "Lobby" scene
-            UnityEngine.SceneManagement.SceneManager.LoadScene("Lobby");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("CharacterSelect_1");
         }
 
         void SaveAuthData() {
             if (!string.IsNullOrEmpty(authToken)) PlayerPrefs.SetString("auth_token", authToken);
             if (player.Id > 0) PlayerPrefs.SetInt("player_id", player.Id);
             PlayerPrefs.Save();
+            // Left existing PlayerPrefs code, now also communicates with PersistentPlayerPreferences
+            PersistentPlayerPreferences.instance.player = player;
         }
 
         void ClearAuthData() {
@@ -470,11 +472,23 @@ namespace NetFlower.Backend {
             PlayerPrefs.DeleteKey("auth_token");
             PlayerPrefs.DeleteKey("player_id");
             PlayerPrefs.Save();
+            // Left existing PlayerPrefs code, now also communicates with PersistentPlayerPreferences
+            PersistentPlayerPreferences.instance.player = null;
         }
 
         void LoadAuthData() {
             authToken = PlayerPrefs.GetString("auth_token", string.Empty);
             player.Id = PlayerPrefs.GetInt("player_id", -1);
+            // uncomment this code to use PersistentPlayerPreferences instead of PlayerPrefs
+            /*
+            if (PersistentPlayerPreferences.instance.player != null) {
+                player = PersistentPlayerPreferences.instance.player
+            } else {
+                authToken = string.Empty;
+                player.Id = -1;
+            }
+            */
+            
         }
         #endregion
 

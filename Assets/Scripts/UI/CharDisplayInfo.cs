@@ -15,8 +15,10 @@ public class CharDisplayInfo : MonoBehaviour
 {
     //character Info
     public string char_name;
+    public string internal_name;
     [TextArea(6,15)]
     public string char_desc;
+    public int char_id;
     public Image char_icon;
     public Color colors; //placeholder for character image and ability icons
     
