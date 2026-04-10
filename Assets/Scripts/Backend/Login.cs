@@ -473,6 +473,7 @@ namespace NetFlower.Backend {
             PlayerPrefs.DeleteKey("player_id");
             PlayerPrefs.Save();
             // Left existing PlayerPrefs code, now also communicates with PersistentPlayerPreferences
+            PersistentPlayerPreferences.instance.authToken = authToken;
             PersistentPlayerPreferences.instance.player = null;
         }
 
@@ -482,7 +483,8 @@ namespace NetFlower.Backend {
             // uncomment this code to use PersistentPlayerPreferences instead of PlayerPrefs
             /*
             if (PersistentPlayerPreferences.instance.player != null) {
-                player = PersistentPlayerPreferences.instance.player
+                authToken = PersistentPlayerPreferences.instance.authToken;
+                player = PersistentPlayerPreferences.instance.player;
             } else {
                 authToken = string.Empty;
                 player.Id = -1;
