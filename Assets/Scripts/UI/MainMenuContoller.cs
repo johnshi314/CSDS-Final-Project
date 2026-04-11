@@ -5,9 +5,11 @@ public class MainMenuController : MonoBehaviour {
     [Header("Panels")]
     [SerializeField] private GameObject mainButtonsPanel;
     [SerializeField] private GameObject howToPlayPanel;
+    [SerializeField] private GameObject playButtonsPanel;
 
     [Header("Scene Settings")]
-    [SerializeField] private string gameplaySceneName; 
+    [SerializeField] private string gameplaySceneName;
+    [SerializeField] private string loginSceneName;
 
     void Start() {
         // Ensure correct default state
@@ -20,7 +22,20 @@ public class MainMenuController : MonoBehaviour {
     // -------------------------
 
     public void OnPlayPressed() {
+        mainButtonsPanel.SetActive(false);
+        playButtonsPanel.SetActive(true);
+    }
+
+    public void OnPlayOfflinePressed() {
+        PersistentPlayerPreferences.instance.isPlayingOnline = false;
         SceneManager.LoadScene(gameplaySceneName);
+        
+    }
+    
+    public void OnPlayOnlinePressed() {
+        PersistentPlayerPreferences.instance.isPlayingOnline = true;
+        SceneManager.LoadScene(loginSceneName);
+        
     }
 
     public void OnHowToPlayPressed() {
@@ -29,6 +44,7 @@ public class MainMenuController : MonoBehaviour {
     }
 
     public void OnBackPressed() {
+        playButtonsPanel.SetActive(false);
         howToPlayPanel.SetActive(false);
         mainButtonsPanel.SetActive(true);
     }

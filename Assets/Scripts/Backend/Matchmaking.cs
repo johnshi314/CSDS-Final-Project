@@ -82,6 +82,7 @@ namespace NetFlower.Backend {
             }
 
             _authToken = PlayerPrefs.GetString("auth_token", "");
+            // _authToken = PersistentPlayerPreferences.instance.authToken;
             if (string.IsNullOrEmpty(_authToken)) {
                 Debug.LogError("[Matchmaking] No auth token found. Player must log in before entering the lobby.");
                 return;

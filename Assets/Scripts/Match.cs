@@ -43,6 +43,7 @@ namespace NetFlower {
 
         void Start() {
             authToken = PlayerPrefs.GetString("auth_token", "");
+            // authToken = PersistentPlayerPreferences.instance.authToken;
             if (string.IsNullOrEmpty(authToken))
                 Debug.LogWarning("[Match] No auth token found. Stats submissions will fail until player logs in.");
             var effective = EffectiveApiBase();
