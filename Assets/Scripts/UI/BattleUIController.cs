@@ -240,15 +240,35 @@ namespace NetFlower {
                     }
 
                     TMP_Text label = buttonObj.GetComponentInChildren<TMP_Text>();
-                    if (label != null)
-                        label.text = abilities[i].DisplayName;
+                    if (label != null) {
+                        var ability = abilities[i];
+
+                        string cooldownText = "";
+                        if (!battleManager.CurrentAgent.CanUseAbility(ability)) {
+                            cooldownText = " (Cooldown)";
+                        }
+
+                        label.text =
+                            $"{ability.DisplayName}{cooldownText}\n" +
+                            $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}";
+                    }
                 }
             } else {
                 for (int i = 0; i < abilities.Count; i++) {
                     if (i < spawnedAbilityButtons.Count) {
                         TMP_Text label = spawnedAbilityButtons[i].GetComponentInChildren<TMP_Text>();
-                        if (label != null)
-                            label.text = abilities[i].DisplayName;
+                        if (label != null) {
+                            var ability = abilities[i];
+
+                            string cooldownText = "";
+                            if (!battleManager.CurrentAgent.CanUseAbility(ability)) {
+                                cooldownText = " (Cooldown)";
+                            }
+
+                            label.text =
+                                $"{ability.DisplayName}{cooldownText}\n" +
+                                $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}";
+                        }
                     }
                 }
             }
