@@ -308,6 +308,97 @@ namespace NetFlower {
             }
             return tiles;
         }
+
+        /// <summary>
+        /// Generates a human-readable description of all effects this ability applies.
+        /// </summary>
+        /// <returns>A formatted string describing all target and caster effects.</returns>
+        public string GetEffectDescriptions() {
+            List<string> descriptions = new List<string>();
+
+            // Add target effect descriptions
+            if (TargetEffects != null && TargetEffects.Count > 0) {
+                foreach (var effect in TargetEffects) {
+                    descriptions.Add(GetEffectDescription(effect, isTarget: true));
+                }
+            }
+
+            // Add caster effect descriptions
+            if (CasterEffects != null && CasterEffects.Count > 0) {
+                foreach (var effect in CasterEffects) {
+                    descriptions.Add(GetEffectDescription(effect, isTarget: false));
+                }
+            }
+
+            return descriptions.Count > 0 ? string.Join("\n", descriptions) : "No effects";
+        }
+
+        /// <summary>
+        /// Generates a description for a single ability effect.
+        /// </summary>
+        private static string GetEffectDescription(AbilityEffect effect, bool isTarget) {
+            if (effect == null) return "";
+
+            string appliedTo = isTarget ? "Target" : "Self";
+            
+            switch (effect.EffectType) {
+                case AbilityEffectType.Damage:
+                    return $"{appliedTo}: Deals {effect.Amount} damage ({effect.DurationDescription})";
+                
+                case AbilityEffectType.Heal:
+                    return $"{appliedTo}: Heals {effect.Amount} HP ({effect.DurationDescription})";
+                
+                case AbilityEffectType.Status:
+                    return $"{appliedTo}: {GetStatusEffectName(effect.StatusEffect)} ({effect.DurationDescription})";
+                
+                case AbilityEffectType.Terrain:
+                    return $"Tile: {GetTerrainEffectName(effect.TerrainEffect)} ({effect.DurationDescription})";
+                
+                default:
+                    return "";
+            }
+        }
+
+        /// <summary>
+        /// Gets the human-readable name for a status effect.
+        /// </summary>
+        private static string GetStatusEffectName(StatusEffect effect) {
+            return effect switch {
+                StatusEffect.WillUp => "Will Up",
+                StatusEffect.MomentumUp => "Momentum Up",
+                StatusEffect.PowerUp => "Power Up",
+                StatusEffect.PoisonUp => "Poison Up",
+                StatusEffect.RegenUp => "Regen Up",
+                StatusEffect.ShieldUp => "Shield Up",
+                StatusEffect.MovementUp => "Movement Up",
+                StatusEffect.ExplosionUp => "Explosion Up",
+                StatusEffect.WillDown => "Will Down",
+                StatusEffect.MomentumDown => "Momentum Down",
+                StatusEffect.PowerDown => "Power Down",
+                StatusEffect.PoisonDown => "Poison Down",
+                StatusEffect.RegenDown => "Regen Down",
+                StatusEffect.ShieldDown => "Shield Down",
+                StatusEffect.MovementDown => "Movement Down",
+                StatusEffect.ExplosionDown => "Explosion Down",
+                _ => "Unknown Status"
+            };
+        }
+
+        /// <summary>
+        /// Gets the human-readable name for a terrain effect.
+        /// </summary>
+        private static string GetTerrainEffectName(TerrainEffect effect) {
+            return effect switch {
+                TerrainEffect.Unwalkable => "Becomes Unwalkable",
+                TerrainEffect.DifficultUp => "Difficult Terrain",
+                TerrainEffect.DamagingUp => "Damaging Tile",
+                TerrainEffect.HealingUp => "Healing Tile",
+                TerrainEffect.DifficultDown => "Easy Terrain",
+                TerrainEffect.DamagingDown => "Nullify Damage",
+                TerrainEffect.HealingDown => "Nullify Healing",
+                _ => "Unknown Terrain"
+            };
+        }
     }
 
     /// <summary>
