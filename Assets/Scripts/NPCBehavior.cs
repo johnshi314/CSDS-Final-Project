@@ -25,6 +25,7 @@ namespace NetFlower {
         private Agent agent;
         private float actionTimer = 0f;
         private bool hasActedThisTurn = false;
+        private bool hasUsedAbilityThisTurn = false;
         private GridMap gridMap;
 
         private void Start() {
@@ -45,6 +46,7 @@ namespace NetFlower {
         /// </summary>
         public void OnTurnStart() {
             hasActedThisTurn = false;
+            hasUsedAbilityThisTurn = false;
             actionTimer = decisionDelaySeconds; // Small delay before first decision
         }
 
@@ -113,6 +115,11 @@ namespace NetFlower {
         /// Returns true if an ability was used.
         /// </summary>
         private bool TryUseAbilityOnEnemy(GridMap gridMap, BattleManager battleManager, Map map, Tile currentTile) {
+
+            if (hasUsedAbilityThisTurn){
+                return false; 
+            }
+    
             List<Ability> abilities = agent.GetAbilities();
 
             // Filter for abilities that are available (not on cooldown)
@@ -153,6 +160,7 @@ namespace NetFlower {
                     };
 
                     agent.UseAbility(context);
+                    hasUsedAbilityThisTurn = true;
                     Debug.Log($"NPCBehavior: {agent.Name} used {ability.DisplayName} on tile {targetTile.Position}");
                     return true;
                 }
