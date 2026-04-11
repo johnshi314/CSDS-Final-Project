@@ -11,6 +11,7 @@
  **********************************************************************/
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using NetFlower.UI;
 
@@ -358,6 +359,12 @@ namespace NetFlower {
             foreach (var agent in turnOrder) {
                 agent.TickEffects(currentTurn);
             }
+
+            // Remove destroyed agents from turn order
+            turnOrder.RemoveAll(agent => agent == null || !agent.gameObject.activeInHierarchy);
+            
+            // Check if one team has been completely wiped out
+            CheckForVictoryCondition();
             
             if (CurrentAgent != null) {
                 CurrentAgent.OnTurnStart(currentTurn);
@@ -393,6 +400,74 @@ namespace NetFlower {
             
             BeginTurn();
             // Do not stop timer here; BeginTurn restarts it for the next player
+        }
+
+        /// <summary>
+        /// Counts the number of Red team agents still alive in the turn order.
+        /// </summary>
+        private int CountRedAgents() {
+            int redCount = 0;
+            if (gridMap == null || gridMap.RedAgents == null) return 0;
+            
+            foreach (var agent in gridMap.RedAgents) {
+                // Check if agent exists and is active (not destroyed)
+                if (agent != null && agent.gameObject != null && agent.gameObject.activeInHierarchy && agent.HP > 0) {
+                    redCount++;
+                }
+            }
+            return redCount;
+        }
+
+        /// <summary>
+        /// Counts the number of Blue team agents still alive in the turn order.
+        /// </summary>
+        private int CountBlueAgents() {
+            int blueCount = 0;
+            if (gridMap == null || gridMap.BlueAgents == null) return 0;
+            
+            foreach (var agent in gridMap.BlueAgents) {
+                // Check if agent exists and is active (not destroyed)
+                if (agent != null && agent.gameObject != null && agent.gameObject.activeInHierarchy && agent.HP > 0) {
+                    blueCount++;
+                }
+            }
+            return blueCount;
+        }
+
+        /// <summary>
+        /// Checks if one team has been completely wiped out. If so, loads the victory scene.
+        /// </summary>
+        private void CheckForVictoryCondition() {
+            int redAgents = CountRedAgents();
+            int blueAgents = CountBlueAgents();
+
+            if (redAgents == 0 && blueAgents > 0) {
+                // Blue team wins
+                Debug.Log("[BattleManager] Red team has been completely wiped out! Blue team wins!");
+                LoadVictoryScene(TeamColor.Blue);
+            } else if (blueAgents == 0 && redAgents > 0) {
+                // Red team wins
+                Debug.Log("[BattleManager] Blue team has been completely wiped out! Red team wins!");
+                LoadVictoryScene(TeamColor.Red);
+            }
+        }
+
+        /// <summary>
+        /// Loads the victory scene with the winning team information.
+        /// </summary>
+        private void LoadVictoryScene(TeamColor winner) {
+            // Store the winning team in PlayerPrefs so the victory scene can access it
+            PlayerPrefs.SetString("WinningTeam", winner.ToString());
+            PlayerPrefs.Save();
+
+            // Update match stats with the winner
+            if (match != null) {
+                string winnerTeamId = winner == TeamColor.Red ? "Red" : "Blue";
+                match.EndMatch(winnerTeamId);
+            }
+
+            // Load the victory scene
+            SceneManager.LoadScene("VictoryScene");
         }
 
         // ------------------------------------------------------------------ //

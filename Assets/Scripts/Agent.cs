@@ -214,6 +214,12 @@ namespace NetFlower {
             if (playerMatchStats != null) {
                 playerMatchStats.damageTaken += damage;
             }
+
+            // Destroy this agent when health reaches 0
+            if (this.hp <= 0) {
+                Debug.Log($"[Agent] {this.Name} has been defeated!");
+                Destroy(this.gameObject);
+            }
         }
 
         /// <summary>
