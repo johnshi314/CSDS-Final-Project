@@ -11,7 +11,7 @@ Stores information about each character such as states and images for any UI dis
 
 */
 
-public class CharDisplayInfo : MonoBehaviour
+public class CharDisplayInfo : MonoBehaviour 
 {
     //character Info
     public string char_name;
