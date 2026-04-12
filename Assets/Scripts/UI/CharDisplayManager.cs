@@ -41,12 +41,6 @@ public class CharDisplayManager : MonoBehaviour
 
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
 
     //functions for next and prev buttons
     public void NextChar()//displays the next character in the list. Loops at end
@@ -112,6 +106,58 @@ public class CharDisplayManager : MonoBehaviour
             }
         }
     }
+
+    public void UpdateCharDisplay(int selection)
+    {   
+        chardisplay[selectedIndex].SetActive(false);//disables prev char displayed
+        selectedIndex = selection;
+
+        //Error Trapping to loop round if there is an invalid index input
+        if (selectedIndex < 0)
+        {
+            selectedIndex += chardisplay.Length;
+        }
+        else if (selectedIndex>=chardisplay.Length)
+        {
+            selectedIndex = (selectedIndex+1)%chardisplay.Length;
+        }
+        
+        chardisplay[selectedIndex].SetActive(true);//enables new character image in carosel
+        CharDisplayInfo charinfo = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>();
+        if (charinfo != null)
+        {
+            name.text = charinfo.char_name;
+            charDesc.text = charinfo.char_desc;
+            movement.text = "Movement: " + charinfo.movement;
+            int index = 0;
+            foreach(GameObject ability in abilitylist)
+            {
+                TMP_Text text = ability.transform.Find("Ability Text").GetComponent<TMP_Text>();
+                if(text != null & index<abilitylist.Length)
+                {
+                    if (index<charinfo.ability_desc.Length)
+                    {
+                        text.text= charinfo.ability_desc[index];
+                        ability.SetActive(true);
+                    }
+                    else
+                    {   
+                        ability.SetActive(false);
+                    }
+                    
+                }
+                
+                Image icon = ability.transform.Find("Image").GetComponent<Image>();
+                icon.color = charinfo.colors;//placeholder for image replacement
+                index++;
+
+                
+            }
+        }
+    }
+
+
+
     public void OnReady() {
 
         PersistentPlayerPreferences.instance.characterName = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>().internal_name;
