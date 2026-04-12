@@ -55,5 +55,11 @@ namespace NetFlower.UI {
                 }
             }
         }
+
+        // Let player go back to main menu after win screen
+        public void OnBackToMenuPressed() {
+            SceneManager.LoadScene("MainMenu");
+        }
+
     }
 }
