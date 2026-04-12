@@ -26,7 +26,12 @@ public class CharDisplayManager : MonoBehaviour
     public TMP_Text movement;
     [SerializeField]
     
-    public GameObject[] abilitylist;//List of objects for displaying information of abilities
+    private GameObject[] abilitylist;//List of objects for displaying information of abilities
+
+
+    //Grid group
+    [SerializeField]
+    private GameObject grid;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -36,10 +41,36 @@ public class CharDisplayManager : MonoBehaviour
             chardisplay[selectedIndex].SetActive(true);//enables the first char in array 
         }
        
-
         UpdateCharDisplay();
 
+
+        //update grid objects with corresponding information
+        int childCount = grid.transform.childCount;
+        for(int i = 0; i < childCount; i++)
+        {
+            
+                Transform charIcon = grid.transform.GetChild(i);
+                Transform charIconIcon = charIcon.transform.GetChild(0);
+                Transform charIconText = charIcon.transform.GetChild(1);
+                //Debug.Log(charIcon.name);
+                //Debug.Log(charIconText.name);
+                Image iconImage = charIconIcon.GetComponent<Image>();
+                TMP_Text iconName = charIconText.GetComponent<TMP_Text>();
+
+                CharDisplayInfo charinfo = chardisplay[i].GetComponent<CharDisplayInfo>();
+
+                if (charinfo != null && iconName!= null)
+                {
+                    iconImage.color = charinfo.colors;
+                    iconName.text = charinfo.char_name;
+
+                }
+            
+
+
+        }
     }
+
 
 
     //functions for next and prev buttons
