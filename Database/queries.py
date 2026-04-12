@@ -38,17 +38,24 @@ print("Tables:", inspector.get_table_names())
 # User Authentication Functions
 # =============================
 
-def create_player(hashedpw):
+def create_player(hashedpw, username):
+    print("starting to create player");
     """Create a new player account with hashed password. Returns generated player_id."""
     try:
         with engine.begin() as connection:
             result = connection.execute(text(
-                "INSERT INTO players (created_at, hashedpw) VALUES (:created_at, :hashedpw)"
-            ), {"created_at": datetime.now(timezone.utc), "hashedpw": hashedpw})
+                "INSERT INTO players (created_at, hashedpw, username) VALUES (:created_at, :hashedpw, :username)"
+            ), {"created_at": datetime.now(timezone.utc), "hashedpw": hashedpw, "username": username})
             connection.commit()
             player_id = result.lastrowid
             logger.info(f"Player created successfully (ID: {player_id})")
             return player_id
+    #delete later
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error creating player: {e}")
+        return None
     except Exception as e:
         logger.error(f"Error creating player: {e}")
         return None
@@ -61,6 +68,19 @@ def get_player_by_id(player_id):
             result = connection.execute(text(
                 "SELECT player_id, created_at, hashedpw FROM players WHERE player_id = :player_id"
             ), {"player_id": player_id})
+            row = result.mappings().first()
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error retrieving player: {e}")
+        return None
+
+def get_player_by_username(player_username):
+    """Retrieve player by username"""
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text(
+                "SELECT player_id, created_at, hashedpw FROM players WHERE username = :player_username"
+            ), {"player_username": player_username})
             row = result.mappings().first()
             return dict(row) if row else None
     except Exception as e:
@@ -94,8 +114,8 @@ def insert_players(json_string):
         row["created_at"] = datetime.now(timezone.utc)
 
     sql = db.text("""
-        INSERT INTO players (player_id, created_at, hashedpw)
-        VALUES (:player_id, :created_at, :hashedpw)
+        INSERT INTO players (player_id, created_at, hashedpw, username)
+        VALUES (:player_id, :created_at, :hashedpw, :username)
     """)
 
     try:

@@ -653,17 +653,37 @@ PrefabInstance:
       propertyPath: m_Name
       value: UILogin
       objectReference: {fileID: 0}
-    - target: {fileID: 3728337936515857000, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
-      propertyPath: m_text
-      value: Play 1v1
+    - target: {fileID: 2888578233479938134, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+      propertyPath: m_Text
+      value: '
+
+'
       objectReference: {fileID: 0}
     - target: {fileID: 4984116369889287286, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
       propertyPath: choiceCanvasGroup
       value: 
       objectReference: {fileID: 0}
-    - target: {fileID: 9050157607804514354, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+    - target: {fileID: 5897864570806950548, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
       propertyPath: m_Name
-      value: 1v1
+      value: InputPlayerUsername
+      objectReference: {fileID: 0}
+    - target: {fileID: 6550143943125874478, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+      propertyPath: m_text
+      value: 'Username
+
+'
+      objectReference: {fileID: 0}
+    - target: {fileID: 6550143943125874478, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6550143943125874478, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+      propertyPath: m_isRightToLeft
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7010435480425067231, guid: fec51c9d4b1927cb5a359a8a195b79e6, type: 3}
+      propertyPath: m_text
+      value: "\n\u200B"
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

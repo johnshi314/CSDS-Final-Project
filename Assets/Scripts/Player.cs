@@ -12,6 +12,7 @@ namespace NetFlower {
         public string Name { get; set; } // Display name of the player
         public string IP { get; set; }   // IP address of the player
         public int elo {  get; set; } //player elo
+        public string username { get; set; } //player username
         public Player(int Id, string Name, string IP) {
             this.Id = Id;
             this.Name = Name;

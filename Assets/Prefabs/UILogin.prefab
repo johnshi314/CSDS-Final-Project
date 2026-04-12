@@ -374,8 +374,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Backend.Login
   httpApiBaseUrl: https://litecoders.com/api
-  playerIdInput: {fileID: 563928591782000863}
+  playerIdInput: {fileID: 0}
   passwordInput: {fileID: 8774888846517228419}
+  usernameInput: {fileID: 563928591782000863}
   loginMessage: {fileID: 5123419309295379308}
   idCanvasGroup: {fileID: 7451911610595972090}
   submitCanvasGroup: {fileID: 4945602428718009051}
