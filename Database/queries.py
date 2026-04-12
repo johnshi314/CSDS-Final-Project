@@ -39,26 +39,26 @@ print("Tables:", inspector.get_table_names())
 # =============================
 
 def create_player(hashedpw, username):
-    print("starting to create player");
-    """Create a new player account with hashed password. Returns generated player_id."""
-    try:
-        with engine.begin() as connection:
-            result = connection.execute(text(
-                "INSERT INTO players (created_at, hashedpw, username) VALUES (:created_at, :hashedpw, :username)"
-            ), {"created_at": datetime.now(timezone.utc), "hashedpw": hashedpw, "username": username})
-            connection.commit()
-            player_id = result.lastrowid
-            logger.info(f"Player created successfully (ID: {player_id})")
-            return player_id
-    #delete later
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        logger.error(f"Error creating player: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Error creating player: {e}")
-        return None
+    """Create a new player account with hashed password. Returns generated player_id.
+
+    Raises sqlalchemy.exc.IntegrityError on unique constraint violations (e.g. duplicate username).
+    """
+    with engine.begin() as connection:
+        result = connection.execute(
+            text(
+                "INSERT INTO players (created_at, hashedpw, username) "
+                "VALUES (:created_at, :hashedpw, :username)"
+            ),
+            {
+                "created_at": datetime.now(timezone.utc),
+                "hashedpw": hashedpw,
+                "username": username,
+            },
+        )
+        player_id = result.lastrowid
+    if player_id:
+        logger.info("Player created successfully (ID: %s)", player_id)
+    return player_id
 
 
 def get_player_by_id(player_id):
@@ -103,7 +103,7 @@ def insert_players(json_string):
         print("JSON must be a list of player objects.")
         return
 
-    required_fields = {"player_id", "hashedpw"}
+    required_fields = {"player_id", "hashedpw", "username"}
 
     for i, row in enumerate(rows):
         if not required_fields.issubset(row.keys()):
@@ -567,12 +567,14 @@ def mark_match_lobby_in_progress(match_id: int) -> bool:
 players_json = json.dumps([
     {
         "player_id": 1,
-        "hashedpw": "$2b$12$fakehash_player1"
+        "hashedpw": "$2b$12$fakehash_player1",
+        "username": "test_player_1",
     },
     {
         "player_id": 2,
-        "hashedpw": "$2b$12$fakehash_player2"
-    }
+        "hashedpw": "$2b$12$fakehash_player2",
+        "username": "test_player_2",
+    },
 ])
 
 matches_json = json.dumps([

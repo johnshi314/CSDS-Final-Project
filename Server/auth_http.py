@@ -25,6 +25,7 @@ from fastapi import (
 )
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 
 from Database import queries
 from logging_config import get_logger
@@ -117,7 +118,7 @@ async def broadcast_lobby_snapshot(match_id: int) -> None:
 
 class RegisterRequest(BaseModel):
     password: str = Field(min_length=8)
-    username: str
+    username: str = Field(min_length=1, max_length=255)
 
 
 class LoginRequest(BaseModel):
@@ -127,6 +128,10 @@ class LoginRequest(BaseModel):
 
 class TokenVerifyRequest(BaseModel):
     authToken: str
+
+
+def _normalize_username(name: str) -> str:
+    return (name or "").strip()
 
 
 def generate_jwt_token(player_id: int) -> str:
@@ -179,17 +184,22 @@ def _ws_authenticate(websocket: WebSocket) -> int | None:
 
 @api_router.post("/register")
 def register(payload: RegisterRequest, response: Response):
-    print("test print statement in register")
     password = payload.password
-    username = payload.username
+    username = _normalize_username(payload.username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
 
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-    print("about to create player")
-    player_id = queries.create_player(password_hash.decode('utf-8'), username)
-    print("player created");
+    try:
+        player_id = queries.create_player(password_hash.decode("utf-8"), username)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409, detail="That username is already taken"
+        ) from None
 
-    if not isinstance(player_id, int) or player_id is None:
+    if not isinstance(player_id, int) or player_id <= 0:
+        logger.error("create_player returned invalid id: %r", player_id)
         raise HTTPException(status_code=500, detail="Registration failed")
 
     token = generate_jwt_token(player_id)
@@ -203,18 +213,19 @@ def register(payload: RegisterRequest, response: Response):
         max_age=JWT_EXPIRATION_HOURS * 3600
     )
 
+    # Unity JsonUtility expects camelCase field names.
     return {
         "status": "success",
         "message": "Registration successful",
         "playerId": player_id,
-        "suthToken": token
+        "authToken": token,
+        "username": username,
     }
 
 
 @api_router.post("/login")
 def login(payload: LoginRequest, request: Request, response: Response):
-    print("LOGIN DATA:", payload)
-    player_username = payload.username
+    player_username = _normalize_username(payload.username)
     password = payload.password
 
     if not player_username or not password:
@@ -247,14 +258,15 @@ def login(payload: LoginRequest, request: Request, response: Response):
     return {
         "status": "success",
         "message": "Login successful",
-        "player_id": player_id,
-        "token": token
+        "playerId": player_id,
+        "authToken": token,
+        "username": player_username,
     }
 
 
 @api_router.post("/verify")
 def verify_token(payload: TokenVerifyRequest):
-    token = payload.token
+    token = payload.authToken
     verified = verify_jwt_token(token)
 
     if not verified:
@@ -267,7 +279,7 @@ def verify_token(payload: TokenVerifyRequest):
     return {
         "status": "success",
         "valid": True,
-        "player_id": verified['player_id']
+        "playerId": verified["player_id"],
     }
 
 @api_router.post("/submit-playermatchstats", dependencies=[Depends(get_current_player)])

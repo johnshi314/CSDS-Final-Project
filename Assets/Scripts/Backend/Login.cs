@@ -274,24 +274,25 @@ namespace NetFlower.Backend {
                 string password = passwordInput.GetText();
                 string username = usernameInput.GetText();
 
-                if (password.Length < 8) {
+                if (string.IsNullOrWhiteSpace(username) || password.Length < 8) {
                     Debug.LogWarning("Invalid Input.");
-                    ShowMessage("Please enter valid player ID and password (8+ characters).");
+                    ShowMessage("Please enter a username and password (8+ characters).");
                     return;
                 }
-                StartCoroutine(PasswordRoutine(password, username));
+                StartCoroutine(PasswordRoutine(password, username.Trim()));
             } else if (mode == RequestType.Register) {
                 string password = passwordInput.GetText();
-                Debug.Log(password);
                 string username = usernameInput.GetText();
-                Debug.Log(username);
                 if (string.IsNullOrEmpty(password) || password.Length < 8) {
                     Debug.LogWarning("Password too short.");
                     ShowMessage("Password must be at least 8 characters long.");
                     return;
                 }
-                Debug.Log("about to start register routine");
-                StartCoroutine(RegisterRoutine(password, username));
+                if (string.IsNullOrWhiteSpace(username)) {
+                    ShowMessage("Please choose a username.");
+                    return;
+                }
+                StartCoroutine(RegisterRoutine(password, username.Trim()));
             } else if (mode == RequestType.Token) {
                 if (string.IsNullOrEmpty(authToken)) {
                     Debug.LogWarning("No auth token available for verification.");
@@ -323,55 +324,39 @@ namespace NetFlower.Backend {
         }
 
         IEnumerator RegisterRoutine(string password, string username) {
-            Debug.Log("In register routine");
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/register";
-            Debug.Log(url);
             var payload = new RegisterRequest { password = password, username = username };
-            Debug.Log("payload created");
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Register);
         }
 
         IEnumerator PasswordRoutine(string password, string username) {
             string url = $"{httpApiBaseUrl.TrimEnd('/')}/login";
-            var payload = new LoginRequest { password = password, username = username, playerId = player.Id };
+            var payload = new LoginRequest { password = password, username = username };
             yield return SendRequest(url, JsonUtility.ToJson(payload), RequestType.Password);
         }
 
         // Shared helper to prevent code duplication and handle errors safely without freezing the Editor.
         IEnumerator SendRequest(string url, string jsonBody, RequestType requestType) {
-            Debug.Log(url);
-            Debug.Log(jsonBody);
-            Debug.Log(requestType);
-            Debug.Log("try1");
             requestInFlight = true;
 
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
-            Debug.Log("try2");
 
             using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
-                Debug.Log("try3");
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                Debug.Log("try4");
                 request.downloadHandler = new DownloadHandlerBuffer();
-                Debug.Log("try5");
                 request.SetRequestHeader("Content-Type", "application/json");
-                Debug.Log("try6");
                 request.SetRequestHeader("Accept", "application/json");
-                Debug.Log("try7");
 
                 // Prevent infinite hang if something goes wrong at network level.
                 request.timeout = 10;
 
                 yield return request.SendWebRequest();
-                Debug.Log("try8");
 
                 long code = request.responseCode;
                 string body = request.downloadHandler != null ? request.downloadHandler.text : null;
 
                 if (request.result == UnityWebRequest.Result.Success) {
-                    Debug.Log("try10");
                     HandleSuccess(body, requestType);
-                    Debug.Log("try9");
                 }
                 else if (request.result == UnityWebRequest.Result.ProtocolError && code == 401) {
                     // IMPORTANT: 401 is an expected auth failure, not a "hard" engine error.
@@ -386,6 +371,15 @@ namespace NetFlower.Backend {
 
                     // Optional: keep UI responsive by clearing current selection if needed,
                     // but doing this unconditionally can be annoying for UX.
+                    if (UnityEngine.EventSystems.EventSystem.current != null) {
+                        UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
+                    }
+                }
+                else if (request.result == UnityWebRequest.Result.ProtocolError && code == 409) {
+                    Debug.LogWarning($"Conflict (409): {body}");
+                    ShowMessage(requestType == RequestType.Register
+                        ? "That username is already taken. Try another or log in."
+                        : "Request could not be completed (conflict). Please try again.");
                     if (UnityEngine.EventSystems.EventSystem.current != null) {
                         UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
                     }
@@ -408,19 +402,21 @@ namespace NetFlower.Backend {
         }
 
         void HandleSuccess(string jsonResponse, RequestType requestType) {
-            Debug.Log("json response");
-            Debug.Log(requestType);
             try {
                 switch (requestType) {
                     case RequestType.Register:
                         var registerResponse = JsonUtility.FromJson<RegisterResponse>(jsonResponse);
                         if (registerResponse.status == "success") {
                             player.Id = registerResponse.playerId;
-                            player.Name = $"Player #{player.Id}";
+                            if (!string.IsNullOrEmpty(registerResponse.username)) {
+                                player.username = registerResponse.username;
+                                player.Name = registerResponse.username;
+                            } else {
+                                player.Name = $"Player #{player.Id}";
+                            }
                             authToken = registerResponse.authToken;
                             SaveAuthData();
                             ShowMessage("Registration successful! You are now logged in.");
-                            Debug.Log(jsonResponse);
                             //playerIdInput.SetText(player.Id.ToString());
                             SwitchTo(RequestType.Token);
                             ShowLoggedInScreen();
@@ -430,7 +426,12 @@ namespace NetFlower.Backend {
                         var loginResponse = JsonUtility.FromJson<LoginResponse>(jsonResponse);
                         if (loginResponse.status == "success") {
                             player.Id = loginResponse.playerId;
-                            player.Name = $"Player #{player.Id}";
+                            if (!string.IsNullOrEmpty(loginResponse.username)) {
+                                player.username = loginResponse.username;
+                                player.Name = loginResponse.username;
+                            } else {
+                                player.Name = $"Player #{player.Id}";
+                            }
                             authToken = loginResponse.authToken;
                             SaveAuthData();
                             ShowMessage("Login successful!");
@@ -529,17 +530,18 @@ namespace NetFlower.Backend {
             public string message;
             public int playerId;
             public string authToken;
+            public string username;
         }
         [Serializable] class LoginRequest {
             public string password;
             public string username;
-            public int playerId;
         }
         [Serializable] class LoginResponse {
             public string status;
             public string message;
             public int playerId;
             public string authToken;
+            public string username;
         }
         [Serializable] class TokenVerifyRequest {
             public string authToken;

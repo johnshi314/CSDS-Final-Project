@@ -158,12 +158,12 @@
     <!-- Login Form -->
     <form id="login-form">
       <div class="form-group">
-        <label for="login-id">Player ID</label>
-        <input type="number" id="login-id" placeholder="Enter your Player ID" min="1" required>
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" placeholder="Your account name" autocomplete="username" required>
       </div>
       <div class="form-group">
         <label for="login-pw">Password</label>
-        <input type="password" id="login-pw" placeholder="Enter your password" required>
+        <input type="password" id="login-pw" placeholder="Enter your password" autocomplete="current-password" required>
       </div>
       <button type="submit" class="btn">Login</button>
     </form>
@@ -171,12 +171,16 @@
     <!-- Register Form -->
     <form id="register-form" style="display:none">
       <div class="form-group">
+        <label for="reg-username">Username</label>
+        <input type="text" id="reg-username" placeholder="Choose a unique username" autocomplete="username" required>
+      </div>
+      <div class="form-group">
         <label for="reg-pw">Choose a Password</label>
-        <input type="password" id="reg-pw" placeholder="Min 8 characters" minlength="8" required>
+        <input type="password" id="reg-pw" placeholder="Min 8 characters" minlength="8" autocomplete="new-password" required>
       </div>
       <div class="form-group">
         <label for="reg-pw2">Confirm Password</label>
-        <input type="password" id="reg-pw2" placeholder="Re-enter password" minlength="8" required>
+        <input type="password" id="reg-pw2" placeholder="Re-enter password" minlength="8" autocomplete="new-password" required>
       </div>
       <button type="submit" class="btn">Register</button>
     </form>
@@ -214,25 +218,45 @@
     el.style.display = 'block';
   }
 
+  /** FastAPI may return detail as a string or a validation error list. */
+  function formatApiError(data) {
+    if (!data || data.detail == null) return 'Request failed.';
+    const d = data.detail;
+    if (typeof d === 'string') return d;
+    if (Array.isArray(d)) {
+      return d.map(function (x) { return (x && x.msg) ? x.msg : JSON.stringify(x); }).join(' ');
+    }
+    return String(d);
+  }
+
   document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    const playerId = parseInt(document.getElementById('login-id').value);
+    const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-pw').value;
+
+    if (!username) {
+      showResult('Please enter your username.', true);
+      return;
+    }
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: playerId, password: password })
+        body: JSON.stringify({ username: username, password: password })
       });
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) { /* non-JSON body */ }
 
       if (res.ok) {
-        showResult('Login successful! Welcome back, Player #' + data.playerId + '.', false);
+        const name = data.username || username;
+        showResult('Login successful! Welcome back, ' + name + ' (player #' + data.playerId + ').', false);
       } else {
-        showResult(data.detail || 'Login failed.', true);
+        showResult(formatApiError(data), true);
       }
     } catch (err) {
       showResult('Could not reach server. Is the auth server running?', true);
@@ -243,8 +267,14 @@
     e.preventDefault();
     e.stopPropagation();
 
+    const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-pw').value;
     const password2 = document.getElementById('reg-pw2').value;
+
+    if (!username) {
+      showResult('Please choose a username.', true);
+      return;
+    }
 
     if (password !== password2) {
       showResult('Passwords do not match.', true);
@@ -255,14 +285,21 @@
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: password })
+        body: JSON.stringify({ username: username, password: password })
       });
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) { /* non-JSON body */ }
 
       if (res.ok) {
-        showResult('Registration successful! Your Player ID is #' + data.playerId + '. Remember this ID to log in.', false);
+        const name = data.username || username;
+        showResult(
+          'Registration successful! You are logged in as ' + name + ' (player #' + data.playerId + '). Use this username to sign in from the game client.',
+          false
+        );
       } else {
-        showResult(data.detail || 'Registration failed.', true);
+        showResult(formatApiError(data), true);
       }
     } catch (err) {
       showResult('Could not reach server. Is the auth server running?', true);

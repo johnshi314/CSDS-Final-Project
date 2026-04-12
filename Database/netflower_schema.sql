@@ -13,7 +13,8 @@ CREATE TABLE `players` (
   `hashedpw` varchar(255) NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `elo` int DEFAULT '1000',
-  PRIMARY KEY (`player_id`)
+  PRIMARY KEY (`player_id`),
+  UNIQUE KEY `uk_players_username` (`username`)
 );
 
 CREATE TABLE `matches` (

@@ -17,6 +17,7 @@ from fastapi import (
     Response,
 )
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 
 from Database import queries
 from logging_config import get_logger
@@ -68,11 +69,16 @@ def health():
 
 class RegisterRequest(BaseModel):
     password: str = Field(min_length=8)
+    username: str = Field(min_length=1, max_length=255)
 
 
 class LoginRequest(BaseModel):
-    playerId: int
+    username: str
     password: str
+
+
+def _normalize_username(name: str) -> str:
+    return (name or "").strip()
 
 
 class TokenVerifyRequest(BaseModel):
@@ -116,12 +122,21 @@ class UpdateMatchRequest(BaseModel):
 @api_router.post("/register")
 def register(payload: RegisterRequest, response: Response):
     password = payload.password
+    username = _normalize_username(payload.username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
 
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-    player_id = queries.create_player(password_hash.decode('utf-8'))
+    try:
+        player_id = queries.create_player(password_hash.decode("utf-8"), username)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409, detail="That username is already taken"
+        ) from None
 
-    if not isinstance(player_id, int) or player_id is None:
+    if not isinstance(player_id, int) or player_id <= 0:
+        logger.error("create_player returned invalid id: %r", player_id)
         raise HTTPException(status_code=500, detail="Registration failed")
 
     token = generate_jwt_token(player_id)
@@ -140,29 +155,31 @@ def register(payload: RegisterRequest, response: Response):
         "message": "Registration successful",
         "playerId": player_id,
         "authToken": token,
+        "username": username,
     }
 
 
 @api_router.post("/login")
 def login(payload: LoginRequest, request: Request, response: Response):
-    player_id = payload.playerId
+    player_username = _normalize_username(payload.username)
     password = payload.password
 
-    if player_id <= 0 or not password:
-        raise HTTPException(status_code=400, detail="Player ID and password required")
+    if not player_username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
 
-    player = queries.get_player_by_id(player_id)
+    player = queries.get_player_by_username(player_username)
     if not player:
-        raise HTTPException(status_code=401, detail="Invalid player ID or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
     password_match = bcrypt.checkpw(
-        password.encode('utf-8'),
-        player['hashedpw'].encode('utf-8')
+        password.encode("utf-8"),
+        player["hashedpw"].encode("utf-8"),
     )
 
     if not password_match:
-        raise HTTPException(status_code=401, detail="Invalid player ID or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
+    player_id = player["player_id"]
     token = generate_jwt_token(player_id)
 
     response.set_cookie(
@@ -179,6 +196,7 @@ def login(payload: LoginRequest, request: Request, response: Response):
         "message": "Login successful",
         "playerId": player_id,
         "authToken": token,
+        "username": player_username,
     }
 
 
