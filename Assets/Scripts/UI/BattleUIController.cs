@@ -113,6 +113,7 @@ namespace NetFlower {
             UpdateTopText();
             UpdateStatsText();
             UpdateMoveButtonState();
+            UpdateAbilityButtonState();
             UpdateAbilityListIfNeeded();
 
             lastState = battleManager.State;
@@ -209,6 +210,28 @@ namespace NetFlower {
             }
 
             moveButton.interactable = canMove;
+        }
+
+        private void UpdateAbilityButtonState() {
+            if (useAbilityButton == null || battleManager == null)
+                return;
+
+            bool canUseAbility = false;
+            var agent = battleManager.CurrentAgent;
+
+            if (agent != null &&
+                battleManager.State == BattleState.WaitingForAction) {
+                var abilities = agent.GetAbilities();
+                // Check if there's at least one ability available that can be used
+                foreach (var ability in abilities) {
+                    if (agent.CanUseAbility(ability)) {
+                        canUseAbility = true;
+                        break;
+                    }
+                }
+            }
+
+            useAbilityButton.interactable = canUseAbility;
         }
 
         private void UpdateAbilityListIfNeeded() {

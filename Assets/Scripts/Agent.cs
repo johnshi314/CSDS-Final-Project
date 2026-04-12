@@ -72,6 +72,7 @@ namespace NetFlower {
         [SerializeField] uint range;              // Current movement range
         private Dictionary<Ability, int> currentCooldowns = new(); // Maps ability to current cooldown
         private List<AbilityEffectInstance> activeEffects = new();  // List of active effect instances with duration
+        private bool hasUsedAbilityThisTurn = false;  // Tracks if an ability has been used this turn
         public string Name { get { return AgentName; } }
         public uint MovementRange { get { return range; } }
         public uint HP { get { return hp; } }
@@ -252,9 +253,11 @@ namespace NetFlower {
         /// Check if the agent can use the given ability.
         /// </summary>
         /// <param name="ability">The ability to check.</param>
-        /// <returns>True if the ability is available (not on cooldown), otherwise false.</returns>
+        /// <returns>True if the ability is available (not on cooldown and not already used this turn), otherwise false.</returns>
         public bool CanUseAbility(Ability ability) {
             if (ability == null || !Abilities.Contains(ability))
+                return false;
+            if (hasUsedAbilityThisTurn)
                 return false;
             int cooldown = currentCooldowns[ability];
             return cooldown <= 0;
@@ -275,6 +278,9 @@ namespace NetFlower {
             
             // Set cooldown after successful use
             currentCooldowns[context.Ability] = (int) context.Ability.Cooldown;
+            
+            // Mark that an ability has been used this turn
+            hasUsedAbilityThisTurn = true;
 
             // Only record stats of agents controlled by a player in the database
             if (this.Player == null)
@@ -320,6 +326,7 @@ namespace NetFlower {
         public void OnTurnEnd(int currentTurn) {
             DecrementCooldowns();
             this.range = this.maxRange; // Reset movement range at the end of the turn
+            this.hasUsedAbilityThisTurn = false; // Reset ability usage flag at the end of the turn
         }
 
         /// <summary>
@@ -345,6 +352,8 @@ namespace NetFlower {
             if (amount < 0) return true; // Can always move if refunding movement
             return amount <= range;
         }
+
+
 
         /// <summary>
         /// Get the name of the parent GameObject as a string.
