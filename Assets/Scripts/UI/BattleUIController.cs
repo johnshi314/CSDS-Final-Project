@@ -248,9 +248,11 @@ namespace NetFlower {
                             cooldownText = " (Cooldown)";
                         }
 
+                        string effectDesc = ability.GetEffectDescriptions();
                         label.text =
                             $"{ability.DisplayName}{cooldownText}\n" +
-                            $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}";
+                            $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}\n" +
+                            effectDesc;
                     }
                 }
             } else {
@@ -265,9 +267,11 @@ namespace NetFlower {
                                 cooldownText = " (Cooldown)";
                             }
 
+                            string effectDesc = ability.GetEffectDescriptions();
                             label.text =
                                 $"{ability.DisplayName}{cooldownText}\n" +
-                                $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}";
+                                $"Range: {ability.RangeMin}-{ability.RangeMax} | Cost: {ability.Cost} | Target: {ability.TargetType}\n" +
+                                effectDesc;
                         }
                     }
                 }
