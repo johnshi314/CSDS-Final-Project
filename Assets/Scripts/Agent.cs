@@ -52,6 +52,8 @@ namespace NetFlower {
             authToken = PlayerPrefs.GetString("auth_token", "");
             if (string.IsNullOrEmpty(authToken))
                 Debug.LogWarning("[Agent] No auth token found. Protected stats endpoints will reject requests until login.");
+
+            animator = GetComponent<Animator>();
         }
 
         // Update is called once per frame
@@ -77,6 +79,10 @@ namespace NetFlower {
         public uint HP { get { return hp; } }
         public uint MaxHP { get { return maxHP; } }
         public uint MaxRange { get { return maxRange; } }
+
+        private Animator animator;
+        private static readonly int IsLeftHash = Animator.StringToHash("IsLeft");
+        private static readonly int IsForwardHash = Animator.StringToHash("IsForward");
 
         // PlayerMatchStats reference
         public PlayerMatchStats playerMatchStats;
@@ -183,6 +189,7 @@ namespace NetFlower {
             this.CanTunnel = tunneling;
             this.hp = hp;
             this.range = range;
+            animator = GetComponent<Animator>();
         }
 
         // ===================================================================== //
@@ -345,6 +352,23 @@ namespace NetFlower {
             if (amount < 0) return true; // Can always move if refunding movement
             return amount <= range;
         }
+
+
+        public void SetFacingFromMove(Vector2Int delta) {
+            if (animator == null)
+                animator = GetComponent<Animator>();
+
+            if (animator == null)
+                return;
+
+            bool isLeft = delta.x < 0;
+            bool isForward = delta.y < 0;
+
+            animator.SetBool(IsLeftHash, isLeft);
+            animator.SetBool(IsForwardHash, isForward);
+        }
+
+
 
         /// <summary>
         /// Get the name of the parent GameObject as a string.

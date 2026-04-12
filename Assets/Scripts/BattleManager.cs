@@ -536,6 +536,12 @@ namespace NetFlower {
             // Calculate path distance moved using BFS
             Vector2Int? oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
             Vector2Int newPos = clickedTile.Position;
+
+            if (oldPos.HasValue) {
+                Vector2Int delta = newPos - oldPos.Value;
+                agent.SetFacingFromMove(delta);
+            }
+
             int pathLength = 0;
             if (oldPos.HasValue) {
                 var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, newPos);
