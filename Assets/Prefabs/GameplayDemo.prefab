@@ -1277,10 +1277,10 @@ PrefabInstance:
       addedObject: {fileID: 1366766959017792691}
     - targetCorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3592775124466969150}
+      addedObject: {fileID: 1923085385317920646}
     - targetCorrespondingSourceObject: {fileID: 5006071418379397573, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1923085385317920646}
+      addedObject: {fileID: 4597687322187452393}
   m_SourcePrefab: {fileID: 100100000, guid: 7ce934236b93de08e882a1a9d6356cb7, type: 3}
 --- !u!114 &567301929608366175 stripped
 MonoBehaviour:
@@ -1311,22 +1311,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.GameplayDemo
   gridMap: {fileID: 567301929608366175}
-  battleManager: {fileID: 3592775124466969150}
---- !u!114 &3592775124466969150
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1851586129582700408}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 74ce7ddc354accae9a1bec12a3cc9737, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BattleManager
-  gridMap: {fileID: 567301929608366175}
-  moveRangeColor: {r: 0.2, g: 0.6, b: 1, a: 1}
-  moveRangeAlpha: 0.5
+  battleManager: {fileID: 4597687322187452393}
 --- !u!114 &1923085385317920646
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1339,3 +1324,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04f4dadd6942739d7adbbe897dabbf31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TurnManager
+--- !u!114 &4597687322187452393
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1851586129582700408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f4dce8fb10251124a5cd7d70f5f7b6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetFlower.OnlineBattleManager
+  currentTurn: 0
+  gridMap: {fileID: 0}
+  moveRangeColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  moveRangeAlpha: 0.5
+  abilityTargetColor: {r: 1, g: 0.5, b: 0.2, a: 1}
+  abilityTargetAlpha: 0.5
+  useCanvasUI: 1
+  moveSpeed: 5
+  scaleWidth: 0.5
+  httpApiBaseUrl: https://litecoders.com/api
+  lobbyWebSocketBaseUrl: 
+  serverTurnSeconds: 30

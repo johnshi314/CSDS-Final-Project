@@ -40,9 +40,9 @@ namespace NetFlower {
     public class BattleManager : MonoBehaviour {
 
         // Timer variables
-        private float turnTimer = 30f;
+        protected float turnTimer = 30f;
         private const float TURN_TIME_LIMIT = 30f;
-        private bool timerActive = false;
+        protected bool timerActive = false;
 
         [Header("Turn Management")]
         public int currentTurn = 0; // Tracks the current turn number (starting from 0)
@@ -73,8 +73,8 @@ namespace NetFlower {
 
         // State
         private BattleState state = BattleState.NotStarted;
-        private List<Agent> turnOrder = new List<Agent>();
-        private int currentAgentIndex;
+        protected List<Agent> turnOrder = new List<Agent>();
+        protected int currentAgentIndex;
         private List<Tile> validMoveTiles = new List<Tile>();
         
         // Ability selection state
@@ -120,7 +120,8 @@ namespace NetFlower {
         // Public API (called by GameplayDemo or wired to Canvas buttons)
         // ------------------------------------------------------------------ //
 
-        public void StartBattle() {
+        /// <param name="deferFirstBeginTurn">If true, wait for server (see <see cref="OnlineBattleManager"/>) before the first BeginTurn.</param>
+        public void StartBattle(bool deferFirstBeginTurn = false) {
             if (gridMap == null) {
                 gridMap = GetComponent<GridMap>();
                 if (gridMap == null)
@@ -150,11 +151,21 @@ namespace NetFlower {
 
             currentAgentIndex = 0;
             Debug.Log($"BattleManager: Battle started with {turnOrder.Count} agents.");
+            if (deferFirstBeginTurn)
+                return;
             BeginTurn();
+        }
+
+        /// <summary>True if this is offline battle or the local human may act on the current agent (online).</summary>
+        public bool LocalPlayerMayControlTurn() {
+            var online = GetComponent<OnlineBattleManager>();
+            if (online == null) return true;
+            return online.LocalMayControlCurrentAgent();
         }
 
         public void OnMovePressed() {
             if (state != BattleState.WaitingForAction) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             Agent agent = CurrentAgent;
             if (agent == null) return;
@@ -186,6 +197,7 @@ namespace NetFlower {
 
         public void OnUseAbilityPressed() {
             if (state != BattleState.WaitingForAction) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             Agent agent = CurrentAgent;
             if (agent == null) return;
@@ -223,6 +235,7 @@ namespace NetFlower {
 
         public void OnConfirmAbilityPressed() {
             if (state != BattleState.SelectingAbility || availableAbilities.Count == 0) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             Agent agent = CurrentAgent;
             selectedAbility = availableAbilities[selectedAbilityIndex];
@@ -247,6 +260,7 @@ namespace NetFlower {
                     };
                     agent.UseAbility(aux);
                     Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} (Global).");
+                    OnAfterLocalAbilityUsed(selectedAbility, casterTile);
                 }
                 state = BattleState.WaitingForAction;
                 availableAbilities.Clear();
@@ -300,6 +314,7 @@ namespace NetFlower {
 
         public void OnAbilityTargetTileSelected(Tile targetTile) {
             if (state != BattleState.SelectingAbilityTarget || selectedAbility == null) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             Agent agent = CurrentAgent;
             var aux = new AbilityUseContext {
@@ -310,6 +325,8 @@ namespace NetFlower {
             };
             agent.UseAbility(aux);
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
+
+            OnAfterLocalAbilityUsed(selectedAbility, targetTile);
 
             gridMap.ClearHighlights();
             validAbilityTargets.Clear();
@@ -332,6 +349,8 @@ namespace NetFlower {
 
         public void OnEndTurnPressed() {
             if (state == BattleState.NotStarted) return;
+            if (state != BattleState.MovingAgent && state != BattleState.WaitingForAnimations && !LocalPlayerMayControlTurn())
+                return;
 
             // If agent is mid-move animation, wait for it to finish before advancing
             if (state == BattleState.MovingAgent) {
@@ -343,6 +362,11 @@ namespace NetFlower {
 
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
+            CommitTurnAdvance();
+        }
+
+        /// <summary>Offline: advance turn. Online: notify server (subclass overrides).</summary>
+        protected virtual void CommitTurnAdvance() {
             AdvanceTurn();
         }
 
@@ -351,6 +375,10 @@ namespace NetFlower {
         // ------------------------------------------------------------------ //
 
         private void BeginTurn() {
+            BeginTurn(TURN_TIME_LIMIT);
+        }
+
+        private void BeginTurn(float turnTimeSeconds) {
             state = BattleState.WaitingForAction;
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
@@ -379,10 +407,67 @@ namespace NetFlower {
                 }
             }
 
-            // Start turn timer
-            turnTimer = TURN_TIME_LIMIT;
+            // Start turn timer (overridden by server for online battles)
+            turnTimer = turnTimeSeconds;
             timerActive = true;
         }
+
+        /// <summary>Apply server turn index and sync counter; finalize previous agent like AdvanceTurn would.</summary>
+        public void ApplyServerDirectedTurn(int nextSlot, int syncTurn, float turnTimeSeconds) {
+            if (turnOrder.Count == 0) return;
+            nextSlot = Mathf.Clamp(nextSlot, 0, turnOrder.Count - 1);
+
+            if (state != BattleState.NotStarted && CurrentAgent != null) {
+                CurrentAgent.OnTurnEnd(currentTurn);
+                if (CurrentAgent.playerMatchStats != null)
+                    CurrentAgent.playerMatchStats.turnsTaken++;
+            }
+
+            currentAgentIndex = nextSlot;
+            currentTurn = syncTurn;
+            BeginTurn(turnTimeSeconds);
+        }
+
+        /// <summary>Replay a peer move (map indices).</summary>
+        public void ApplyRemoteMoveForSlot(int slot, int mapX, int mapY) {
+            if (slot < 0 || slot >= turnOrder.Count || gridMap == null) return;
+            var agent = turnOrder[slot];
+            if (agent == null) return;
+            var dest = new Vector2Int(mapX, mapY);
+            var oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
+            if (!gridMap.TryMoveAgentByMapIndex(agent, dest)) return;
+            int pathLength = 0;
+            if (oldPos.HasValue) {
+                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, dest);
+                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
+            }
+            if (pathLength > 0)
+                agent.SpendMovement(pathLength);
+        }
+
+        /// <summary>Replay a peer ability use.</summary>
+        public void ApplyRemoteAbilityForSlot(int slot, int abilityIndex, int mapX, int mapY) {
+            if (slot < 0 || slot >= turnOrder.Count || gridMap == null) return;
+            var agent = turnOrder[slot];
+            if (agent == null) return;
+            var abilities = agent.GetAbilities();
+            if (abilityIndex < 0 || abilityIndex >= abilities.Count) return;
+            var ability = abilities[abilityIndex];
+            var map = gridMap.MapManager.ActiveMap;
+            var tile = map.GetTileAtPosition(new Vector2Int(mapX, mapY));
+            if (tile == null) return;
+            var aux = new AbilityUseContext {
+                Ability = ability,
+                Caster = agent,
+                TargetTile = tile,
+                TurnNumber = currentTurn
+            };
+            agent.UseAbility(aux);
+        }
+
+        protected virtual void OnAfterLocalMoveCommitted(Vector2Int destinationMapIndex) { }
+
+        protected virtual void OnAfterLocalAbilityUsed(Ability ability, Tile targetTile) { }
 
         private void AdvanceTurn() {
             if (CurrentAgent != null) {
@@ -474,7 +559,7 @@ namespace NetFlower {
         // Tile click handling (runs before OnGUI each frame)
         // ------------------------------------------------------------------ //
 
-        void Update() {
+        protected virtual void Update() {
 
             UpdateGUIRect();
             
@@ -484,7 +569,9 @@ namespace NetFlower {
             }
             
             // Handle turn timer (run in all player action states, including during movement animation)
-            if (timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget || state == BattleState.MovingAgent)) {
+            var obTimer = GetComponent<OnlineBattleManager>();
+            bool useServerOnlyTimer = obTimer != null && obTimer.UsesServerTurnTimer;
+            if (!useServerOnlyTimer && timerActive && (state == BattleState.WaitingForAction || state == BattleState.SelectingMoveTile || state == BattleState.SelectingAbility || state == BattleState.SelectingAbilityTarget || state == BattleState.MovingAgent)) {
                 turnTimer -= Time.deltaTime;
                 if (turnTimer <= 0f) {
                     turnTimer = 0f;
@@ -493,7 +580,7 @@ namespace NetFlower {
                         // Wait for movement animation to finish before advancing turn
                         state = BattleState.WaitingForAnimations;
                     } else {
-                        AdvanceTurn();
+                        CommitTurnAdvance();
                     }
                 }
             }
@@ -523,6 +610,7 @@ namespace NetFlower {
 
         private void HandleMoveTileSelection() {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             // Ignore clicks over the UI panel
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
@@ -557,6 +645,8 @@ namespace NetFlower {
             if (pathLength > 0 && agent != null) {
                 agent.SpendMovement(pathLength);
             }
+
+            OnAfterLocalMoveCommitted(clickedTile.Position);
 
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
@@ -615,7 +705,7 @@ namespace NetFlower {
 
             if (state == BattleState.WaitingForAnimations) {
                 // Turn ended while moving — advance to next turn now
-                AdvanceTurn();
+                CommitTurnAdvance();
             } else {
                 // Movement finished within the turn — return to action menu
                 state = BattleState.WaitingForAction;
@@ -624,6 +714,7 @@ namespace NetFlower {
 
         private void HandleAbilityTargetSelection() {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (!LocalPlayerMayControlTurn()) return;
 
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);

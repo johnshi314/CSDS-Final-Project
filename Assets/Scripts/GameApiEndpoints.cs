@@ -42,5 +42,12 @@ namespace NetFlower {
                 return explicitBase;
             return WebSocketSchemeHostFromHttpApi(effectiveHttpApiBase) + "/ws";
         }
+
+        /// <summary>Authenticated battle WebSocket URI for a match (query token).</summary>
+        public static string BattleWebSocketUri(string effectiveHttpApiBase, string lobbyWebSocketBaseOverride, int matchId, string authToken) {
+            var baseTrim = LobbyWebSocketBaseTrimmed(effectiveHttpApiBase, lobbyWebSocketBaseOverride);
+            var tok = Uri.EscapeDataString(authToken ?? "");
+            return $"{baseTrim}/battle/{matchId}?authToken={tok}";
+        }
     }
 }

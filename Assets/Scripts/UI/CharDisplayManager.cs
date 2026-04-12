@@ -21,7 +21,7 @@ public class CharDisplayManager : MonoBehaviour
     //public GameObject test; 
     //public Color[] colors;
 
-    public TMP_Text name;
+    public new TMP_Text name;
     public TMP_Text charDesc;
     public TMP_Text movement;
     [SerializeField]
