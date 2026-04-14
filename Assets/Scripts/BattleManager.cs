@@ -105,15 +105,30 @@ namespace NetFlower {
                 ? turnOrder[currentAgentIndex]
                 : null;
 
+        //Stats
+        private MatchStats matchstats;
+        private MatchupStats currentMatchup;
+
         public void Start() {
             // For Mach I need:
             // - A ID 
             // - B ID
             // Winner char name
             // Match ID
-            match = GetComponent<Match>();
-            if (match == null)
-                match = Match.GetInstance();
+            //match = GetComponent<Match>();
+            match = Match.GetInstance();
+
+            if (match == null) {
+                GameObject matchObj = new GameObject("Match");
+                match = matchObj.AddComponent<Match>();
+            }
+
+            Debug.Log("Match ID");
+            Debug.Log(match.dbMatchId);
+
+            matchstats = match.StartMatch(match.dbMatchId);
+            Debug.Log(matchstats.ToJson());
+
         }
 
         // ------------------------------------------------------------------ //
@@ -149,6 +164,16 @@ namespace NetFlower {
                 return;
             }
 
+            // record matchup stats for 1 v 1 matches
+            if (turnOrder.Count == 2) {
+                string charA = turnOrder[0].Name;
+                string charB = turnOrder[1].Name;
+
+                currentMatchup = match.RegisterMatchup(charA, charB);
+
+                Debug.Log($"[BattleManager] Matchup registered: {charA} vs {charB}");
+            }
+
             currentAgentIndex = 0;
             Debug.Log($"BattleManager: Battle started with {turnOrder.Count} agents.");
             if (deferFirstBeginTurn)
@@ -172,7 +197,7 @@ namespace NetFlower {
 
             // For accessing agent's playerMatchStats object
             if (CurrentAgent.playerMatchStats.matchId == 0) {
-                CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(101);
+                CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(match.dbMatchId);
             } 
 
             validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
@@ -549,6 +574,35 @@ namespace NetFlower {
             if (match != null) {
                 string winnerTeamId = winner == TeamColor.Red ? "Red" : "Blue";
                 match.EndMatch(winnerTeamId);
+                Debug.Log(match.matchStats.ToJson());
+            }
+
+            // Update player match stats
+            foreach (Agent agent in turnOrder) {
+                if (agent != null && agent.playerMatchStats != null && agent.playerMatchStats.playerId != 0) {
+                    agent.RecordPlayerStats();
+                    Debug.Log(agent.playerMatchStats.ToJson());
+                } else {
+                    Debug.LogWarning($"[BattleManager] Skipping stats for {agent?.name}");
+                }
+            }
+
+            // Update matchup stats for 1 v 1
+            if (currentMatchup != null && turnOrder.Count == 2) {
+                string winnerName = null;
+
+                foreach (Agent agent in turnOrder) {
+                    if (agent != null && agent.HP > 0) {
+                        winnerName = agent.Name;
+                        break;
+                    }
+                }
+                if (!string.IsNullOrEmpty(winnerName)) {
+                    match.ResolveMatchup(winnerName);
+                    Debug.Log($"[BattleManager] Matchup resolved. Winner: {winnerName}");
+                } else {
+                    Debug.LogWarning("[BattleManager] Could not determine matchup winner.");
+                }
             }
 
             // Load the victory scene
