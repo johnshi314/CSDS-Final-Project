@@ -6,10 +6,17 @@ Protocol (text frames, UTF-8):
 Client → server
   start|<num_agents>|<turn_seconds>     — first message starts config (same from any client; first wins)
   claim|<slot>                           — authenticated player claims control of turn-order slot (0..n-1)
+  claim|<slot>|npc                       — slot is AI-controlled; only match host may pass for that slot
   pass                                   — end current turn (must own current slot, or host for NPC slot)
-  relay|move|<slot>|<tx>|<ty>            — announce move destination (broadcast to all)
+  relay|move|<slot>|<tx>|<ty>            — announce move (legacy: turn-order slot index; fragile if roster changes)
   relay|ability|<slot>|<ability_index>|<tx>|<ty>
+  relay|moveu|<unit_id>|<tx>|<ty>        — announce move by stable unit id (Unity: r0,r1 / b0,b1 by team list order)
+  relay|abilityu|<unit_id>|<ability_index>|<tx>|<ty>
   relay|endturn|<slot>                   — optional explicit end (usually use pass)
+
+  The server does not parse relay payloads; it broadcasts them. Clients should prefer moveu/abilityu so
+  both peers resolve the same Agent after kills or reordering, as long as both builds use identical
+  red/blue agent lists and ordering.
 
 Server → client
   you|<player_id>                        — who you are (JWT)

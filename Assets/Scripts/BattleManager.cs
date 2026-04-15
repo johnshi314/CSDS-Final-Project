@@ -13,6 +13,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System;
 using NetFlower.UI;
 
 
@@ -77,6 +78,8 @@ namespace NetFlower {
         protected List<Agent> turnOrder = new List<Agent>();
         protected int currentAgentIndex;
         private List<Tile> validMoveTiles = new List<Tile>();
+        private readonly Dictionary<Agent, string> networkUnitIdsByAgent = new Dictionary<Agent, string>();
+        private readonly Dictionary<string, Agent> agentsByNetworkUnitId = new Dictionary<string, Agent>(StringComparer.Ordinal);
         
         // Ability selection state
         private List<Ability> availableAbilities = new List<Ability>();
@@ -164,6 +167,8 @@ namespace NetFlower {
                 Debug.LogError("BattleManager: No agents found for battle.");
                 return;
             }
+
+            BuildNetworkUnitIdMap();
 
             // record matchup stats for 1 v 1 matches
             if (turnOrder.Count == 2) {
@@ -513,6 +518,73 @@ namespace NetFlower {
         protected virtual void OnAfterLocalMoveCommitted(Vector2Int destinationMapIndex) { }
 
         protected virtual void OnAfterLocalAbilityUsed(Ability ability, Tile targetTile) { }
+
+        protected bool TryGetNetworkUnitId(Agent agent, out string unitId) {
+            unitId = null;
+            return agent != null && networkUnitIdsByAgent.TryGetValue(agent, out unitId) && !string.IsNullOrEmpty(unitId);
+        }
+
+        public bool TryGetAgentByNetworkUnitId(string unitId, out Agent agent) {
+            agent = null;
+            return !string.IsNullOrEmpty(unitId) && agentsByNetworkUnitId.TryGetValue(unitId, out agent) && agent != null;
+        }
+
+        /// <summary>Replay a peer move (network unit id + map indices).</summary>
+        public void ApplyRemoteMoveForUnit(string unitId, int mapX, int mapY) {
+            if (string.IsNullOrEmpty(unitId) || gridMap == null) return;
+            if (!TryGetAgentByNetworkUnitId(unitId, out var agent)) return;
+            var dest = new Vector2Int(mapX, mapY);
+            var oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
+            if (!gridMap.TryMoveAgentByMapIndex(agent, dest)) return;
+            int pathLength = 0;
+            if (oldPos.HasValue) {
+                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, dest);
+                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
+            }
+            if (pathLength > 0)
+                agent.SpendMovement(pathLength);
+        }
+
+        /// <summary>Replay a peer ability use (network unit id).</summary>
+        public void ApplyRemoteAbilityForUnit(string unitId, int abilityIndex, int mapX, int mapY) {
+            if (string.IsNullOrEmpty(unitId) || gridMap == null) return;
+            if (!TryGetAgentByNetworkUnitId(unitId, out var agent)) return;
+            var abilities = agent.GetAbilities();
+            if (abilityIndex < 0 || abilityIndex >= abilities.Count) return;
+            var ability = abilities[abilityIndex];
+            var map = gridMap.MapManager.ActiveMap;
+            var tile = map.GetTileAtPosition(new Vector2Int(mapX, mapY));
+            if (tile == null) return;
+            var aux = new AbilityUseContext {
+                Ability = ability,
+                Caster = agent,
+                TargetTile = tile,
+                TurnNumber = currentTurn
+            };
+            agent.UseAbility(aux);
+        }
+
+        private void BuildNetworkUnitIdMap() {
+            networkUnitIdsByAgent.Clear();
+            agentsByNetworkUnitId.Clear();
+
+            AssignTeamUnitIds(gridMap != null ? gridMap.RedAgents : null, "r");
+            AssignTeamUnitIds(gridMap != null ? gridMap.BlueAgents : null, "b");
+        }
+
+        private void AssignTeamUnitIds(IReadOnlyList<Agent> teamAgents, string teamPrefix) {
+            if (teamAgents == null) return;
+            int index = 0;
+            for (int i = 0; i < teamAgents.Count; i++) {
+                var agent = teamAgents[i];
+                if (agent == null) continue;
+
+                string unitId = $"{teamPrefix}{index}";
+                networkUnitIdsByAgent[agent] = unitId;
+                agentsByNetworkUnitId[unitId] = agent;
+                index++;
+            }
+        }
 
         /// <summary>
         /// Counts the number of Red team agents still alive in the turn order.

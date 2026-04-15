@@ -132,6 +132,7 @@ namespace NetFlower {
 
         private void ApplyStateVisibility() {
             var state = battleManager.State;
+            bool localCanAct = battleManager.LocalPlayerMayControlTurn();
 
             if (actionButtonsPanel != null)
                 actionButtonsPanel.SetActive(state == BattleState.WaitingForAction);
@@ -145,13 +146,34 @@ namespace NetFlower {
             if (abilityTargetPanel != null)
                 abilityTargetPanel.SetActive(state == BattleState.SelectingAbilityTarget);
 
+            if (passButton != null)
+                passButton.interactable = localCanAct && state == BattleState.WaitingForAction;
+
+            if (cancelMoveButton != null)
+                cancelMoveButton.interactable = localCanAct && state == BattleState.SelectingMoveTile;
+
+            if (prevAbilityButton != null)
+                prevAbilityButton.interactable = localCanAct && state == BattleState.SelectingAbility;
+            if (nextAbilityButton != null)
+                nextAbilityButton.interactable = localCanAct && state == BattleState.SelectingAbility;
+            if (confirmAbilityButton != null)
+                confirmAbilityButton.interactable = localCanAct && state == BattleState.SelectingAbility;
+            if (cancelAbilityButton != null)
+                cancelAbilityButton.interactable = localCanAct && state == BattleState.SelectingAbility;
+
+            if (cancelTargetButton != null)
+                cancelTargetButton.interactable = localCanAct && state == BattleState.SelectingAbilityTarget;
+
         }
 
         private void UpdateTopText() {
             var agent = battleManager.CurrentAgent;
+            bool localCanAct = battleManager.LocalPlayerMayControlTurn();
 
             if (agentNameText != null)
-                agentNameText.text = agent != null ? $"{agent.Name}'s Turn" : "";
+                agentNameText.text = agent != null
+                    ? (localCanAct ? $"{agent.Name}'s Turn" : $"{agent.Name}'s Turn (Waiting)")
+                    : "";
 
             if (timerText != null)
                 timerText.text = agent != null ? $"Time: {battleManager.TurnTimerForUI:F1}s" : "";
@@ -200,11 +222,13 @@ namespace NetFlower {
 
             bool canMove = false;
             var agent = battleManager.CurrentAgent;
+            bool localCanAct = battleManager.LocalPlayerMayControlTurn();
 
             if (agent != null &&
                 gridMap.MapManager != null &&
                 gridMap.MapManager.ActiveMap != null &&
-                battleManager.State == BattleState.WaitingForAction) {
+                battleManager.State == BattleState.WaitingForAction &&
+                localCanAct) {
                 var movable = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
                 canMove = movable != null && movable.Count > 0;
             }
@@ -218,9 +242,11 @@ namespace NetFlower {
 
             bool canUseAbility = false;
             var agent = battleManager.CurrentAgent;
+            bool localCanAct = battleManager.LocalPlayerMayControlTurn();
 
             if (agent != null &&
-                battleManager.State == BattleState.WaitingForAction) {
+                battleManager.State == BattleState.WaitingForAction &&
+                localCanAct) {
                 var abilities = agent.GetAbilities();
                 // Check if there's at least one ability available that can be used
                 foreach (var ability in abilities) {

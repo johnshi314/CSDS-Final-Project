@@ -158,7 +158,10 @@ namespace NetFlower {
 
         protected override void OnAfterLocalMoveCommitted(Vector2Int destinationMapIndex) {
             if (_localFallback) return;
-            _ = SendTextAsync($"relay|move|{currentAgentIndex}|{destinationMapIndex.x}|{destinationMapIndex.y}");
+            if (TryGetNetworkUnitId(CurrentAgent, out var unitId))
+                _ = SendTextAsync($"relay|moveu|{unitId}|{destinationMapIndex.x}|{destinationMapIndex.y}");
+            else
+                _ = SendTextAsync($"relay|move|{currentAgentIndex}|{destinationMapIndex.x}|{destinationMapIndex.y}");
         }
 
         protected override void OnAfterLocalAbilityUsed(Ability ability, Tile targetTile) {
@@ -167,7 +170,10 @@ namespace NetFlower {
             if (agent == null || ability == null || targetTile == null) return;
             int idx = AbilityIndex(agent, ability);
             if (idx < 0) return;
-            _ = SendTextAsync($"relay|ability|{currentAgentIndex}|{idx}|{targetTile.Position.x}|{targetTile.Position.y}");
+            if (TryGetNetworkUnitId(agent, out var unitId))
+                _ = SendTextAsync($"relay|abilityu|{unitId}|{idx}|{targetTile.Position.x}|{targetTile.Position.y}");
+            else
+                _ = SendTextAsync($"relay|ability|{currentAgentIndex}|{idx}|{targetTile.Position.x}|{targetTile.Position.y}");
         }
 
         static int AbilityIndex(Agent agent, Ability ability) {
@@ -262,7 +268,14 @@ namespace NetFlower {
             if (fromPid == _myPlayerId) return;
             var p = payload.Split('|');
             if (p.Length < 4) return;
-            if (p[0] == "move" && int.TryParse(p[1], out var slot) && int.TryParse(p[2], out var x) && int.TryParse(p[3], out var y))
+            if (p[0] == "moveu" && int.TryParse(p[2], out var ux) && int.TryParse(p[3], out var uy))
+                ApplyRemoteMoveForUnit(p[1], ux, uy);
+            else if (p[0] == "abilityu" && p.Length >= 5
+                     && int.TryParse(p[2], out var uaidx)
+                     && int.TryParse(p[3], out var utx)
+                     && int.TryParse(p[4], out var uty))
+                ApplyRemoteAbilityForUnit(p[1], uaidx, utx, uty);
+            else if (p[0] == "move" && int.TryParse(p[1], out var slot) && int.TryParse(p[2], out var x) && int.TryParse(p[3], out var y))
                 ApplyRemoteMoveForSlot(slot, x, y);
             else if (p[0] == "ability" && p.Length >= 5
                      && int.TryParse(p[1], out var aslot)
