@@ -350,6 +350,8 @@ namespace NetFlower {
             };
             agent.UseAbility(aux);
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
+            Animator animator = CurrentAgent.GetComponentInChildren<Animator>();
+            
 
             OnAfterLocalAbilityUsed(selectedAbility, targetTile);
 
@@ -735,17 +737,37 @@ namespace NetFlower {
             }
 
             moveLerpT += Time.deltaTime * moveSpeed;
+            Animator animator = movingAgent.GetComponentInChildren<Animator>();
             while (moveLerpT >= 1f) {
                 moveLerpT -= 1f;
                 movePathIndex++;
                 if (movePathIndex >= movePath.Count - 1) {
                     // Arrived at destination
                     movingAgent.transform.position = movePath[movePath.Count - 1];
+                    if (animator != null) {
+                        animator.SetBool("IsWalking", false);
+                    }
                     OnMoveAnimationComplete();
                     return;
                 }
             }
-
+            // Set animation bools
+           
+            if (animator != null) {
+                animator.SetBool("IsWalking", true);
+                Vector3 dir = (movePath[movePathIndex] - movePath[movePathIndex + 1]).normalized;
+                if (dir.x < 0) {
+                    animator.SetBool("IsLeft", false);
+                } else {
+                    animator.SetBool("IsLeft", true);
+                }
+                if (dir.y < 0) {
+                    animator.SetBool("IsForward", false);
+                } else {
+                    animator.SetBool("IsForward", true);
+                }
+                //Debug.Log("IsLeft: " + animator.GetBool("IsLeft") + "\nIsForward: " + animator.GetBool("IsForward"));
+            }
             movingAgent.transform.position = Vector3.Lerp(
                 movePath[movePathIndex],
                 movePath[movePathIndex + 1],
