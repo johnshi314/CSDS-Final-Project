@@ -15,6 +15,7 @@ using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using NetFlower.UI;
 
+
 namespace NetFlower {
 
     /// <summary>
@@ -350,8 +351,11 @@ namespace NetFlower {
             };
             agent.UseAbility(aux);
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
-            Animator animator = CurrentAgent.GetComponentInChildren<Animator>();
-            
+            Animator animator = agent.GetComponentInChildren<Animator>();
+            if (animator != null ) {
+                animator.SetBool("Attack1",true);
+                Debug.Log("Attack1 triggered");
+            }
 
             OnAfterLocalAbilityUsed(selectedAbility, targetTile);
 
