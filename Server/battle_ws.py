@@ -3,30 +3,29 @@ Battle WebSocket: server-authoritative turn order and timers after lobby.
 
 Protocol (text frames, UTF-8):
 
-Client → server
-  start|<num_agents>|<turn_seconds>     — first message starts config (same from any client; first wins)
-  claim|<slot>                           — authenticated player claims control of turn-order slot (0..n-1)
-  claim|<slot>|npc                       — slot is AI-controlled; only match host may pass for that slot
-  pass                                   — end current turn (must own current slot, or host for NPC slot)
-  relay|move|<slot>|<tx>|<ty>            — announce move (legacy: turn-order slot index; fragile if roster changes)
+Client -> server
+  start|<num_agents>|<turn_seconds>     - first message starts config (same from any client; first wins)
+  claim|<slot>                           - authenticated player claims turn-order slot (0..n-1)
+  claim|<slot>|npc                       - slot is AI; only match host may pass for that slot
+  pass                                   - end current turn (must own current slot, or host for NPC slot)
+  relay|move|<slot>|<tx>|<ty>            - announce move (legacy slot index; fragile if roster changes)
   relay|ability|<slot>|<ability_index>|<tx>|<ty>
-  relay|moveu|<unit_id>|<tx>|<ty>        — announce move by stable unit id (Unity: r0,r1 / b0,b1 by team list order)
+  relay|moveu|<unit_id>|<tx>|<ty>        - move by stable unit id (Unity: r0,r1 / b0,b1 by team list order)
   relay|abilityu|<unit_id>|<ability_index>|<tx>|<ty>
-  relay|endturn|<slot>                   — optional explicit end (usually use pass)
+  relay|endturn|<slot>                   - optional explicit end (usually use pass)
 
-  The server does not parse relay payloads; it broadcasts them. Clients should prefer moveu/abilityu so
-  both peers resolve the same Agent after kills or reordering, as long as both builds use identical
-  red/blue agent lists and ordering.
+  The server does not parse relay payloads; it broadcasts them. Prefer moveu/abilityu so both peers
+  resolve the same Agent after kills or reordering when red/blue lists and ordering match.
 
-Server → client
-  you|<player_id>                        — who you are (JWT)
-  ack|start|<n>|<t>                      — battle config accepted
-  ack|claim|<slot>|<player_id>           — slot assignment
-  battle_ready                           — all slots claimed; first turn imminent
-  newTurn|<slot>|<sync_turn>|<ends_unix> — float unix seconds when turn ends (UTC)
-  tick|<slot>|<seconds_left_int>         — ~2 Hz while turn active
-  relay|<from_player_id>|<payload>       — payload = rest after from_pid (same as client relay line)
-  err|<message>                          — non-fatal warning
+Server -> client
+  you|<player_id>                        - who you are (JWT)
+  ack|start|<n>|<t>                      - battle config accepted
+  ack|claim|<slot>|<player_id>           - slot assignment
+  battle_ready                           - all slots claimed; first turn imminent
+  newTurn|<slot>|<sync_turn>|<ends_unix> - unix seconds when turn ends (UTC)
+  tick|<slot>|<seconds_left_int>         - about 2 Hz while turn active
+  relay|<from_player_id>|<payload>       - payload = rest after from_pid (same as client relay line)
+  err|<message>                          - non-fatal warning
 """
 from __future__ import annotations
 

@@ -36,7 +36,7 @@ logger = get_logger(__name__)
 AUTH_SERVER_HOST = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
 AUTH_SERVER_PORT = int(os.getenv("AUTH_SERVER_PORT", 8000))
 
-# Reverse-proxy path prefixes (e.g. nginx: /api/* and /ws/* → this app)
+# Reverse-proxy path prefixes (e.g. nginx: /api/* and /ws/* -> this app)
 def _norm_prefix(p: str) -> str:
     p = (p or "").strip()
     if not p:
@@ -524,7 +524,7 @@ async def lobby_websocket(websocket: WebSocket, match_id: int):
             logger.info("Player %s left lobby %s (disconnect)", player_id, match_id)
             if queries.lobby_is_empty(match_id):
                 queries.mark_match_lobby_completed(match_id)
-                logger.info("Lobby %s is now empty — marked completed", match_id)
+                logger.info("Lobby %s is now empty; marked completed", match_id)
             else:
                 await broadcast_lobby_snapshot(match_id)
 

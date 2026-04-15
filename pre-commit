@@ -28,7 +28,15 @@ SAVEIFS=$IFS
 
 IFS=$'\n'
 for file in $COMMIT_TEXT; do
-    file_size=$(du -m "$CURRENT_DIR/$file" | awk '{print $1}')
+    path="$CURRENT_DIR/$file"
+    # Staged deletions are not on disk; skip size check (GitHub limit applies to blobs, not removals).
+    if [ ! -e "$path" ]; then
+        continue
+    fi
+    file_size=$(du -m "$path" 2>/dev/null | awk '{print $1}')
+    if [ -z "$file_size" ]; then
+        file_size=0
+    fi
     if [ "$file_size" -ge 100 ]; then
         echo "$file is over 100MB."
         HAS_ERROR="1"

@@ -6,9 +6,12 @@
 ##############################################################
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
+
 # Add project root to sys.path for imports
 _project_root = Path(__file__).parent.parent.resolve()
-if _project_root not in sys.path:
-    sys.path.append(_project_root)
-load_dotenv(dotenv_path=Path(_project_root) / ".env")
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+from repo_dotenv import load_repo_dotenv
+
+load_repo_dotenv(base_dir=_project_root)

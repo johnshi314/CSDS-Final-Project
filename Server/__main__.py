@@ -1,164 +1,109 @@
 ##############################################################
 # File: Server/__main__.py
-# Description: Run the unified HTTP + lobby WebSocket server (FastAPI).
-# Optional: run turn-based demo WebSocket on port 8765 in a second terminal.
+# Description: One command for local dev: API + frontend + WebGL together.
 ##############################################################
 """
-Run the game backend: HTTP (auth, stats, lobby REST) + modular WebSockets on the same port.
+Workstation convenience: run everything with one process group.
 
     python -m Server
 
-Uses one process so lobby state and WebSocket fan-out share memory. For the separate
-turn-based echo demo (epoch/turn protocol), run in another terminal:
+Starts, in separate interpreter processes (same as opening three terminals):
 
-    python -m Server.multiplayer_echo
+- ``Server.api`` - HTTP + WebSockets (default ``http://127.0.0.1:8000``)
+- ``Server.frontend`` - static portal + ``/api`` proxy (default ``:3000``)
+- ``Server.webgl`` - Unity build folder (default ``:3001``)
 
-Environment (optional):
+Requires MySQL and ``.env`` like the individual commands. If any service exits,
+the others are stopped.
 
-- UVICORN_RELOAD — if 1/true (default), restart workers when Python files under
-  Server/ or Database/ change. Set to 0 in production.
-- SERVER_SUPERVISE — if 1/true, run the app in a child process and restart it if
-  the process exits with an error or if GET http://127.0.0.1:{port}/health fails
-  repeatedly (see WATCHDOG_* vars below). The child never supervises (avoids loops).
-- WATCHDOG_INTERVAL_SEC — seconds between health checks (default 15).
-- WATCHDOG_FAIL_THRESHOLD — consecutive failures before SIGTERM + restart (default 3).
-- WATCHDOG_STARTUP_GRACE_SEC — no failed counts until this long after spawn (default 12).
+For production or containers, run ``python -m Server.api`` (etc.) separately.
+See SERVER.md.
 """
+from __future__ import annotations
+
 import os
 import signal
 import subprocess
 import sys
-import threading
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-
-def _truthy(name: str, default: str = "0") -> bool:
-    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+_CHILD_ENV_EXTRA = {"SERVER_SUPERVISE": "0"}
 
 
-def _run_uvicorn() -> None:
-    import uvicorn
-    from logging_config import get_logger
-
-    logger = get_logger(__name__)
-    host = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
-    port = int(os.getenv("AUTH_SERVER_PORT", "8000"))
-    reload = _truthy("UVICORN_RELOAD", "1")
-    pkg_dir = Path(__file__).resolve().parent
-    repo_root = pkg_dir.parent
-    reload_dirs = [str(pkg_dir), str(repo_root / "Database")] if reload else None
-
-    if reload:
-        logger.info(
-            "Uvicorn auto-reload enabled for Server/ and Database/ (set UVICORN_RELOAD=0 to disable)"
-        )
-    logger.info(
-        "Starting unified server on http://%s:%s (WS: /ws/lobby/{match_id}, /ws/lobby-control, /ws/battle/{match_id})",
-        host,
-        port,
-    )
-    kwargs = dict(
-        host=host,
-        port=port,
-        log_level="info",
-        use_colors=sys.stderr.isatty(),
-        ws_ping_interval=20,
-        ws_ping_timeout=10,
-    )
-    if reload:
-        kwargs["reload"] = True
-        kwargs["reload_dirs"] = reload_dirs
-    uvicorn.run("Server.api:app", **kwargs)
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
 
 
-def _run_supervised() -> None:
-    from logging_config import get_logger
+def _child_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.update(_CHILD_ENV_EXTRA)
+    return env
 
-    logger = get_logger(__name__)
-    host = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
-    port = int(os.getenv("AUTH_SERVER_PORT", "8000"))
-    interval = float(os.getenv("WATCHDOG_INTERVAL_SEC", "15"))
-    fail_limit = int(os.getenv("WATCHDOG_FAIL_THRESHOLD", "3"))
-    grace = float(os.getenv("WATCHDOG_STARTUP_GRACE_SEC", "12"))
-    health_url = f"http://127.0.0.1:{port}/health"
 
-    state: dict = {"proc": None, "shutdown": False}
-
-    def on_signal(signum, frame):
-        state["shutdown"] = True
-        p = state["proc"]
-        if p is not None and p.poll() is None:
+def _terminate_all(procs: list[subprocess.Popen], *, label: str) -> None:
+    for p in procs:
+        if p.poll() is None:
             p.terminate()
+    for p in procs:
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait(timeout=5)
+    if label:
+        print(label, file=sys.stderr)
 
-    signal.signal(signal.SIGINT, on_signal)
-    signal.signal(signal.SIGTERM, on_signal)
 
-    repo_root = Path(__file__).resolve().parent.parent
-    logger.info(
-        "Supervisor mode: child server + health checks to %s (set SERVER_SUPERVISE=0 to disable)",
-        health_url,
+def main() -> None:
+    root = _repo_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from repo_dotenv import load_repo_dotenv
+
+    load_repo_dotenv(base_dir=root)
+
+    exe = sys.executable
+    env = _child_env()
+    names = ("api", "frontend", "webgl")
+    modules = ("Server.api", "Server.frontend", "Server.webgl")
+
+    print(
+        "NetFlower dev stack - starting API, frontend, and WebGL.\n"
+        "  API:       http://127.0.0.1:8000 (default)\n"
+        "  Frontend:  http://127.0.0.1:3000\n"
+        "  WebGL:     http://127.0.0.1:3001\n"
+        "Press Ctrl+C to stop all.\n"
     )
 
-    while not state["shutdown"]:
-        env = os.environ.copy()
-        env["SERVER_SUPERVISE"] = "0"
-        proc = subprocess.Popen(
-            [sys.executable, "-m", "Server"],
-            env=env,
-            cwd=str(repo_root),
-        )
-        state["proc"] = proc
-        stop_monitor = threading.Event()
-        failures = [0]
+    procs: list[subprocess.Popen] = [
+        subprocess.Popen([exe, "-m", mod], cwd=str(root), env=env) for mod in modules
+    ]
 
-        def monitor():
-            time.sleep(grace)
-            while not stop_monitor.is_set() and proc.poll() is None:
-                try:
-                    req = urllib.request.Request(health_url, method="GET")
-                    with urllib.request.urlopen(req, timeout=5) as resp:
-                        if resp.status == 200:
-                            failures[0] = 0
-                except (urllib.error.URLError, TimeoutError, OSError):
-                    failures[0] += 1
-                    if failures[0] >= fail_limit:
-                        logger.error(
-                            "Health check failed %d times in a row; sending SIGTERM to server",
-                            fail_limit,
-                        )
-                        proc.terminate()
-                        break
-                time.sleep(interval)
+    def _on_signal(signum, _frame):
+        _terminate_all(procs, label="")
+        # 130 = 128 + SIGINT; 143 = 128 + SIGTERM (common shell convention)
+        raise SystemExit(130 if signum == signal.SIGINT else 143 if signum == signal.SIGTERM else 1)
 
-        mon = threading.Thread(target=monitor, daemon=True)
-        mon.start()
-        rc = proc.wait()
-        stop_monitor.set()
-        mon.join(timeout=min(interval, 5.0))
-        state["proc"] = None
+    signal.signal(signal.SIGINT, _on_signal)
+    signal.signal(signal.SIGTERM, _on_signal)
 
-        if state["shutdown"]:
-            sys.exit(0)
-        if rc == 0:
-            logger.info("Server process exited cleanly; supervisor stopping")
-            sys.exit(0)
-        logger.warning("Server process exited with code %s; restarting in 2s", rc)
-        time.sleep(2.0)
+    try:
+        while True:
+            for i, p in enumerate(procs):
+                rc = p.poll()
+                if rc is not None:
+                    print(
+                        f"\nService '{names[i]}' exited with code {rc}. Stopping the others...",
+                        file=sys.stderr,
+                    )
+                    _terminate_all(procs, label="")
+                    raise SystemExit(rc if rc != 0 else 0)
+            time.sleep(0.25)
+    except KeyboardInterrupt:
+        print("\nStopping all services...", file=sys.stderr)
+        _terminate_all(procs, label="")
 
 
 if __name__ == "__main__":
-    from logging_config import install_stream_tee
-
-    install_stream_tee("server")
-
-    if _truthy("SERVER_SUPERVISE"):
-        _run_supervised()
-    else:
-        def _sig_exit(signum, frame):
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, _sig_exit)
-        _run_uvicorn()
+    main()

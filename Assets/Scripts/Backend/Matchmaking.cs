@@ -45,7 +45,7 @@ namespace NetFlower.Backend {
         [Tooltip("REST base, no trailing slash. Should match Login / Match.")]
         [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
 
-        [Tooltip("Lobby WebSocket base (no trailing slash). Empty → derived from HTTP + /ws.")]
+        [Tooltip("Lobby WebSocket base (no trailing slash). Empty: derived from HTTP + /ws.")]
         [SerializeField] string lobbyWebSocketBaseUrl = "";
 
         [Tooltip("Maximum players used when requesting joinNewLobby over WebSocket.")]
@@ -60,7 +60,7 @@ namespace NetFlower.Backend {
         [SerializeField] TMPro.TextMeshProUGUI redTeamText;
         [SerializeField] TMPro.TextMeshProUGUI blueTeamText;
 
-        [Tooltip("Optional — displays the countdown. Leave empty to skip UI text.")]
+        [Tooltip("Optional: displays the countdown. Leave empty to skip UI text.")]
         [SerializeField] TMPro.TextMeshProUGUI countdownText;
 
         string _authToken;
@@ -135,7 +135,7 @@ namespace NetFlower.Backend {
 
             if (lobbyState.everyoneReady && teamsPopulated) {
                 _matchStartRequested = true;
-                Debug.Log($"[Matchmaking] Everyone ready — lobby locked (status={lobbyState.lobbyStatus}). Starting countdown.");
+                Debug.Log($"[Matchmaking] Everyone ready - lobby locked (status={lobbyState.lobbyStatus}). Starting countdown.");
                 DisconnectLobbyWebSocket();
                 StartCoroutine(CountdownThenLoadBattle(lobbyState));
             }
@@ -162,7 +162,7 @@ namespace NetFlower.Backend {
                 Debug.Log($"[Matchmaking] Loading scene \"{battleSceneName}\"");
                 SceneManager.LoadScene(battleSceneName);
             } else {
-                Debug.LogWarning("[Matchmaking] battleSceneName is empty — skipping scene load. Set it in the Inspector.");
+                Debug.LogWarning("[Matchmaking] battleSceneName is empty - skipping scene load. Set it in the Inspector.");
             }
         }
 

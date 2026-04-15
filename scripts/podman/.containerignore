@@ -1,5 +1,6 @@
 .git
 .gitignore
+.env
 .venv
 **/__pycache__
 *.pyc
@@ -9,6 +10,7 @@ Assets
 Library
 Logs
 logs
+Builds
 Temp
 UserSettings
 ProjectSettings

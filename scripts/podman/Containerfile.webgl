@@ -1,5 +1,5 @@
 # Build from repository root:
-#   podman build -f scripts/podman/Containerfile.frontend -t netflower-frontend:latest .
+#   podman build -f scripts/podman/Containerfile.webgl -t netflower-webgl:latest .
 FROM docker.io/python:3.12-slim-bookworm
 
 WORKDIR /app
@@ -9,12 +9,14 @@ RUN pip install --no-cache-dir python-dotenv
 COPY repo_dotenv.py .
 COPY logging_config.py .
 COPY Server/__init__.py Server/__init__.py
-COPY Server/frontend Server/frontend
+COPY Server/webgl Server/webgl
 
-ENV FRONTEND_PORT=3000
+ENV WEBGL_PORT=3001
+ENV WEBGL_HOST=0.0.0.0
+ENV WEBGL_ROOT=/webgl
 ENV PYTHONUNBUFFERED=1
 ENV LOG_DIR=/app/logs
 
-EXPOSE 3000
+EXPOSE 3001
 
-CMD ["python", "-m", "Server.frontend"]
+CMD ["python", "-m", "Server.webgl"]

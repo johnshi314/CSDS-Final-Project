@@ -1,5 +1,5 @@
 /**********************************************************************
- * OnlineBattleManager — server-authoritative turns over the battle WebSocket.
+ * OnlineBattleManager - server-authoritative turns over the battle WebSocket.
  * Subclass of BattleManager: same UX; timers and turn order come from Server/battle_ws.py.
  * Lobby match id + auth token come from Match / PlayerPrefs (set after Matchmaking).
  **********************************************************************/
@@ -18,7 +18,7 @@ namespace NetFlower {
 
     public class OnlineBattleManager : BattleManager {
 
-        [Tooltip("REST base, no trailing slash — used to derive wss://…/ws/battle/{matchId}.")]
+        [Tooltip("REST base, no trailing slash - used to derive wss://host/ws/battle/{matchId}.")]
         [SerializeField] string httpApiBaseUrl = "https://litecoders.com/api";
         [Tooltip("Optional override for WebSocket base (no trailing slash). Empty = derive from HTTP.")]
         [SerializeField] string lobbyWebSocketBaseUrl = "";
@@ -57,7 +57,7 @@ namespace NetFlower {
             base.Start();
             _myPlayerId = PlayerPrefs.GetInt("player_id", -1);
             if (_localFallback) {
-                Debug.Log("[OnlineBattle] Local fallback — no networked match (or offline). Using normal BattleManager turn/timer.");
+                Debug.Log("[OnlineBattle] Local fallback - no networked match (or offline). Using normal BattleManager turn/timer.");
                 return;
             }
             _cts = new CancellationTokenSource();
@@ -253,7 +253,7 @@ namespace NetFlower {
                     }
                     break;
                 case "battle_ready":
-                    Debug.Log("[OnlineBattle] Server locked roster — waiting for first turn.");
+                    Debug.Log("[OnlineBattle] Server locked roster - waiting for first turn.");
                     break;
                 case "err":
                     if (parts.Length >= 2)

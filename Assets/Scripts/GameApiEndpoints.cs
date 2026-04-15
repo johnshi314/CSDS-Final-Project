@@ -7,7 +7,7 @@ namespace NetFlower {
     /// </summary>
     public static class GameApiEndpoints {
         /// <summary>
-        /// REST base for HTTP calls. Bare https://litecoders.com becomes …/api.
+        /// REST base for HTTP calls. Bare https://litecoders.com becomes https://litecoders.com/api.
         /// </summary>
         public static string EffectiveApiBase(string httpApiBaseUrl) {
             var raw = (httpApiBaseUrl ?? "").Trim().TrimEnd('/');
@@ -35,7 +35,7 @@ namespace NetFlower {
             return $"{sch}://{u.Authority}";
         }
 
-        /// <summary>Lobby WebSocket base, no trailing slash (…/ws).</summary>
+        /// <summary>Lobby WebSocket base, no trailing slash (host/ws).</summary>
         public static string LobbyWebSocketBaseTrimmed(string effectiveHttpApiBase, string lobbyWebSocketBaseUrl) {
             var explicitBase = (lobbyWebSocketBaseUrl ?? "").Trim().TrimEnd('/');
             if (!string.IsNullOrEmpty(explicitBase))

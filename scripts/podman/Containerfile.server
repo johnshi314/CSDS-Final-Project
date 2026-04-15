@@ -6,6 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY repo_dotenv.py .
 COPY logging_config.py .
 COPY Server/ Server/
 COPY Database/ Database/
@@ -19,4 +20,4 @@ ENV LOG_DIR=/app/logs
 
 EXPOSE 8000
 
-CMD ["python", "-m", "Server"]
+CMD ["python", "-m", "Server.api"]

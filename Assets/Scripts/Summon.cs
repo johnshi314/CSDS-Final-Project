@@ -12,7 +12,7 @@ using System.Collections.Generic;
 namespace NetFlower {
     /// <summary>
     /// Template data for a summonable agent. Used by AbilitySummon to spawn agents.
-    /// This is the ScriptableObject "blueprint" — the actual Agent MonoBehaviour
+    /// This is the ScriptableObject "blueprint" - the actual Agent MonoBehaviour
     /// is instantiated at runtime using this data.
     /// </summary>
     [CreateAssetMenu(fileName = "Summon", menuName = "Scriptable Objects/Summon")]

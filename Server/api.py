@@ -1,9 +1,16 @@
 """
 HTTP Auth Server for Unity Game
 Provides REST endpoints for registration, login, recordkeeping, and token verification.
+
+Run from repository root::
+
+    python -m Server.api
+
+Same as ``python -m Server`` (backward compatible). See ``.env.example`` and SERVER.md.
 """
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import bcrypt
 import json
@@ -31,7 +38,7 @@ logger = get_logger(__name__)
 AUTH_SERVER_HOST = os.getenv("AUTH_SERVER_HOST", "0.0.0.0")
 AUTH_SERVER_PORT = int(os.getenv("AUTH_SERVER_PORT", 8000))
 
-# Reverse-proxy path prefixes (e.g. nginx: /api/* and /ws/* → this app)
+# Reverse-proxy path prefixes (e.g. nginx: /api/* and /ws/* -> this app)
 def _norm_prefix(p: str) -> str:
     p = (p or "").strip()
     if not p:
@@ -366,21 +373,147 @@ logger.info(
 )
 
 
-if __name__ == "__main__":
+def _cli_truthy(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _run_uvicorn_cli() -> None:
     import sys
+
+    import uvicorn
+
+    reload = _cli_truthy("UVICORN_RELOAD", "1")
+    pkg_dir = Path(__file__).resolve().parent
+    repo_root = pkg_dir.parent
+    reload_dirs = [str(pkg_dir), str(repo_root / "Database")] if reload else None
+
+    if reload:
+        logger.info(
+            "Uvicorn auto-reload enabled for Server/ and Database/ (set UVICORN_RELOAD=0 to disable)"
+        )
+    logger.info(
+        "Starting API on http://%s:%s (WS under %s)",
+        AUTH_SERVER_HOST,
+        AUTH_SERVER_PORT,
+        WS_PREFIX,
+    )
+    kwargs = dict(
+        host=AUTH_SERVER_HOST,
+        port=AUTH_SERVER_PORT,
+        log_level="info",
+        use_colors=sys.stderr.isatty(),
+        ws_ping_interval=20,
+        ws_ping_timeout=10,
+    )
+    if reload:
+        kwargs["reload"] = True
+        kwargs["reload_dirs"] = reload_dirs
+    uvicorn.run("Server.api:app", **kwargs)
+
+
+def _run_supervised_cli() -> None:
+    import signal
+    import subprocess
+    import sys
+    import threading
+    import time
+    import urllib.error
+    import urllib.request
+
+    port = int(os.getenv("AUTH_SERVER_PORT", "8000"))
+    interval = float(os.getenv("WATCHDOG_INTERVAL_SEC", "15"))
+    fail_limit = int(os.getenv("WATCHDOG_FAIL_THRESHOLD", "3"))
+    grace = float(os.getenv("WATCHDOG_STARTUP_GRACE_SEC", "12"))
+    health_url = f"http://127.0.0.1:{port}/health"
+
+    state: dict = {"proc": None, "shutdown": False}
+
+    def on_signal(signum, frame):
+        state["shutdown"] = True
+        p = state["proc"]
+        if p is not None and p.poll() is None:
+            p.terminate()
+
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+
+    repo_root = Path(__file__).resolve().parent.parent
+    logger.info(
+        "Supervisor mode: child `python -m Server.api` + health checks to %s (set SERVER_SUPERVISE=0 to disable)",
+        health_url,
+    )
+
+    while not state["shutdown"]:
+        env = os.environ.copy()
+        env["SERVER_SUPERVISE"] = "0"
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "Server.api"],
+            env=env,
+            cwd=str(repo_root),
+        )
+        state["proc"] = proc
+        stop_monitor = threading.Event()
+        failures = [0]
+
+        def monitor():
+            time.sleep(grace)
+            while not stop_monitor.is_set() and proc.poll() is None:
+                try:
+                    req = urllib.request.Request(health_url, method="GET")
+                    with urllib.request.urlopen(req, timeout=5) as resp:
+                        if resp.status == 200:
+                            failures[0] = 0
+                except (urllib.error.URLError, TimeoutError, OSError):
+                    failures[0] += 1
+                    if failures[0] >= fail_limit:
+                        logger.error(
+                            "Health check failed %d times in a row; sending SIGTERM to server",
+                            fail_limit,
+                        )
+                        proc.terminate()
+                        break
+                time.sleep(interval)
+
+        mon = threading.Thread(target=monitor, daemon=True)
+        mon.start()
+        rc = proc.wait()
+        stop_monitor.set()
+        mon.join(timeout=min(interval, 5.0))
+        state["proc"] = None
+
+        if state["shutdown"]:
+            raise SystemExit(0)
+        if rc == 0:
+            logger.info("Server process exited cleanly; supervisor stopping")
+            raise SystemExit(0)
+        logger.warning("Server process exited with code %s; restarting in 2s", rc)
+        time.sleep(2.0)
+
+
+if __name__ == "__main__":
+    import signal
+    import sys
+
+    _repo_root = Path(__file__).resolve().parent.parent
+    if str(_repo_root) not in sys.path:
+        sys.path.insert(0, str(_repo_root))
+    from repo_dotenv import load_repo_dotenv
+
+    load_repo_dotenv(base_dir=_repo_root)
 
     from logging_config import install_stream_tee
 
     install_stream_tee("api")
-    import uvicorn
 
-    try:
-        uvicorn.run(
-            app,
-            host=AUTH_SERVER_HOST,
-            port=AUTH_SERVER_PORT,
-            log_level="info",
-            use_colors=sys.stderr.isatty(),
-        )
-    except KeyboardInterrupt:
-        logger.info("Auth server stopped by user")
+    if _cli_truthy("SERVER_SUPERVISE"):
+        _run_supervised_cli()
+    else:
+
+        def _sig_exit(signum, frame):
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, _sig_exit)
+        try:
+            _run_uvicorn_cli()
+        except KeyboardInterrupt:
+            logger.info("API server stopped by user")

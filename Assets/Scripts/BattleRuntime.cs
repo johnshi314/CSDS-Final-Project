@@ -61,7 +61,7 @@ namespace NetFlower {
             foreach (var (field, value) in snapshot) {
                 try {
                     field.SetValue(target, value);
-                } catch (ArgumentException) { /* layout mismatch — skip */ }
+                } catch (ArgumentException) { /* layout mismatch - skip */ }
                 catch (TargetException) { /* skip */ }
             }
         }

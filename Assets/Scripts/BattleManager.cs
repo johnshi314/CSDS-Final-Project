@@ -862,10 +862,10 @@ namespace NetFlower {
             moveLerpT = 0f;
 
             if (state == BattleState.WaitingForAnimations) {
-                // Turn ended while moving — advance to next turn now
+                // Turn ended while moving - advance to next turn now
                 AdvanceTurn();
             } else {
-                // Movement finished within the turn — return to action menu
+                // Movement finished within the turn - return to action menu
                 state = BattleState.WaitingForAction;
             }
         }
@@ -887,7 +887,7 @@ namespace NetFlower {
         }
 
         // ------------------------------------------------------------------ //
-        // Demo UI (IMGUI) — replace with Canvas buttons for production
+        // Demo UI (IMGUI) - replace with Canvas buttons for production
         // ------------------------------------------------------------------ //
 
         void OnGUI() {
@@ -909,7 +909,7 @@ namespace NetFlower {
             // scale the box to the screen size (for better mobile visibility)
             GUI.Box(uiRect, "", GUI.skin.window);
 
-            // Player Stats Box — anchored to top-right edge of uiRect
+            // Player Stats Box - anchored to top-right edge of uiRect
             DrawPlayerStats();
 
             var labelStyle = new GUIStyle(GUI.skin.label) {

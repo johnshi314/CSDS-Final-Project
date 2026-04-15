@@ -1,14 +1,14 @@
 # Agent.cs Class API Documentation
 
 ## Overview
-The `Agent` class represents the game entity that can do actions and have actions done onto them. They have health, movement, and a lis of abilities. It uses a factory pattern for creation and provides methods for combat, movement, and status management.
+The `Agent` class represents the game entity that can act and be acted upon. Agents have health, movement, and a list of abilities. It uses a factory pattern for creation and provides methods for combat, movement, and status management.
 
 ## Public Properties
 
 | Property | Type  | Description |
 |----------|------|-------------|
 | `Player` | `BackendData.Player` | The player controlling this agent |
-| `AgentName` | `string` | Agent's display name |
+| `AgentName` | `string` | The agent's display name |
 | `MaxHP` | `uint` | Maximum health points |
 | `MaxRange` | `uint` | Maximum movement range per turn |
 | `CanTunnel` | `Tunneling` | How other agents can pass through this agent |
@@ -36,10 +36,10 @@ Creates a new Agent GameObject with specified properties.
 ## Public Methods
 
 ### `OnTurnStart()`
-A method that should be called at the start of the agent’s turn.
+Call at the start of the agent's turn.
 
 ### `OnTurnEnd()`
-A method that should be called at the end of the agent’s turn.
+Call at the end of the agent's turn.
 
 ### `TakeDamage(int damage)`
 Applies damage to the agent, reducing its HP. HP cannot go below 0.
@@ -48,7 +48,7 @@ Applies damage to the agent, reducing its HP. HP cannot go below 0.
 - `damage` (int) - Amount of damage to apply
 
 ### `Heal(int amount)`
-Increase agent’s current HP by the amount up to agent’s maximum HP.
+Increase the agent's current HP by `amount`, capped at maximum HP.
 
 **Parameters:**
 - `amount` (int) - Amount of healing to apply

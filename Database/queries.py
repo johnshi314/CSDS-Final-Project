@@ -8,18 +8,18 @@ from sqlalchemy import text
 
 # Add project root to path for importing project modules and variables
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
-    sys.path.append(_project_root)
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+# Load `.env` before logging or DB (LOG_DIR, DB_*)
+from repo_dotenv import load_repo_dotenv
+
+load_repo_dotenv(base_dir=Path(_project_root))
 
 # Log output to file with timestamps
 from logging_config import get_logger
-logger = get_logger(__name__)
 
-# Load environment variables (e.g. for DB connection)
-from dotenv import load_dotenv
-load_dotenv(
-    dotenv_path=Path(_project_root) / ".env"
-)
+logger = get_logger(__name__)
 
 
 # Create engine

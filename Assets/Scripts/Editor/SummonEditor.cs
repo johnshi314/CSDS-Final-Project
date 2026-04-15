@@ -64,7 +64,7 @@ namespace NetFlower.Editor {
 
             root.Add(CreateSpacer());
 
-            // Lifespan (duration conditions) — same UI as AbilityEffect delay/duration
+            // Lifespan (duration conditions) - same UI as AbilityEffect delay/duration
             var lifespanSection = new VisualElement();
             lifespanSection.AddToClassList("section-container");
             var lifespanHeader = new Label("Lifespan");

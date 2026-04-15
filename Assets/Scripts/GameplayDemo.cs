@@ -116,7 +116,7 @@ namespace NetFlower {
         }
 
         /// <summary>
-        /// Online PvP: same structural guarantees as <see cref="OfflineFillGridMap"/> — destroy scene default
+        /// Online PvP: same structural guarantees as <see cref="OfflineFillGridMap"/> - destroy scene default
         /// agents, spawn prefabs under RedTeam/BlueTeam so each client builds the same network unit ids (r0, b0).
         /// Local character comes from character select; other team uses a
         /// shared placeholder prefab until the server sends opponent roster (harpy mirroring offline for now).

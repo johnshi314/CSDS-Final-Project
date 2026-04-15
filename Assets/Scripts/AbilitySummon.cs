@@ -35,12 +35,12 @@ namespace NetFlower {
             ShapeRangeMax = 0;
             ShapeRangeMin = 0;
 
-            // Note: TargetEffects are kept — they apply to the summoned agent on spawn
+            // Note: TargetEffects are kept - they apply to the summoned agent on spawn
             // Don't call base.OnValidate() as we override all its constraints
         }
 
         /// <summary>
-        /// Resolve the summon ability — spawns the summon at the target tile.
+        /// Resolve the summon ability - spawns the summon at the target tile.
         /// </summary>
         /// <param name="context">The ability use context.</param>
         public override AbilityUseResolution Resolve(AbilityUseContext context) {

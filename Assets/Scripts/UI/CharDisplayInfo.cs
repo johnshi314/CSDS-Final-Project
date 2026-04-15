@@ -1,7 +1,5 @@
 using UnityEngine;
-using UnityEditor;
-using UnityEngine.UIElements; 
-using UnityEditor.UIElements;
+using UnityEngine.UI;
 
 /*
 Sara Wang

@@ -55,7 +55,7 @@ namespace NetFlower {
         /// Enforces targeting constraints.
         /// </summary>
         protected virtual void OnValidate() {
-            // TargetType cannot be empty (0) — default to Everything
+            // TargetType cannot be empty (0) - default to Everything
             if (TargetType == 0) {
                 TargetType = AbilityTargetType.Everything;
             }

@@ -1,0 +1,2 @@
+# Keeps Assets/Resources in Git so Resources.meta has a paired path.
+# Add runtime-loaded assets here as needed; Unity Resources.Load looks under this folder.

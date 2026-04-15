@@ -51,7 +51,7 @@ namespace NetFlower {
             if (string.IsNullOrEmpty(authToken))
                 Debug.LogWarning("[Match] No auth token found. Stats submissions will fail until player logs in.");
             var effective = EffectiveApiBase();
-            Debug.Log($"[Match] httpApiBaseUrl=\"{httpApiBaseUrl}\" → REST calls use \"{effective}\"");
+            Debug.Log($"[Match] httpApiBaseUrl=\"{httpApiBaseUrl}\" -> REST calls use \"{effective}\"");
             if (!string.Equals(effective, (httpApiBaseUrl ?? "").Trim().TrimEnd('/'), StringComparison.Ordinal))
                 Debug.LogWarning("[Match] API base was normalized (likely missing /api). Align with Login / Matchmaking.");
             if (httpApiBaseUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0)

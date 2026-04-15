@@ -1,0 +1,22 @@
+# Quadlet user unit - copy to: ~/.config/containers/systemd/netflower-webgl.container
+# Then: systemctl --user daemon-reload && systemctl --user enable --now netflower-webgl.service
+#
+# Adjust Volume= to where your WebGL output lives on the host (index.html inside that dir).
+# Build image first: ./scripts/podman/build.sh webgl
+
+[Unit]
+Description=NetFlower Unity WebGL static server (loopback; nginx serves https://www.litecoders.com/game/)
+After=network-online.target
+
+[Container]
+Image=localhost/netflower-webgl:latest
+Publish=127.0.0.1:3001:3001
+Volume=/srv/CSDS-Final-Project/Builds/Netflower:/webgl:ro,Z
+Environment=WEBGL_ROOT=/webgl
+Environment=WEBGL_PORT=3001
+Environment=WEBGL_HOST=0.0.0.0
+Environment=PYTHONUNBUFFERED=1
+Environment=LOG_DIR=/app/logs
+
+[Install]
+WantedBy=default.target

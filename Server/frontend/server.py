@@ -3,8 +3,10 @@ Lightweight frontend server (stdlib only, no extra dependencies).
 Serves index.html on port 3000 and proxies /api/* requests to the
 FastAPI auth server (default port 8000).
 
-The HTML portal uses username + password for POST /api/login and
-POST /api/register, matching Server.api (python -m Server).
+Run from repo root: ``python -m Server.frontend`` (loads ``.env`` via ``Server`` package).
+
+Environment (see ``.env.example``): FRONTEND_PORT, AUTH_BACKEND, AUTH_STRIP_API_PREFIX,
+LOG_DIR, PYTHON_STREAM_TEE.
 """
 
 import http.server
@@ -18,8 +20,8 @@ from pathlib import Path
 
 PORT = int(os.getenv("FRONTEND_PORT", 3000))
 AUTH_BACKEND = os.getenv("AUTH_BACKEND", "http://127.0.0.1:8000")
-# When 1 (default): /api/login → backend .../login (matches uvicorn with API_PREFIX unset).
-# When 0: forward full path /api/login → backend .../api/login (use if API_PREFIX=/api on backend).
+# When 1 (default): /api/login -> backend .../login (matches uvicorn with API_PREFIX unset).
+# When 0: forward full path /api/login -> backend .../api/login (use if API_PREFIX=/api on backend).
 AUTH_STRIP_API_PREFIX = os.getenv("AUTH_STRIP_API_PREFIX", "1").lower() in ("1", "true", "yes")
 STATIC_DIR = Path(__file__).parent
 
@@ -111,7 +113,7 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
 
     def _proxy_to_backend(self, method: str):
         if AUTH_STRIP_API_PREFIX and self.path.startswith("/api"):
-            backend_path = self.path[len("/api"):]  # /api/login → /login
+            backend_path = self.path[len("/api"):]  # /api/login -> /login
             url = AUTH_BACKEND.rstrip("/") + backend_path
         else:
             url = AUTH_BACKEND.rstrip("/") + self.path
@@ -162,7 +164,7 @@ class FrontendHandler(http.server.BaseHTTPRequestHandler):
         print(f"[frontend] {self.address_string()} - {format % args}")
 
 
-if __name__ == "__main__":
+def run() -> None:
     _install_stream_tee("frontend")
     server = http.server.HTTPServer(("0.0.0.0", PORT), FrontendHandler)
     signal.signal(signal.SIGTERM, lambda _sig, _frame: server.shutdown())
