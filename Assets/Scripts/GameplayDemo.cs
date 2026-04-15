@@ -129,10 +129,8 @@ namespace NetFlower {
             List<Agent> redTeam = new List<Agent>();
             List<Agent> blueTeam = new List<Agent>();
             // Player agent comes from selection; default offline NPC is Harpy.
-            GameObject playerPrefab = allAgents != null && prefs != null
-                ? allAgents.GetAgentPrefabById(prefs.characterId)
-                : null;
-            GameObject npcPrefab = allAgents != null ? allAgents.harpyAgent : null;
+            GameObject playerPrefab = allAgents.GetAgentPrefabById(prefs.characterId);
+            GameObject npcPrefab = allAgents.harpyAgent;
             if (playerPrefab == null) {
                 Debug.LogError($"GameplayDemo: Selected player prefab is null. characterId={prefs?.characterId} (AllAgents harpyId={allAgents?.harpyId}, elfId={allAgents?.elfId})");
                 return;

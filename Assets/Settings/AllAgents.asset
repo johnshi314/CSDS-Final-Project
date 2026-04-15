@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.AllAgents
   harpyAgent: {fileID: 8979374364227603825, guid: d3ad2517cc4eb8a12b6470d92ba2c11e, type: 3}
   elfAgent: {fileID: 8979374364227603825, guid: 0e500a173ecf64707ae479ba345cdaa7, type: 3}
-  harpyId: 3
-  elfId: 4
+  harpyId: 4
+  elfId: 3
