@@ -8,8 +8,9 @@ public class MainMenuController : MonoBehaviour {
     [SerializeField] private GameObject playButtonsPanel;
 
     [Header("Scene Settings")]
-    [SerializeField] private string gameplaySceneName;
-    [SerializeField] private string loginSceneName;
+    [SerializeField] private string gameplaySceneName = "GameplayTest";
+    [SerializeField] private string loginSceneName = "Login";
+    [SerializeField] private string characterSelectSceneName = "CharacterSelect_1";
 
     void Start() {
         // Ensure correct default state
@@ -28,7 +29,7 @@ public class MainMenuController : MonoBehaviour {
 
     public void OnPlayOfflinePressed() {
         PersistentPlayerPreferences.instance.isPlayingOnline = false;
-        SceneManager.LoadScene(gameplaySceneName);
+        SceneManager.LoadScene(characterSelectSceneName);
         
     }
     

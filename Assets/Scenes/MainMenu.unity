@@ -1881,6 +1881,7 @@ MonoBehaviour:
   playButtonsPanel: {fileID: 457050423}
   gameplaySceneName: GameplayTest
   loginSceneName: Login
+  characterSelectSceneName: CharacterSelect_1
 --- !u!1 &654457892
 GameObject:
   m_ObjectHideFlags: 0

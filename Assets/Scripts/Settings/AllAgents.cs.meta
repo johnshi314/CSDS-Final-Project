@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 8a8fee340f2bb9fc9838933358319351
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - harpyAgent: {fileID: 8979374364227603825, guid: 0e500a173ecf64707ae479ba345cdaa7, type: 3}
+  - elfAgent: {fileID: 8979374364227603825, guid: d3ad2517cc4eb8a12b6470d92ba2c11e, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

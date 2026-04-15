@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine.Tilemaps;
+using Unity.VisualScripting;
 
 namespace NetFlower.UI {
 
@@ -47,10 +49,11 @@ namespace NetFlower.UI {
         public IReadOnlyList<Vector2Int> BlueSpawnPoints => IsMapReady ? mapManager.ActiveMap.BlueSpawnPoints : blueSpawnPoints;
         private IEnumerable<Agent> ConfiguredAgents {
             get {
-                foreach (Agent agent in redAgents) {
+                // Use active map-manager team members after initialization/reinitialization.
+                foreach (Agent agent in RedAgents) {
                     if (agent != null) yield return agent;
                 }
-                foreach (Agent agent in blueAgents) {
+                foreach (Agent agent in BlueAgents) {
                     if (agent != null) yield return agent;
                 }
             }
@@ -174,6 +177,62 @@ namespace NetFlower.UI {
             
             // Configure the visualizer
             tileVisualizer.Initialize(tilemap, highlightTileAsset, tileHoverColor, tileHoverAlpha);
+        }
+
+        public void ReinitializeMapManager(List<Agent> redAgents, List<Agent> blueAgents, IEnumerable<Vector2Int> redSpawnPoints, IEnumerable<Vector2Int> blueSpawnPoints) {
+            if (!IsMapReady) return;
+
+            mapManager = new MapManager(
+                new Team("Red", TeamColor.Red, redAgents),
+                new Team("Blue", TeamColor.Blue, blueAgents),
+                mapManager.ActiveMap
+            );
+
+            // Cache team/spawn config used by editor/debug fallback paths.
+            this.redAgents = redAgents ?? new List<Agent>();
+            this.blueAgents = blueAgents ?? new List<Agent>();
+            this.redSpawnPoints = redSpawnPoints != null ? new List<Vector2Int>(redSpawnPoints) : new List<Vector2Int>();
+            this.blueSpawnPoints = blueSpawnPoints != null ? new List<Vector2Int>(blueSpawnPoints) : new List<Vector2Int>();
+
+            // Consume spawn points in-order so each agent gets a distinct valid tile.
+            var redSpawnQueue = (redSpawnPoints ?? this.redSpawnPoints).GetEnumerator();
+            var blueSpawnQueue = (blueSpawnPoints ?? this.blueSpawnPoints).GetEnumerator();
+
+            foreach (Agent agent in this.redAgents) {
+                if (agent == null) continue;
+                if (!TryFindNextSpawn(redSpawnQueue, out var startingTile) || !mapManager.PlaceAgent(agent, startingTile)) {
+                    Debug.LogError($"GridMap: No available red spawn for {agent.name}. Check spawn list size/walkability/occupancy.");
+                    break;
+                }
+            }
+
+            foreach (Agent agent in this.blueAgents) {
+                if (agent == null) continue;
+                if (!TryFindNextSpawn(blueSpawnQueue, out var startingTile) || !mapManager.PlaceAgent(agent, startingTile)) {
+                    Debug.LogError($"GridMap: No available blue spawn for {agent.name}. Check spawn list size/walkability/occupancy.");
+                    break;
+                }
+            }
+            PositionInitialAgents();
+        }
+
+        /// <summary>
+        /// Returns the next walkable, in-bounds, unoccupied spawn point from the provided sequence.
+        /// </summary>
+        private bool TryFindNextSpawn(IEnumerator<Vector2Int> spawnEnumerator, out Vector2Int spawn) {
+            while (spawnEnumerator != null && spawnEnumerator.MoveNext()) {
+                var candidate = spawnEnumerator.Current;
+                if (!mapManager.ActiveMap.InBounds(candidate))
+                    continue;
+                if (!mapManager.ActiveMap.IsWalkable(candidate))
+                    continue;
+                if (mapManager.ActiveMap.GetAgentAtPosition(candidate) != null)
+                    continue;
+                spawn = candidate;
+                return true;
+            }
+            spawn = default;
+            return false;
         }
 
         // Update is called once per frame
