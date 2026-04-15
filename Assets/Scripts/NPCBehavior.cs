@@ -57,57 +57,49 @@ namespace NetFlower {
             if (!isNPC || hasActedThisTurn || agent == null || gridMap == null) return;
 
             if (gridMap.MapManager == null || gridMap.MapManager.ActiveMap == null) return;
+            if (battleManager == null || battleManager.CurrentAgent != agent) return;
+            // Wait until movement/animation phase completes before deciding the next step.
+            if (battleManager.State == BattleState.MovingAgent || battleManager.State == BattleState.WaitingForAnimations) return;
 
             actionTimer -= Time.deltaTime;
             if (actionTimer > 0f) return; // Wait before acting
 
+            // Run one decision step at a time so NPC can weave action/move across a turn.
+            bool acted = DecideAction(gridMap, battleManager);
+            if (acted) {
+                actionTimer = decisionDelaySeconds;
+                return;
+            }
+            // No beneficial actions left: end turn.
             hasActedThisTurn = true;
-
-            // Simple AI logic: Try to move towards enemies, then use abilities
-            DecideAction(gridMap, battleManager);
+            Debug.Log($"NPCBehavior: {agent.Name} has no beneficial actions left, ending turn.");
+            battleManager.OnEndTurnPressed();
         }
 
         /// <summary>
-        /// Main decision-making logic for the NPC.
+        /// One AI step. Returns true if an action was taken.
         /// </summary>
-        private void DecideAction(GridMap gridMap, BattleManager battleManager) {
+        private bool DecideAction(GridMap gridMap, BattleManager battleManager) {
             Map map = gridMap.MapManager.ActiveMap;
-            int actionCount = 0;
-            const int maxActionsPerTurn = 10; // Prevent infinite loops
- 
-            while (actionCount < maxActionsPerTurn) {
-                Tile currentTile = map.GetCurrentTile(agent);
- 
-                if (currentTile == null) {
-                    Debug.LogWarning($"NPCBehavior: {agent.Name} is not on the map!");
-                    break;
-                }
- 
-                // Priority 1: Try to use an ability on an enemy
-                if (TryUseAbilityOnEnemy(gridMap, battleManager, map, currentTile)) {
-                    actionCount++;
-                    Debug.Log($"NPCBehavior: {agent.Name} used an ability (action {actionCount}).");
-                    continue; // Try another action
-                }
- 
-                // Priority 2: Move towards the nearest enemy
-                if (TryMoveTowardEnemy(gridMap, map, currentTile)) {
-                    actionCount++;
-                    Debug.Log($"NPCBehavior: {agent.Name} moved (action {actionCount}).");
-                    continue; // Try another action
-                }
- 
-                // No more beneficial actions available
-                break;
+            Tile currentTile = map.GetCurrentTile(agent);
+            if (currentTile == null) {
+                Debug.LogWarning($"NPCBehavior: {agent.Name} is not on the map!");
+                return false;
             }
- 
-            if (actionCount == 0) {
-                Debug.Log($"NPCBehavior: {agent.Name} has no beneficial actions available.");
-            } else {
-                Debug.Log($"NPCBehavior: {agent.Name} completed {actionCount} action(s), ending turn.");
+
+            // Priority 1: Try to use an ability on an enemy.
+            if (TryUseAbilityOnEnemy(gridMap, battleManager, map, currentTile)) {
+                Debug.Log($"NPCBehavior: {agent.Name} used an ability.");
+                return true;
             }
- 
-            battleManager.OnEndTurnPressed();
+
+            // Priority 2: Move towards the nearest enemy.
+            if (TryMoveTowardEnemy(gridMap, battleManager, map, currentTile)) {
+                Debug.Log($"NPCBehavior: {agent.Name} moved.");
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -173,7 +165,7 @@ namespace NetFlower {
         /// Attempts to move towards the nearest enemy within movement range.
         /// Returns true if movement was executed.
         /// </summary>
-        private bool TryMoveTowardEnemy(GridMap gridMap, Map map, Tile currentTile) {
+        private bool TryMoveTowardEnemy(GridMap gridMap, BattleManager battleManager, Map map, Tile currentTile) {
             // Get all tiles the agent can move to
             List<Tile> movableTiles = map.GetMovableTiles(agent);
             if (movableTiles.Count == 0) {
@@ -196,18 +188,11 @@ namespace NetFlower {
             Tile bestMoveTile = GetClosestTile(enemyTile, movableTiles);
 
             if (bestMoveTile != null) {
-                // Calculate the movement cost
-                var path = map.FindShortestPath(currentTile.Position, bestMoveTile.Position);
-                int pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
-
-                // Move the agent
-                gridMap.TryMoveAgentByMapIndex(agent, bestMoveTile.Position);
-                if (pathLength > 0) {
-                    agent.SpendMovement(pathLength);
+                // Route through BattleManager so AI uses the same movement tween/animation phase as players.
+                if (battleManager.TryMoveCurrentAgentWithAnimation(bestMoveTile)) {
+                    Debug.Log($"NPCBehavior: {agent.Name} moved toward {nearestEnemy.Name} at {bestMoveTile.Position}");
+                    return true;
                 }
-
-                Debug.Log($"NPCBehavior: {agent.Name} moved toward {nearestEnemy.Name} at {bestMoveTile.Position}");
-                return true;
             }
 
             return false;

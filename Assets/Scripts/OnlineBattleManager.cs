@@ -148,9 +148,9 @@ namespace NetFlower {
             return CurrentAgent.Player != null && CurrentAgent.Player.Id == _myPlayerId;
         }
 
-        protected override void CommitTurnAdvance() {
+        protected override void AdvanceTurn() {
             if (_localFallback) {
-                base.CommitTurnAdvance();
+                base.AdvanceTurn();
                 return;
             }
             _ = SendPassAsync();

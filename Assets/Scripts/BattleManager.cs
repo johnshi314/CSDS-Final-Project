@@ -387,12 +387,26 @@ namespace NetFlower {
 
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
-            CommitTurnAdvance();
+            AdvanceTurn();
         }
 
         /// <summary>Offline: advance turn. Online: notify server (subclass overrides).</summary>
-        protected virtual void CommitTurnAdvance() {
-            AdvanceTurn();
+        protected virtual void AdvanceTurn() {
+            if (CurrentAgent != null) {
+                CurrentAgent.OnTurnEnd(currentTurn);
+            }
+            
+            // Record turns taken
+            if (CurrentAgent != null && CurrentAgent.playerMatchStats != null) {
+                CurrentAgent.playerMatchStats.turnsTaken++;
+            }
+            
+            currentAgentIndex = (currentAgentIndex + 1) % turnOrder.Count;
+            if (currentAgentIndex == 0)
+                currentTurn++;
+            
+            BeginTurn();
+            // Do not stop timer here; BeginTurn restarts it for the next player
         }
 
         // ------------------------------------------------------------------ //
@@ -493,24 +507,6 @@ namespace NetFlower {
         protected virtual void OnAfterLocalMoveCommitted(Vector2Int destinationMapIndex) { }
 
         protected virtual void OnAfterLocalAbilityUsed(Ability ability, Tile targetTile) { }
-
-        private void AdvanceTurn() {
-            if (CurrentAgent != null) {
-                CurrentAgent.OnTurnEnd(currentTurn);
-            }
-            
-            // Record turns taken
-            if (CurrentAgent != null && CurrentAgent.playerMatchStats != null) {
-                CurrentAgent.playerMatchStats.turnsTaken++;
-            }
-            
-            currentAgentIndex = (currentAgentIndex + 1) % turnOrder.Count;
-            if (currentAgentIndex == 0)
-                currentTurn++;
-            
-            BeginTurn();
-            // Do not stop timer here; BeginTurn restarts it for the next player
-        }
 
         /// <summary>
         /// Counts the number of Red team agents still alive in the turn order.
@@ -634,7 +630,7 @@ namespace NetFlower {
                         // Wait for movement animation to finish before advancing turn
                         state = BattleState.WaitingForAnimations;
                     } else {
-                        CommitTurnAdvance();
+                        AdvanceTurn();
                     }
                 }
             }
@@ -673,19 +669,28 @@ namespace NetFlower {
 
             Tile clickedTile = gridMap.GetHoveredTile();
             if (clickedTile == null || !validMoveTiles.Contains(clickedTile)) return;
+            TryMoveCurrentAgentWithAnimation(clickedTile);
+        }
 
-            Agent agent = CurrentAgent;
-            // Calculate path distance moved using BFS
+        /// <summary>
+        /// Executes move logic + tween for the current agent. Used by both player clicks and NPC AI.
+        /// </summary>
+        public bool TryMoveCurrentAgentWithAnimation(Tile destinationTile) {
+            return TryMoveAgentWithAnimation(CurrentAgent, destinationTile, notifyAsLocalMove: true);
+        }
+
+        bool TryMoveAgentWithAnimation(Agent agent, Tile destinationTile, bool notifyAsLocalMove) {
+            if (agent == null || destinationTile == null || gridMap == null || gridMap.MapManager == null || gridMap.MapManager.ActiveMap == null)
+                return false;
+
             Vector2Int? oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
-            Vector2Int newPos = clickedTile.Position;
-            int pathLength = 0;
-            if (oldPos.HasValue) {
-                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, newPos);
-                // Path includes start tile, so movement cost is path.Count - 1
-                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
-            }
-            // Build world-position path for tweening
+            if (!oldPos.HasValue)
+                return false;
+
+            Vector2Int newPos = destinationTile.Position;
             var tilePath = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, newPos);
+            int pathLength = (tilePath != null && tilePath.Count > 0) ? tilePath.Count - 1 : 0;
+
             float agentZ = agent.transform.position.z;
             List<Vector3> worldPath = new List<Vector3>();
             if (tilePath != null) {
@@ -693,19 +698,19 @@ namespace NetFlower {
                     worldPath.Add(gridMap.MapIndexToWorldPosition(t.Position, agentZ));
             }
 
-            // Apply logical move (updates map data + snaps visual position)
-            gridMap.TryMoveAgentByMapIndex(agent, clickedTile.Position);
-            // Decrease agent's movement range by path length moved
-            if (pathLength > 0 && agent != null) {
-                agent.SpendMovement(pathLength);
-            }
+            if (!gridMap.TryMoveAgentByMapIndex(agent, destinationTile.Position))
+                return false;
 
-            OnAfterLocalMoveCommitted(clickedTile.Position);
+            if (pathLength > 0)
+                agent.SpendMovement(pathLength);
+
+            if (notifyAsLocalMove)
+                OnAfterLocalMoveCommitted(destinationTile.Position);
 
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
 
-            // Start movement tween (snap agent back to original position, then animate)
+            // Start movement tween (snap back to old position first, then animate along path).
             if (worldPath.Count >= 2) {
                 agent.transform.position = worldPath[0];
                 movePath = worldPath;
@@ -714,9 +719,9 @@ namespace NetFlower {
                 movingAgent = agent;
                 state = BattleState.MovingAgent;
             } else {
-                // No path to tween (shouldn't happen), just stay in WaitingForAction
                 state = BattleState.WaitingForAction;
             }
+            return true;
         }
 
         private void HandleAbilitySelection() {
@@ -759,7 +764,7 @@ namespace NetFlower {
 
             if (state == BattleState.WaitingForAnimations) {
                 // Turn ended while moving — advance to next turn now
-                CommitTurnAdvance();
+                AdvanceTurn();
             } else {
                 // Movement finished within the turn — return to action menu
                 state = BattleState.WaitingForAction;
