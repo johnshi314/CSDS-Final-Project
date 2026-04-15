@@ -667,7 +667,8 @@ namespace NetFlower {
             // Ignore clicks over the UI panel
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
-            if (uiRect.Contains(guiMouse)) return;
+            // Only when using the No longer needed IMGUI UI
+            if (!useCanvasUI && uiRect.Contains(guiMouse)) return;
 
             Tile clickedTile = gridMap.GetHoveredTile();
             if (clickedTile == null || !validMoveTiles.Contains(clickedTile)) return;
@@ -801,7 +802,7 @@ namespace NetFlower {
             Vector2 guiMouse = new Vector2(mouseScreen.x, Screen.height - mouseScreen.y);
 
             // Ignore clicks over the UI panel
-            if (uiRect.Contains(guiMouse)) return;
+            if (!useCanvasUI && uiRect.Contains(guiMouse)) return;
 
             Tile clickedTile = gridMap.GetHoveredTile();
             if (clickedTile == null || !validAbilityTargets.Contains(clickedTile)) return;
