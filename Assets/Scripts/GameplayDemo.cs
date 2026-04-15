@@ -98,7 +98,7 @@ namespace NetFlower {
                 }
 
                 if (prefs.isPlayingOnline) {
-                    OnlineFillGridMap();
+                    OnlineFillGridMap(prefs);
                 } else {
                     OfflineFillGridMap();
                 }
@@ -115,12 +115,64 @@ namespace NetFlower {
                 battleManager.StartBattle();
         }
 
-        void OnlineFillGridMap() {
-            List<Agent> redAgents = new List<Agent>(gridMap.RedAgents);
-            List<Agent> blueAgents = new List<Agent>(gridMap.BlueAgents);
-            List<Vector2Int> redSpawnPoints = new List<Vector2Int>(gridMap.RedSpawnPoints);
-            List<Vector2Int> blueSpawnPoints = new List<Vector2Int>(gridMap.BlueSpawnPoints);
-            gridMap.ReinitializeMapManager(redAgents, blueAgents, redSpawnPoints, blueSpawnPoints);
+        /// <summary>
+        /// Online PvP: same structural guarantees as <see cref="OfflineFillGridMap"/> — destroy scene default
+        /// agents, spawn prefabs under RedTeam/BlueTeam so each client builds the same network unit ids (r0, b0).
+        /// Local character comes from character select; other team uses a
+        /// shared placeholder prefab until the server sends opponent roster (harpy mirroring offline for now).
+        /// </summary>
+        void OnlineFillGridMap(PersistentPlayerPreferences prefs) {
+            if (allAgents == null) {
+                allAgents = Resources.Load<AllAgents>("Settings/AllAgents");
+            }
+
+            GameObject localPrefab = allAgents != null ? allAgents.GetAgentPrefabById(prefs.characterId) : null;
+            GameObject opponentPrefab = allAgents != null ? allAgents.harpyAgent : null;
+
+            if (localPrefab == null) {
+                Debug.LogError($"GameplayDemo (online): Selected player prefab is null. characterId={prefs?.characterId} (AllAgents harpyId={allAgents?.harpyId}, elfId={allAgents?.elfId})");
+                return;
+            }
+            if (opponentPrefab == null) {
+                Debug.LogError("GameplayDemo (online): Opponent placeholder prefab (harpyAgent) is null in AllAgents.");
+                return;
+            }
+
+            var match = Match.GetInstance();
+            bool localOnRed = match == null || match.selectedTeam == Match.TeamSelection.Red;
+
+            DestroyDefaultTeamAgents();
+
+            GameObject redObject;
+            GameObject blueObject;
+            if (localOnRed) {
+                redObject = Instantiate(localPrefab, redTeamRoot);
+                blueObject = Instantiate(opponentPrefab, blueTeamRoot);
+            } else {
+                redObject = Instantiate(opponentPrefab, redTeamRoot);
+                blueObject = Instantiate(localPrefab, blueTeamRoot);
+            }
+
+            StripNpcBehaviorForOnlinePvP(redObject);
+            StripNpcBehaviorForOnlinePvP(blueObject);
+
+            Agent redAgent = redObject.GetComponent<Agent>();
+            Agent blueAgent = blueObject.GetComponent<Agent>();
+            if (redAgent == null || blueAgent == null) {
+                Debug.LogError("GameplayDemo (online): Agent prefab is missing Agent component.");
+                return;
+            }
+
+            var redTeam = new List<Agent> { redAgent };
+            var blueTeam = new List<Agent> { blueAgent };
+            gridMap.ReinitializeMapManager(redTeam, blueTeam, gridMap.RedSpawnPoints, gridMap.BlueSpawnPoints);
+        }
+
+        static void StripNpcBehaviorForOnlinePvP(GameObject agentObject) {
+            if (agentObject == null) return;
+            var npc = agentObject.GetComponent<NPCBehavior>();
+            if (npc != null)
+                Destroy(npc);
         }
 
         void OfflineFillGridMap() {
