@@ -439,7 +439,7 @@ def _lobby_rows(match_id: int):
     try:
         with engine.connect() as connection:
             return connection.execute(text("""
-                SELECT player_id, team, ready
+                SELECT player_id, team, ready, character_id
                 FROM lobby_players
                 WHERE match_id = :match_id
                 ORDER BY player_id ASC

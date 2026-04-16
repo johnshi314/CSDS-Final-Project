@@ -12,6 +12,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 using NetFlower.UI;
@@ -483,16 +484,7 @@ namespace NetFlower {
             if (slot < 0 || slot >= turnOrder.Count || gridMap == null) return;
             var agent = turnOrder[slot];
             if (agent == null) return;
-            var dest = new Vector2Int(mapX, mapY);
-            var oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
-            if (!gridMap.TryMoveAgentByMapIndex(agent, dest)) return;
-            int pathLength = 0;
-            if (oldPos.HasValue) {
-                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, dest);
-                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
-            }
-            if (pathLength > 0)
-                agent.SpendMovement(pathLength);
+            ApplyRemoteMoveForAgent(agent, mapX, mapY);
         }
 
         /// <summary>Replay a peer ability use.</summary>
@@ -533,16 +525,67 @@ namespace NetFlower {
         public void ApplyRemoteMoveForUnit(string unitId, int mapX, int mapY) {
             if (string.IsNullOrEmpty(unitId) || gridMap == null) return;
             if (!TryGetAgentByNetworkUnitId(unitId, out var agent)) return;
+            ApplyRemoteMoveForAgent(agent, mapX, mapY);
+        }
+
+        private void ApplyRemoteMoveForAgent(Agent agent, int mapX, int mapY) {
+            var map = gridMap.MapManager.ActiveMap;
             var dest = new Vector2Int(mapX, mapY);
-            var oldPos = gridMap.MapManager.ActiveMap.GetCurrentTile(agent)?.Position;
-            if (!gridMap.TryMoveAgentByMapIndex(agent, dest)) return;
-            int pathLength = 0;
+            Vector2Int? oldPos = map.GetCurrentTile(agent)?.Position;
+
+            List<Vector3> worldPath = null;
             if (oldPos.HasValue) {
-                var path = gridMap.MapManager.ActiveMap.FindShortestPath(oldPos.Value, dest);
-                pathLength = (path != null && path.Count > 0) ? path.Count - 1 : 0;
+                var tilePath = map.FindShortestPath(oldPos.Value, dest);
+                if (tilePath != null && tilePath.Count >= 2) {
+                    float agentZ = agent.transform.position.z;
+                    worldPath = new List<Vector3>(tilePath.Count);
+                    foreach (var t in tilePath)
+                        worldPath.Add(gridMap.MapIndexToWorldPosition(t.Position, agentZ));
+                }
             }
+
+            if (!gridMap.TryMoveAgentByMapIndex(agent, dest)) return;
+
+            int pathLength = worldPath != null ? worldPath.Count - 1 : 0;
             if (pathLength > 0)
                 agent.SpendMovement(pathLength);
+
+            if (worldPath != null && worldPath.Count >= 2) {
+                agent.transform.position = worldPath[0];
+                StartCoroutine(AnimateRemoteMove(agent, worldPath));
+            }
+        }
+
+        private IEnumerator AnimateRemoteMove(Agent agent, List<Vector3> path) {
+            Animator animator = agent.GetComponentInChildren<Animator>();
+            int idx = 0;
+            float t = 0f;
+
+            while (idx < path.Count - 1) {
+                if (animator != null) {
+                    animator.SetBool("IsWalking", true);
+                    Vector3 dir = (path[idx] - path[idx + 1]).normalized;
+                    animator.SetBool("IsLeft", dir.x >= 0);
+                    animator.SetBool("IsForward", dir.y >= 0);
+                }
+
+                t += Time.deltaTime * moveSpeed;
+                while (t >= 1f) {
+                    t -= 1f;
+                    idx++;
+                    if (idx >= path.Count - 1) {
+                        agent.transform.position = path[path.Count - 1];
+                        if (animator != null) animator.SetBool("IsWalking", false);
+                        yield break;
+                    }
+                }
+
+                agent.transform.position = Vector3.Lerp(path[idx], path[idx + 1], t);
+                yield return null;
+            }
+
+            agent.transform.position = path[path.Count - 1];
+            if (animator != null) animator.SetBool("IsWalking", false);
         }
 
         /// <summary>Replay a peer ability use (network unit id).</summary>
