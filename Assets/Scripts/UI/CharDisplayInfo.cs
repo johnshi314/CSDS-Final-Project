@@ -23,6 +23,8 @@ public class CharDisplayInfo : MonoBehaviour
     //Stats and abilities
     public int movement;
     
+    [SerializeField]
+    public bool characterunlocked;
 
     public string[] ability_name;
     [TextArea(6,15)]

@@ -24,8 +24,10 @@ public class CharDisplayManager : MonoBehaviour
     public new TMP_Text name;
     public TMP_Text charDesc;
     public TMP_Text movement;
+    public Button readyButton;
+    public GameObject lockedCharText; 
+
     [SerializeField]
-    
     private GameObject[] abilitylist;//List of objects for displaying information of abilities
 
 
@@ -43,7 +45,7 @@ public class CharDisplayManager : MonoBehaviour
        
         UpdateCharDisplay();
 
-
+        
         //update grid objects with corresponding information
         int childCount = grid.transform.childCount;
         for(int i = 0; i < childCount; i++)
@@ -70,7 +72,6 @@ public class CharDisplayManager : MonoBehaviour
 
         }
     }
-
 
 
     //functions for next and prev buttons
@@ -135,6 +136,19 @@ public class CharDisplayManager : MonoBehaviour
 
                 
             }
+
+            if (charinfo.characterunlocked==false)
+            {
+                //Debug.Log("AAAAAAAAAAAAA");
+                readyButton.enabled=false;
+                lockedCharText.SetActive(true);
+            }
+            else
+            {
+                //Debug.Log("5555555555");
+                readyButton.enabled=true;
+                lockedCharText.SetActive(false);
+            }
         }
     }
 
@@ -152,11 +166,25 @@ public class CharDisplayManager : MonoBehaviour
         {
             selectedIndex = (selectedIndex+1)%chardisplay.Length;
         }
+
+        
         
         chardisplay[selectedIndex].SetActive(true);//enables new character image in carosel
         CharDisplayInfo charinfo = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>();
         if (charinfo != null)
         {
+            if (charinfo.characterunlocked!=false)
+            {
+                readyButton.enabled=false;
+                lockedCharText.SetActive(true);
+            }
+            else
+            {
+                readyButton.enabled=true;
+                lockedCharText.SetActive(false);
+                
+            }
+
             name.text = charinfo.char_name;
             charDesc.text = charinfo.char_desc;
             movement.text = "Movement: " + charinfo.movement;
@@ -184,6 +212,19 @@ public class CharDisplayManager : MonoBehaviour
 
                 
             }
+
+         if (charinfo.characterunlocked==false)
+            {
+                //Debug.Log("AAAAAAAAAAAAA");
+                readyButton.enabled=false;
+                lockedCharText.SetActive(true);
+            }
+            else
+            {
+                //Debug.Log("5555555555");
+                readyButton.enabled=true;
+                lockedCharText.SetActive(false);
+            }   
         }
     }
 
