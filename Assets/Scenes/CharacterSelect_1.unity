@@ -1090,9 +1090,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayManager
   chardisplay:
-  - {fileID: 542565898}
   - {fileID: 1188212504}
   - {fileID: 576396480}
+  - {fileID: 542565898}
   - {fileID: 576421331}
   - {fileID: 415601261}
   - {fileID: 864052470}
@@ -1547,10 +1547,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: goburin
+  char_name: Marigold
   internal_name: Goblin
   char_desc: joe joe
   char_id: 7
+  char_icon: {fileID: 0}
   colors: {r: 1, g: 1, b: 0, a: 1}
   movement: 5
   ability_name: []
@@ -1782,7 +1783,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 391888048}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
@@ -1961,10 +1962,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: joe
+  char_name: Laurel
   internal_name: CEO
   char_desc: joe joe
   char_id: 5
+  char_icon: {fileID: 0}
   colors: {r: 0.60784316, g: 0.9490196, b: 1, a: 1}
   movement: 5
   ability_name: []
@@ -2327,7 +2329,7 @@ SpriteRenderer:
   m_SortingOrder: 1
   m_MaskInteraction: 0
   m_Sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
-  m_Color: {r: 0.645283, g: 0.645283, b: 0.645283, a: 1}
+  m_Color: {r: 0.34509805, g: 0.39215687, b: 0.53333336, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -2455,18 +2457,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: Bobman builderman
+  char_name: Linden
   internal_name: Main
-  char_desc: Bob bob bob
+  char_desc: "Our new consultant! A defensive unit with good movement and high damage
+    potential.\r\n "
   char_id: 1
-  colors: {r: 1, g: 0.6392157, b: 0.67058825, a: 1}
-  movement: 0
+  char_icon: {fileID: 0}
+  colors: {r: 0.3529412, g: 0.8392157, b: 0.3137255, a: 1}
+  movement: 5
   ability_name: []
   ability_desc:
-  - bob ability 1
-  - bob ability 2
-  - bob ability 3
-  - bob ability 4
+  - '
+
+    1 range, 1 target, 4 damage, on hit: gain 1 Will (max 10)
+
+
+    Will:
+    Used for certain abilities, does not expire.
+
+'
+  - "2 range, all targets in range, 2 damage, on 1 or more target hit: gain 2 movement
+    and 1 Will \r\n"
+  - "Cooldown 3; spend all Will, gain Shield equal to Will, gain movement equal to
+    Will/2 rounded down.\r\nShield: While this unit has >0 Shield, when this unit
+    takes damage, Shield is reduced instead of hp. Expires when this unit\u2019s
+    turn starts.\r\n"
+  - "Cooldown 3; 2 range, all targets in range, at start of next turn gain 2 Power
+    up for each enemy in range \r\n\tPower up X: This unit\u2019s attacks deal X
+    more damage. Expires at end of turn"
   ability_icons: []
 --- !u!1 &576396480
 GameObject:
@@ -2572,11 +2590,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: Rober
+  char_name: Ash
   internal_name: Delivery
   char_desc: robert desc
   char_id: 4
-  colors: {r: 0.7647059, g: 1, b: 0.7294118, a: 1}
+  char_icon: {fileID: 0}
+  colors: {r: 0.92941177, g: 0.6666667, b: 0.34901962, a: 1}
   movement: 2
   ability_name: []
   ability_desc:
@@ -2687,10 +2706,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: Jose
+  char_name: Mocha
   internal_name: Coffee
   char_desc: Jose char desc
   char_id: 2
+  char_icon: {fileID: 0}
   colors: {r: 0.9843137, g: 0.92941177, b: 0.5568628, a: 1}
   movement: 12
   ability_name: []
@@ -2929,7 +2949,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 640599927}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
@@ -3657,7 +3677,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.34509805, g: 0.39215687, b: 0.53333336, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3712,10 +3732,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: letsgogamblingawdangit
+  char_name: Clover
   internal_name: BFF
   char_desc: joe joe
   char_id: 6
+  char_icon: {fileID: 0}
   colors: {r: 1, g: 0, b: 0.9529412, a: 1}
   movement: 5
   ability_name: []
@@ -5162,7 +5183,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1160330452}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
@@ -5378,13 +5399,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1e26d68b24d815428d70c67218fd696, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
-  char_name: E the Elf
+  char_name: Heather
   internal_name: Elf
-  char_desc: 'An Elf Girl who handles the companies public relations.
+  char_desc: 'An Elf Girl who handles the company''s HR deportment.
 
     A powerful
     support in any coporate battleground.'
   char_id: 3
+  char_icon: {fileID: 0}
   colors: {r: 0.8372901, g: 0.5943396, b: 1, a: 1}
   movement: 10
   ability_name: []
@@ -5641,7 +5663,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1295379939}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
@@ -6286,7 +6308,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.34509805, g: 0.39191157, b: 0.53333336, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -6561,7 +6583,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1666099551}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
