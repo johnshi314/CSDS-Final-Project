@@ -1102,17 +1102,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 668888255}
     - target: {fileID: 1366766959017792691, guid: 67e6ef9619047da209f53f8f3c9ffffd, type: 3}
-      propertyPath: allAgents
+      propertyPath: redTeamRoot
       value: 
-      objectReference: {fileID: 11400000, guid: a23412051c6021d67be996b912cac598, type: 2}
+      objectReference: {fileID: 342000868}
+    - target: {fileID: 1366766959017792691, guid: 67e6ef9619047da209f53f8f3c9ffffd, type: 3}
+      propertyPath: blueTeamRoot
+      value: 
+      objectReference: {fileID: 1061576546}
     - target: {fileID: 1851586129582700408, guid: 67e6ef9619047da209f53f8f3c9ffffd, type: 3}
       propertyPath: m_Name
       value: GameplayDemo
       objectReference: {fileID: 0}
-    - target: {fileID: 4597687322187452393, guid: 67e6ef9619047da209f53f8f3c9ffffd, type: 3}
-      propertyPath: gridMap
-      value: 
-      objectReference: {fileID: 1614462205}
     - target: {fileID: 6467939607221578221, guid: 67e6ef9619047da209f53f8f3c9ffffd, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -5001,7 +5001,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 380, y: 0}
+  m_AnchoredPosition: {x: 370, y: 0}
   m_SizeDelta: {x: 220, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1634677366
@@ -5057,7 +5057,7 @@ MonoBehaviour:
   m_Padding:
     m_Left: 10
     m_Right: 10
-    m_Top: 0
+    m_Top: 10
     m_Bottom: 10
   m_ChildAlignment: 0
   m_Spacing: 10

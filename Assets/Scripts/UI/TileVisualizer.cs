@@ -22,6 +22,7 @@ public class TileVisualizer : MonoBehaviour {
     private TilemapCollider2D tilemapCollider;
     private Vector3Int lastHoveredPos = new Vector3Int(-999, -999, 0);
     private Dictionary<Vector3Int, (Color color, float alpha)> persistentHighlights = new();
+    private Dictionary<Vector3Int, (Color color, float alpha)> previewHighlights = new();
     private bool hoverEnabled = true;
     private bool isInitialized = false;
 
@@ -152,12 +153,7 @@ public class TileVisualizer : MonoBehaviour {
         if (hoveredCellPos != lastHoveredPos) {
             // Restore previous tile: persistent highlights get their color back, others get cleared
             if (lastHoveredPos.x != -999) {
-                if (persistentHighlights.TryGetValue(lastHoveredPos, out var stored)) {
-                    SetHighlightAtCell(lastHoveredPos, stored.color, stored.alpha);
-                } else {
-                    highlightTilemap.SetTile(lastHoveredPos, null);
-                    highlightTilemap.SetColor(lastHoveredPos, Color.white);
-                }
+                RestoreCellHighlight(lastHoveredPos);
             }
 
             // Set new hover highlight
@@ -168,6 +164,20 @@ public class TileVisualizer : MonoBehaviour {
 
             lastHoveredPos = hoveredCellPos;
         }
+    }
+
+    private void RestoreCellHighlight(Vector3Int cellPos) {
+        // Preview highlight has priority over persistent highlight.
+        if (previewHighlights.TryGetValue(cellPos, out var preview)) {
+            SetHighlightAtCell(cellPos, preview.color, preview.alpha);
+            return;
+        }
+        if (persistentHighlights.TryGetValue(cellPos, out var stored)) {
+            SetHighlightAtCell(cellPos, stored.color, stored.alpha);
+            return;
+        }
+        highlightTilemap.SetTile(cellPos, null);
+        highlightTilemap.SetColor(cellPos, Color.white);
     }
 
     /// <summary>
@@ -214,7 +224,9 @@ public class TileVisualizer : MonoBehaviour {
         if (!isInitialized || highlightTileAsset == null) return;
         
         persistentHighlights[cellPos] = (color, alpha);
-        SetHighlightAtCell(cellPos, color, alpha);
+        // If a preview exists at this cell, keep the preview visible.
+        if (!previewHighlights.ContainsKey(cellPos))
+            SetHighlightAtCell(cellPos, color, alpha);
     }
 
     /// <summary>
@@ -235,8 +247,7 @@ public class TileVisualizer : MonoBehaviour {
         if (!isInitialized) return;
         
         persistentHighlights.Remove(cellPos);
-        highlightTilemap.SetTile(cellPos, null);
-        highlightTilemap.SetColor(cellPos, Color.white);
+        RestoreCellHighlight(cellPos);
     }
 
     /// <summary>
@@ -246,10 +257,36 @@ public class TileVisualizer : MonoBehaviour {
         if (!isInitialized) return;
         
         foreach (var cell in persistentHighlights.Keys) {
-            highlightTilemap.SetTile(cell, null);
-            highlightTilemap.SetColor(cell, Color.white);
+            // Clearing persistent highlight may reveal a preview highlight underneath.
+            RestoreCellHighlight(cell);
         }
         persistentHighlights.Clear();
+    }
+
+    /// <summary>
+    /// Highlights multiple tiles as a temporary preview (higher priority than persistent highlights).
+    /// Intended for AoE previews during targeting. Clear with ClearPreviewHighlights().
+    /// </summary>
+    public void HighlightCellsPreview(IEnumerable<Vector3Int> cells, Color color, float alpha = 0.5f) {
+        if (!isInitialized || highlightTileAsset == null) return;
+        if (cells == null) return;
+
+        foreach (var cell in cells) {
+            previewHighlights[cell] = (color, alpha);
+            SetHighlightAtCell(cell, color, alpha);
+        }
+    }
+
+    /// <summary>
+    /// Clears all preview highlights and restores any persistent highlights underneath.
+    /// </summary>
+    public void ClearPreviewHighlights() {
+        if (!isInitialized) return;
+        var keys = new List<Vector3Int>(previewHighlights.Keys);
+        previewHighlights.Clear();
+        foreach (var cell in keys) {
+            RestoreCellHighlight(cell);
+        }
     }
 
     /// <summary>

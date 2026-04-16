@@ -339,6 +339,30 @@ namespace NetFlower.UI {
         }
 
         /// <summary>
+        /// Highlights a pre-computed list of Tiles as a temporary preview (does not clear existing highlights).
+        /// Intended for AoE previews while hovering ability targets.
+        /// </summary>
+        public void HighlightTilesPreview(List<Tile> tiles, Color highlightColor, float alpha = 0.6f) {
+            if (tileVisualizer == null || tiles == null) return;
+
+            List<Vector3Int> positions = new List<Vector3Int>();
+            foreach (Tile tile in tiles) {
+                if (tile == null) continue;
+                Vector2Int tilemapCoord = MapIndexToTilemap(tile.Position);
+                positions.Add(new Vector3Int(tilemapCoord.x, tilemapCoord.y, 0));
+            }
+
+            tileVisualizer.HighlightCellsPreview(positions, highlightColor, alpha);
+        }
+
+        /// <summary>
+        /// Clears temporary preview highlights (keeps persistent highlights intact).
+        /// </summary>
+        public void ClearPreviewHighlights() {
+            tileVisualizer?.ClearPreviewHighlights();
+        }
+
+        /// <summary>
         /// Clears all persistent tile highlights (keeps hover highlighting active).
         /// </summary>
         public void ClearHighlights() {

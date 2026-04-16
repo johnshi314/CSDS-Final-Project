@@ -79,6 +79,11 @@ namespace NetFlower {
                     ShapeRangeMax = 0;
                     ShapeRangeMin = 0;
                 }
+
+                // Keep shape range sane for non-single shapes
+                if (TargetShape != AbilityTargetShape.Single && ShapeRangeMax < ShapeRangeMin) {
+                    ShapeRangeMax = ShapeRangeMin;
+                }
                 
                 // SelectCount must be at least 1 for Point mode
                 if (SelectCount < 1) {
@@ -210,15 +215,40 @@ namespace NetFlower {
         /// <param name="context">The ability use context.</param>
         /// <returns>A list of agents affected by the ability.</returns>
         public static List<Agent> GetTargetsInShape(AbilityUseContext context) {
-            return GetTargetsInShape(context.Ability.TargetShape, context.TargetTile.Map, context.TargetTile.Position);
+            if (context == null || context.Ability == null || context.TargetTile == null) return new List<Agent>();
+            return GetTargetsInShape(
+                context.Ability.TargetShape,
+                context.TargetTile.Map,
+                context.TargetTile.Position,
+                context.Ability.ShapeRangeMin,
+                context.Ability.ShapeRangeMax);
         }
         public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Tile targetTile) {
             return GetTargetsInShape(shape, targetTile.Map, targetTile.Position);
         }
 
+        [Obsolete("Use GetTargetsInShape(AbilityUseContext) or the overload with shapeRangeMin/shapeRangeMax so ShapeRangeMin/Max (donut AoE) is respected.")]
         public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
             var agents = new List<Agent>();
             var tiles = GetTilesInShape(shape, map, targetPos);
+
+            foreach (var tile in tiles) {
+                var agent = tile.Map.GetAgentAtTile(tile);
+                if (agent != null) {
+                    agents.Add(agent);
+                }
+            }
+            return agents;
+        }
+
+        public static List<Agent> GetTargetsInShape(
+            AbilityTargetShape shape,
+            Map map,
+            Vector2Int targetPos,
+            uint shapeRangeMin,
+            uint shapeRangeMax) {
+            var agents = new List<Agent>();
+            var tiles = GetTilesInShape(shape, map, targetPos, shapeRangeMin, shapeRangeMax);
 
             foreach (var tile in tiles) {
                 var agent = tile.Map.GetAgentAtTile(tile);
@@ -237,13 +267,20 @@ namespace NetFlower {
         /// <param name="targetPos">The position of the target tile.</param>
         /// <returns>List of tiles affected by the ability.</returns>
         public static List<Tile> GetTilesInShape(AbilityUseContext context) {
-            return GetTilesInShape(context.Ability.TargetShape, context.TargetTile.Map, context.TargetTile.Position);
+            if (context == null || context.Ability == null || context.TargetTile == null) return new List<Tile>();
+            return GetTilesInShape(
+                context.Ability.TargetShape,
+                context.TargetTile.Map,
+                context.TargetTile.Position,
+                context.Ability.ShapeRangeMin,
+                context.Ability.ShapeRangeMax);
         }
 
         public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Tile targetTile) {
             return GetTilesInShape(shape, targetTile.Map, targetTile.Position);
         }
         
+        [Obsolete("Use GetTilesInShape(AbilityUseContext) or the overload with shapeRangeMin/shapeRangeMax so ShapeRangeMin/Max (donut AoE) is respected.")]
         public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
             var tiles = new List<Tile>();
             Tile centerTile = map.GetTileAtPosition(targetPos);
@@ -307,6 +344,91 @@ namespace NetFlower {
                     break;
             }
             return tiles;
+        }
+
+        /// <summary>
+        /// Get all tiles affected by the ability based on its shape, with an inclusive min/max distance
+        /// from the target tile. This enables "donut" shapes by setting a non-zero min.
+        /// </summary>
+        public static List<Tile> GetTilesInShape(
+            AbilityTargetShape shape,
+            Map map,
+            Vector2Int targetPos,
+            uint shapeRangeMin,
+            uint shapeRangeMax) {
+            var tiles = new List<Tile>();
+            if (map == null) return tiles;
+
+            int min = (int)shapeRangeMin;
+            int max = (int)shapeRangeMax;
+            if (max < min) max = min;
+
+            Tile centerTile = map.GetTileAtPosition(targetPos);
+            if (centerTile == null) return tiles;
+
+            // For all shapes: include center only when min allows it
+            if (min == 0 && shape != AbilityTargetShape.None) {
+                tiles.Add(centerTile);
+                if (shape == AbilityTargetShape.Single) return tiles;
+            } else if (shape == AbilityTargetShape.Single) {
+                // Single always resolves to the target tile (min/max irrelevant due to validation),
+                // but be defensive in case an old asset has inconsistent ranges.
+                tiles.Add(centerTile);
+                return tiles;
+            }
+
+            switch (shape) {
+                case AbilityTargetShape.Circle: {
+                    // "Circle" here is Manhattan distance from targetPos.
+                    // r=1 matches the previous implementation (center + 4 cardinals).
+                    for (int dx = -max; dx <= max; dx++) {
+                        for (int dy = -max; dy <= max; dy++) {
+                            int dist = Mathf.Abs(dx) + Mathf.Abs(dy);
+                            if (dist < min || dist > max) continue;
+                            var tile = map.GetTileAtPosition(new Vector2Int(targetPos.x + dx, targetPos.y + dy));
+                            if (tile != null) tiles.Add(tile);
+                        }
+                    }
+                    break;
+                }
+                case AbilityTargetShape.Square: {
+                    // Square uses Chebyshev distance (axis-aligned square ring when min>0).
+                    for (int dx = -max; dx <= max; dx++) {
+                        for (int dy = -max; dy <= max; dy++) {
+                            int dist = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                            if (dist < min || dist > max) continue;
+                            var tile = map.GetTileAtPosition(new Vector2Int(targetPos.x + dx, targetPos.y + dy));
+                            if (tile != null) tiles.Add(tile);
+                        }
+                    }
+                    break;
+                }
+                case AbilityTargetShape.Cross: {
+                    // Cross uses diagonal distance (|dx|==|dy|) to match the existing "X" pattern at r=1.
+                    for (int r = min; r <= max; r++) {
+                        if (r == 0) continue;
+                        var tl = map.GetTileAtPosition(new Vector2Int(targetPos.x - r, targetPos.y - r));
+                        if (tl != null) tiles.Add(tl);
+                        var tr = map.GetTileAtPosition(new Vector2Int(targetPos.x + r, targetPos.y - r));
+                        if (tr != null) tiles.Add(tr);
+                        var bl = map.GetTileAtPosition(new Vector2Int(targetPos.x - r, targetPos.y + r));
+                        if (bl != null) tiles.Add(bl);
+                        var br = map.GetTileAtPosition(new Vector2Int(targetPos.x + r, targetPos.y + r));
+                        if (br != null) tiles.Add(br);
+                    }
+                    break;
+                }
+                case AbilityTargetShape.Line:
+                case AbilityTargetShape.Cone:
+                    // Not yet implemented; fall back to legacy behavior.
+                    return GetTilesInShape(shape, map, targetPos);
+                case AbilityTargetShape.None:
+                default:
+                    break;
+            }
+
+            // Ensure uniqueness (some shapes can generate duplicates when min==0 and center already added).
+            return tiles.Distinct().ToList();
         }
 
         /// <summary>

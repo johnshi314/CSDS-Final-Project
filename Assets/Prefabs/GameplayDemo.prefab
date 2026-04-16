@@ -3728,6 +3728,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.GameplayDemo
   gridMap: {fileID: 567301929608366175}
   battleManager: {fileID: 4597687322187452393}
+  allAgents: {fileID: 11400000, guid: a23412051c6021d67be996b912cac598, type: 2}
+  redTeamRoot: {fileID: 0}
+  blueTeamRoot: {fileID: 0}
 --- !u!114 &1923085385317920646
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3753,11 +3756,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetFlower.OnlineBattleManager
   currentTurn: 0
-  gridMap: {fileID: 0}
+  gridMap: {fileID: 567301929608366175}
   moveRangeColor: {r: 0.2, g: 0.6, b: 1, a: 1}
   moveRangeAlpha: 0.5
   abilityTargetColor: {r: 1, g: 0.5, b: 0.2, a: 1}
   abilityTargetAlpha: 0.5
+  abilityAoePreviewColor: {r: 0.9, g: 0.1, b: 0.1, a: 1}
+  abilityAoePreviewAlpha: 0.45
   useCanvasUI: 1
   moveSpeed: 5
   scaleWidth: 0.5

@@ -20,8 +20,8 @@ MonoBehaviour:
   TargetShape: 3
   RangeMax: 0
   RangeMin: 0
-  ShapeRangeMax: 1
-  ShapeRangeMin: 2
+  ShapeRangeMax: 2
+  ShapeRangeMin: 1
   SelectCount: 1
   Cost: 0
   Cooldown: 0

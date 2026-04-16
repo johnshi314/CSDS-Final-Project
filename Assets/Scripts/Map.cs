@@ -182,7 +182,6 @@ namespace NetFlower {
             int x = tilePos.x;
             int y = tilePos.y;
             if (x < 0 || x >= Width || y < 0 || y >= Height) {
-                Debug.LogError($"Tile position {tilePos} is out of bounds for tile array of size ({Width}, {Height}).");
                 return null;
             }
             return agentsByPosition.TryGetValue(tilePos, out Agent agent) ? agent : null;
@@ -192,7 +191,6 @@ namespace NetFlower {
             int x = tilePos.x;
             int y = tilePos.y;
             if (x < 0 || x >= Width || y < 0 || y >= Height) {
-                Debug.LogError($"Tile position {tilePos} is out of bounds for tile array of size ({Width}, {Height}).");
                 return null;
             }
             return this.Tiles[x, y];

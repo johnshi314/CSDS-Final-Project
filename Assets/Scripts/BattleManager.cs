@@ -58,6 +58,8 @@ namespace NetFlower {
         [SerializeField, Range(0f, 1f)] private float moveRangeAlpha = 0.5f;
         [SerializeField] private Color abilityTargetColor = new Color(1f, 0.5f, 0.2f, 1f);
         [SerializeField, Range(0f, 1f)] private float abilityTargetAlpha = 0.5f;
+        [SerializeField] private Color abilityAoePreviewColor = new Color(0.9f, 0.1f, 0.1f, 1f);
+        [SerializeField, Range(0f, 1f)] private float abilityAoePreviewAlpha = 0.45f;
 
         // UI GUI switched added
         [Header("UI Options")]
@@ -87,6 +89,7 @@ namespace NetFlower {
         private int selectedAbilityIndex = 0;
         private Ability selectedAbility = null;  // The ability currently being targeted
         private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
+        private Tile lastHoveredAbilityTargetTile = null; // For AoE preview highlighting
         
         // Movement tweening state
         [Header("Movement Animation")]
@@ -366,7 +369,9 @@ namespace NetFlower {
             OnAfterLocalAbilityUsed(selectedAbility, targetTile);
 
             gridMap.ClearHighlights();
+            gridMap.ClearPreviewHighlights();
             validAbilityTargets.Clear();
+            lastHoveredAbilityTargetTile = null;
             state = BattleState.WaitingForAction;
             availableAbilities.Clear();
             selectedAbility = null;
@@ -378,7 +383,9 @@ namespace NetFlower {
             if (state != BattleState.SelectingAbilityTarget) return;
 
             gridMap.ClearHighlights();
+            gridMap.ClearPreviewHighlights();
             validAbilityTargets.Clear();
+            lastHoveredAbilityTargetTile = null;
             state = BattleState.SelectingAbility;
             selectedAbility = null;
             Debug.Log("BattleManager: Ability targeting cancelled.");
@@ -768,8 +775,48 @@ namespace NetFlower {
                 HandleAbilitySelection();
             }
             else if (state == BattleState.SelectingAbilityTarget) {
+                UpdateAbilityTargetHoverPreview();
                 HandleAbilityTargetSelection();
             }
+        }
+
+        private void UpdateAbilityTargetHoverPreview() {
+            if (gridMap == null || state != BattleState.SelectingAbilityTarget || selectedAbility == null) {
+                gridMap?.ClearPreviewHighlights();
+                lastHoveredAbilityTargetTile = null;
+                return;
+            }
+
+            Tile hovered = gridMap.GetHoveredTile();
+            if (hovered == null || validAbilityTargets == null || !validAbilityTargets.Contains(hovered)) {
+                if (lastHoveredAbilityTargetTile != null) {
+                    gridMap.ClearPreviewHighlights();
+                    lastHoveredAbilityTargetTile = null;
+                }
+                return;
+            }
+
+            if (hovered == lastHoveredAbilityTargetTile) return;
+
+            lastHoveredAbilityTargetTile = hovered;
+            gridMap.ClearPreviewHighlights();
+
+            Agent caster = CurrentAgent;
+            if (caster == null) return;
+
+            var ctx = new AbilityUseContext {
+                Ability = selectedAbility,
+                Caster = caster,
+                TargetTile = hovered,
+                TurnNumber = currentTurn
+            };
+
+            var aoeTiles = Ability.GetTilesInShape(ctx);
+            if (aoeTiles == null || aoeTiles.Count == 0) return;
+
+            // Don't preview the target tile itself; the orange highlight already communicates selection.
+            aoeTiles.RemoveAll(t => t == null || t == hovered);
+            gridMap.HighlightTilesPreview(aoeTiles, abilityAoePreviewColor, abilityAoePreviewAlpha);
         }
 
         private void UpdateGUIRect() {
