@@ -6,11 +6,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.IO;
-using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NativeWebSocket;
 using UnityEngine;
 using NetFlower.UI;
 
@@ -26,7 +25,7 @@ namespace NetFlower {
 
         int _myPlayerId = -1;
         int _hostPlayerId = int.MaxValue;
-        ClientWebSocket _ws;
+        WebSocket _ws;
         CancellationTokenSource _cts;
         readonly ConcurrentQueue<string> _incoming = new ConcurrentQueue<string>();
         readonly SemaphoreSlim _sendLock = new SemaphoreSlim(1, 1);
@@ -66,12 +65,16 @@ namespace NetFlower {
 
         void OnDestroy() {
             _cts?.Cancel();
-            try {
-                _ws?.Abort();
-                _ws?.Dispose();
-            } catch { /* ignore */ }
+            var ws = _ws;
             _ws = null;
             _cts = null;
+            if (ws == null) return;
+            try {
+                ws.CancelConnection();
+            } catch { /* ignore */ }
+            try {
+                _ = ws.Close();
+            } catch { /* ignore */ }
         }
 
         protected override void Update() {
@@ -185,40 +188,39 @@ namespace NetFlower {
         }
 
         async Task RunBattleWebSocketAsync(string authToken) {
-            var token = _cts.Token;
             var api = GameApiEndpoints.EffectiveApiBase(httpApiBaseUrl);
-            var uri = new Uri(GameApiEndpoints.BattleWebSocketUri(api, lobbyWebSocketBaseUrl, _match.dbMatchId, authToken));
-            _ws = new ClientWebSocket();
+            var url = GameApiEndpoints.BattleWebSocketUri(api, lobbyWebSocketBaseUrl, _match.dbMatchId, authToken);
+            var socket = new WebSocket(url);
+            _ws = socket;
+
+            socket.OnMessage += bytes => {
+                if (bytes == null || bytes.Length == 0) return;
+                _incoming.Enqueue(Encoding.UTF8.GetString(bytes));
+            };
+
+            socket.OnOpen += () => {
+                try {
+                    var u = new Uri(url);
+                    Debug.Log($"[OnlineBattle] Connected {u.GetLeftPart(UriPartial.Path)}");
+                } catch {
+                    Debug.Log("[OnlineBattle] Connected to battle WebSocket");
+                }
+            };
+
+            socket.OnError += msg => Debug.LogWarning($"[OnlineBattle] WebSocket error: {msg}");
+
+            socket.OnClose += _ => {
+                if (ReferenceEquals(_ws, socket))
+                    _ws = null;
+            };
+
             try {
-                await _ws.ConnectAsync(uri, token);
-                Debug.Log($"[OnlineBattle] Connected {uri.GetLeftPart(UriPartial.Path)}");
-                await ReceiveLoopAsync(token);
+                await socket.Connect();
             } catch (OperationCanceledException) { }
             catch (Exception e) {
                 Debug.LogWarning($"[OnlineBattle] WebSocket error: {e.Message}");
-            } finally {
-                try { _ws?.Dispose(); } catch { }
-                _ws = null;
-            }
-        }
-
-        async Task ReceiveLoopAsync(CancellationToken token) {
-            var chunk = new byte[16384];
-            while (_ws != null && _ws.State == WebSocketState.Open && !token.IsCancellationRequested) {
-                using (var message = new MemoryStream()) {
-                    WebSocketReceiveResult result;
-                    do {
-                        var segment = new ArraySegment<byte>(chunk);
-                        result = await _ws.ReceiveAsync(segment, token);
-                        if (result.MessageType == WebSocketMessageType.Close)
-                            return;
-                        if (result.MessageType == WebSocketMessageType.Text && result.Count > 0)
-                            message.Write(chunk, 0, result.Count);
-                    } while (!result.EndOfMessage);
-
-                    if (message.Length > 0)
-                        _incoming.Enqueue(Encoding.UTF8.GetString(message.ToArray()));
-                }
+                if (ReferenceEquals(_ws, socket))
+                    _ws = null;
             }
         }
 
@@ -305,10 +307,9 @@ namespace NetFlower {
 
         async Task SendTextAsync(string text) {
             if (_ws == null || _ws.State != WebSocketState.Open) return;
-            var data = Encoding.UTF8.GetBytes(text);
             await _sendLock.WaitAsync();
             try {
-                await _ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, _cts.Token);
+                await _ws.SendText(text);
             } catch (Exception e) {
                 Debug.LogWarning($"[OnlineBattle] Send failed: {e.Message}");
             } finally {

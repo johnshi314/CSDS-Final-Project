@@ -1,11 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.IO;
-using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NativeWebSocket;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using NetFlower;
@@ -66,7 +65,7 @@ namespace NetFlower.Backend {
         string _authToken;
         Match _match;
 
-        ClientWebSocket _lobbySocket;
+        WebSocket _lobbySocket;
         CancellationTokenSource _lobbyCts;
         readonly ConcurrentQueue<string> _lobbyIncoming = new ConcurrentQueue<string>();
         readonly SemaphoreSlim _lobbySendLock = new SemaphoreSlim(1, 1);
@@ -183,38 +182,59 @@ namespace NetFlower.Backend {
         void ConnectLobbyWebSocket() {
             DisconnectLobbyWebSocket();
             _lobbyCts = new CancellationTokenSource();
-            _lobbySocket = new ClientWebSocket();
-            _ = RunLobbyWebSocketAsync();
+            var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
+            var url = $"{wsBase}/lobby-control?authToken={Uri.EscapeDataString(_authToken)}";
+            var socket = new WebSocket(url);
+            _lobbySocket = socket;
+
+            socket.OnOpen += () => {
+                Debug.Log($"[Matchmaking] Lobby control WebSocket connected {url}");
+                if (_match != null && _match.dbMatchId > 0)
+                    _ = SendLobbyActionAsync("subscribeLobby", matchId: _match.dbMatchId);
+                else
+                    _ = SendLobbyActionAsync("joinNewLobby", maxPlayers: lobbyMaxPlayers);
+            };
+
+            socket.OnMessage += bytes => {
+                if (bytes == null || bytes.Length == 0) return;
+                _lobbyIncoming.Enqueue(Encoding.UTF8.GetString(bytes));
+            };
+
+            socket.OnError += msg => {
+                Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {msg}");
+            };
+
+            socket.OnClose += code => {
+                Debug.Log($"[Matchmaking] Lobby WebSocket closed: {code}");
+                if (ReferenceEquals(_lobbySocket, socket))
+                    _lobbySocket = null;
+            };
+
+            _ = RunLobbyConnectAsync(socket);
         }
 
         void DisconnectLobbyWebSocket() {
             _lobbyCts?.Cancel();
-            try {
-                _lobbySocket?.Abort();
-                _lobbySocket?.Dispose();
-            } catch { /* ignore */ }
+            var ws = _lobbySocket;
             _lobbySocket = null;
             _lobbyCts = null;
+            if (ws == null) return;
+            try {
+                ws.CancelConnection();
+            } catch { /* ignore */ }
+            try {
+                _ = ws.Close();
+            } catch { /* ignore */ }
         }
 
-        async Task RunLobbyWebSocketAsync() {
-            var token = _lobbyCts.Token;
-            var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
-            var uri = new Uri($"{wsBase}/lobby-control?authToken={Uri.EscapeDataString(_authToken)}");
+        async Task RunLobbyConnectAsync(WebSocket socket) {
             try {
-                await _lobbySocket.ConnectAsync(uri, token);
-                Debug.Log($"[Matchmaking] Lobby control WebSocket connected {uri}");
-                if (_match != null && _match.dbMatchId > 0)
-                    await SendLobbyActionAsync("subscribeLobby", matchId: _match.dbMatchId);
-                else
-                    await SendLobbyActionAsync("joinNewLobby", maxPlayers: lobbyMaxPlayers);
-                await ReceiveLobbyLoopAsync(token);
+                await socket.Connect();
             } catch (OperationCanceledException) { }
             catch (Exception e) {
-                Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {e.Message}");
-            } finally {
-                try { _lobbySocket?.Dispose(); } catch { }
-                _lobbySocket = null;
+                Debug.LogWarning($"[Matchmaking] Lobby WebSocket connect failed: {e.Message}");
+                if (ReferenceEquals(_lobbySocket, socket))
+                    _lobbySocket = null;
             }
         }
 
@@ -286,45 +306,16 @@ namespace NetFlower.Backend {
             };
 
             var json = JsonUtility.ToJson(payload);
-            var data = Encoding.UTF8.GetBytes(json);
 
             await _lobbySendLock.WaitAsync();
             try {
-                await _lobbySocket.SendAsync(
-                    new ArraySegment<byte>(data),
-                    WebSocketMessageType.Text,
-                    true,
-                    _lobbyCts.Token
-                );
+                await _lobbySocket.SendText(json);
                 return true;
             } catch (Exception e) {
                 Debug.LogWarning($"[Matchmaking] Failed to send lobby action '{action}': {e.Message}");
                 return false;
             } finally {
                 _lobbySendLock.Release();
-            }
-        }
-
-        async Task ReceiveLobbyLoopAsync(CancellationToken token) {
-            // Reassemble full text messages (ReceiveAsync can return fragments).
-            var chunk = new byte[16384];
-            while (_lobbySocket != null && _lobbySocket.State == WebSocketState.Open && !token.IsCancellationRequested) {
-                using (var message = new MemoryStream()) {
-                    WebSocketReceiveResult result;
-                    do {
-                        var segment = new ArraySegment<byte>(chunk);
-                        result = await _lobbySocket.ReceiveAsync(segment, token);
-                        if (result.MessageType == WebSocketMessageType.Close)
-                            return;
-                        if (result.MessageType == WebSocketMessageType.Text && result.Count > 0)
-                            message.Write(chunk, 0, result.Count);
-                    } while (!result.EndOfMessage);
-
-                    if (message.Length > 0) {
-                        var text = Encoding.UTF8.GetString(message.ToArray());
-                        _lobbyIncoming.Enqueue(text);
-                    }
-                }
             }
         }
     }

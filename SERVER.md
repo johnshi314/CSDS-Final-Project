@@ -11,6 +11,24 @@
 | Battle WebSocket | `wss://litecoders.com/ws/battle/{match_id}?authToken=` | `http://127.0.0.1:8000/ws/battle/...` |
 | Unity WebGL game | `https://www.litecoders.com/game/` | `http://127.0.0.1:3001/` (static server; see below) |
 
+**nginx WebSockets:** For `/ws/*` (lobby + battle), the upstream must allow the upgrade handshake, for example:
+
+```nginx
+location /ws/ {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Without `Upgrade` / `Connection`, browsers cannot open `wss://` to FastAPI. **WebGL builds cannot use `System.Net.WebSockets.ClientWebSocket`**; the game uses the **NativeWebSocket** package (browser WebSocket API) for lobby and battle sockets.
+
+**WebGL `.wasm` MIME:** If the console reports `Incorrect response MIME type. Expected 'application/wasm'`, ensure the static host (Python `Server.webgl` or nginx) serves `*.wasm` and `*.wasm.br` as `application/wasm` (this repo’s webgl server maps types after stripping `.br`). If a reverse proxy overrides `Content-Type`, align it with the upstream or set `types { application/wasm wasm; }`.
+
 Set environment on the **Python** host (recommended: one **`.env`** file at the repository root):
 
 ```bash
