@@ -149,7 +149,10 @@ async def lobby_control_websocket(websocket: WebSocket):
             )
             if action == "joinNewLobby":
                 max_players = int(msg.get("maxPlayers", 8))
-                mid = queries.join_new_lobby(player_id, max_players=max_players)
+                char_id = msg.get("characterId")
+                if char_id is not None:
+                    char_id = int(char_id)
+                mid = queries.join_new_lobby(player_id, max_players=max_players, character_id=char_id)
                 if mid is None:
                     await send_error("Could not join or create lobby")
                     continue

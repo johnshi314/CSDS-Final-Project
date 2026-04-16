@@ -126,20 +126,31 @@ namespace NetFlower {
                 allAgents = Resources.Load<AllAgents>("Settings/AllAgents");
             }
 
+            var match = Match.GetInstance();
+            bool localOnRed = match == null || match.selectedTeam == Match.TeamSelection.Red;
+
+            int opponentCharId = -1;
+            if (match != null) {
+                var oppChars = localOnRed ? match.lobbyBlueCharacterIds : match.lobbyRedCharacterIds;
+                if (oppChars != null && oppChars.Length > 0)
+                    opponentCharId = oppChars[0];
+            }
+
             GameObject localPrefab = allAgents != null ? allAgents.GetAgentPrefabById(prefs.characterId) : null;
-            GameObject opponentPrefab = allAgents != null ? allAgents.harpyAgent : null;
+            GameObject opponentPrefab = opponentCharId >= 0 && allAgents != null
+                ? allAgents.GetAgentPrefabById(opponentCharId)
+                : null;
+            if (opponentPrefab == null && allAgents != null)
+                opponentPrefab = allAgents.harpyAgent;
 
             if (localPrefab == null) {
                 Debug.LogError($"GameplayDemo (online): Selected player prefab is null. characterId={prefs?.characterId} (AllAgents harpyId={allAgents?.harpyId}, elfId={allAgents?.elfId})");
                 return;
             }
             if (opponentPrefab == null) {
-                Debug.LogError("GameplayDemo (online): Opponent placeholder prefab (harpyAgent) is null in AllAgents.");
+                Debug.LogError("GameplayDemo (online): Opponent prefab is null in AllAgents.");
                 return;
             }
-
-            var match = Match.GetInstance();
-            bool localOnRed = match == null || match.selectedTeam == Match.TeamSelection.Red;
 
             DestroyDefaultTeamAgents();
 

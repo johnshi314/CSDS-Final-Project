@@ -22,6 +22,7 @@ namespace NetFlower.Backend {
             public int maxPlayers;
             public int matchId;
             public string team;
+            public int characterId;
         }
 
         [Serializable]
@@ -39,6 +40,8 @@ namespace NetFlower.Backend {
             public string lobbyStatus;
             public int[] redTeamPlayerIds;
             public int[] blueTeamPlayerIds;
+            public int[] redTeamCharacterIds;
+            public int[] blueTeamCharacterIds;
         }
 
         [Tooltip("REST base, no trailing slash. Should match Login / Match.")]
@@ -155,7 +158,8 @@ namespace NetFlower.Backend {
             if (countdownText != null)
                 countdownText.text = "GO!";
 
-            _match.CommitFromLobby(_match.dbMatchId, lobbyState.redTeamPlayerIds, lobbyState.blueTeamPlayerIds);
+            _match.CommitFromLobby(_match.dbMatchId, lobbyState.redTeamPlayerIds, lobbyState.blueTeamPlayerIds,
+                lobbyState.redTeamCharacterIds, lobbyState.blueTeamCharacterIds);
 
             if (!string.IsNullOrEmpty(battleSceneName)) {
                 Debug.Log($"[Matchmaking] Loading scene \"{battleSceneName}\"");
@@ -191,8 +195,11 @@ namespace NetFlower.Backend {
                 Debug.Log($"[Matchmaking] Lobby control WebSocket connected {url}");
                 if (_match != null && _match.dbMatchId > 0)
                     _ = SendLobbyActionAsync("subscribeLobby", matchId: _match.dbMatchId);
-                else
-                    _ = SendLobbyActionAsync("joinNewLobby", maxPlayers: lobbyMaxPlayers);
+                else {
+                    var prefs = PersistentPlayerPreferences.instance;
+                    int charId = prefs != null ? prefs.characterId : 0;
+                    _ = SendLobbyActionAsync("joinNewLobby", maxPlayers: lobbyMaxPlayers, characterId: charId);
+                }
             };
 
             socket.OnMessage += bytes => {
@@ -291,7 +298,8 @@ namespace NetFlower.Backend {
             string action,
             int matchId = 0,
             string team = null,
-            int maxPlayers = 0
+            int maxPlayers = 0,
+            int characterId = 0
         ) {
             if (_lobbySocket == null || _lobbySocket.State != WebSocketState.Open) {
                 Debug.LogWarning($"[Matchmaking] Cannot send lobby action '{action}' - socket not connected");
@@ -303,6 +311,7 @@ namespace NetFlower.Backend {
                 matchId = matchId,
                 team = team,
                 maxPlayers = maxPlayers,
+                characterId = characterId,
             };
 
             var json = JsonUtility.ToJson(payload);

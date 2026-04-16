@@ -25,6 +25,8 @@ namespace NetFlower {
         /// <summary>Roster from lobby (same order as GridMap red/blue lists). Used by online battle to map agents to player ids.</summary>
         public int[] lobbyRedPlayerIds { get; private set; }
         public int[] lobbyBluePlayerIds { get; private set; }
+        public int[] lobbyRedCharacterIds { get; private set; }
+        public int[] lobbyBlueCharacterIds { get; private set; }
 
         public enum TeamSelection { Red, Blue }
         public TeamSelection selectedTeam { get; private set; }
@@ -68,13 +70,15 @@ namespace NetFlower {
         }
 
         /// <summary>Called by Matchmaking when lobby is ready to start the battle session.</summary>
-        public void CommitFromLobby(int matchId, int[] redIds, int[] blueIds) {
+        public void CommitFromLobby(int matchId, int[] redIds, int[] blueIds, int[] redCharIds = null, int[] blueCharIds = null) {
             dbMatchId = matchId;
             lobbyRedPlayerIds = redIds != null ? (int[])redIds.Clone() : System.Array.Empty<int>();
             lobbyBluePlayerIds = blueIds != null ? (int[])blueIds.Clone() : System.Array.Empty<int>();
+            lobbyRedCharacterIds = redCharIds != null ? (int[])redCharIds.Clone() : System.Array.Empty<int>();
+            lobbyBlueCharacterIds = blueCharIds != null ? (int[])blueCharIds.Clone() : System.Array.Empty<int>();
             matchStats = new MatchStats();
             StartMatch(matchId);
-            Debug.Log($"[Match] CommitFromLobby match {matchId} red={IdsToStr(redIds)} blue={IdsToStr(blueIds)}");
+            Debug.Log($"[Match] CommitFromLobby match {matchId} red={IdsToStr(redIds)} blue={IdsToStr(blueIds)} redChars={IdsToStr(redCharIds)} blueChars={IdsToStr(blueCharIds)}");
         }
 
         public void SetSelectedTeam(TeamSelection team) {
