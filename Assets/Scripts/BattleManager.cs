@@ -440,7 +440,12 @@ namespace NetFlower {
             state = BattleState.WaitingForAction;
             gridMap.ClearHighlights();
             validMoveTiles.Clear();
-            
+            validAbilityTargets.Clear();
+            lastHoveredAbilityTargetTile = null;
+            selectedAbility = null;
+            availableAbilities.Clear();
+            selectedAbilityIndex = 0;
+
             // Tick all agents' effects at the start of each turn
             foreach (var agent in turnOrder) {
                 agent.TickEffects(currentTurn);

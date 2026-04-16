@@ -64,7 +64,9 @@ public class TileVisualizer : MonoBehaviour {
         hoverHighlightAlpha = alpha;
         
         // Refresh current hover tile if settings changed
-        if (changed && lastHoveredPos.x != -999 && !persistentHighlights.ContainsKey(lastHoveredPos)) {
+        if (changed && lastHoveredPos.x != -999
+            && !persistentHighlights.ContainsKey(lastHoveredPos)
+            && !previewHighlights.ContainsKey(lastHoveredPos)) {
             SetHighlightAtCell(lastHoveredPos, hoverHighlightColor, hoverHighlightAlpha);
         }
     }
@@ -209,7 +211,9 @@ public class TileVisualizer : MonoBehaviour {
     /// </summary>
     public void SetHoverEnabled(bool enabled) {
         hoverEnabled = enabled;
-        if (!enabled && lastHoveredPos.x != -999 && !persistentHighlights.ContainsKey(lastHoveredPos)) {
+        if (!enabled && lastHoveredPos.x != -999
+            && !persistentHighlights.ContainsKey(lastHoveredPos)
+            && !previewHighlights.ContainsKey(lastHoveredPos)) {
             // Clear current hover highlight when disabling
             highlightTilemap.SetTile(lastHoveredPos, null);
             lastHoveredPos = new Vector3Int(-999, -999, 0);
@@ -255,12 +259,23 @@ public class TileVisualizer : MonoBehaviour {
     /// </summary>
     public void ClearAllHighlights() {
         if (!isInitialized) return;
-        
-        foreach (var cell in persistentHighlights.Keys) {
-            // Clearing persistent highlight may reveal a preview highlight underneath.
-            RestoreCellHighlight(cell);
+
+        // Must wipe the overlay tilemap for every cell we may have painted. Previously this called
+        // RestoreCellHighlight() while entries still existed, which re-drew highlights instead of
+        // removing them — leaving stale visuals until the mouse moved (hover refresh).
+        var cells = new HashSet<Vector3Int>();
+        foreach (var cell in persistentHighlights.Keys) cells.Add(cell);
+        foreach (var cell in previewHighlights.Keys) cells.Add(cell);
+        if (lastHoveredPos.x != -999) cells.Add(lastHoveredPos);
+
+        foreach (var cell in cells) {
+            highlightTilemap.SetTile(cell, null);
+            highlightTilemap.SetColor(cell, Color.white);
         }
+
         persistentHighlights.Clear();
+        previewHighlights.Clear();
+        lastHoveredPos = new Vector3Int(-999, -999, 0);
     }
 
     /// <summary>
