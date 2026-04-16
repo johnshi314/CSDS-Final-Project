@@ -23,6 +23,7 @@ from fastapi import (
     Request,
     Response,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
@@ -62,6 +63,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Unity Auth Server", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://litecoders.com",
+        "https://www.litecoders.com",
+        "http://litecoders.com",
+        "http://www.litecoders.com",
+        "http://localhost:3000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
 api_router = APIRouter()
 
 
