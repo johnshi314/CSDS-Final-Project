@@ -27,7 +27,21 @@ location /ws/ {
 
 Without `Upgrade` / `Connection`, browsers cannot open `wss://` to FastAPI. **WebGL builds cannot use `System.Net.WebSockets.ClientWebSocket`**; the game uses the **NativeWebSocket** package (browser WebSocket API) for lobby and battle sockets.
 
-**WebGL `.wasm` MIME:** If the console reports `Incorrect response MIME type. Expected 'application/wasm'`, ensure the static host (Python `Server.webgl` or nginx) serves `*.wasm` and `*.wasm.br` as `application/wasm` (this repo’s webgl server maps types after stripping `.br`). If a reverse proxy overrides `Content-Type`, align it with the upstream or set `types { application/wasm wasm; }`.
+**WebGL `.wasm` MIME:** If the console reports `Incorrect response MIME type. Expected 'application/wasm'`, the browser got a non-`application/wasm` `Content-Type` for the `.wasm` / `.wasm.br` request. The Python `Server.webgl` handler forces `application/wasm` after stripping `.br` (see `_content_type_and_encoding`). **Production check:** `curl -sI 'https://…/game/Build/*.wasm.br'` must show `Content-Type: application/wasm`. If you see `application/octet-stream`, nginx is overriding the type (common when files are served statically).
+
+If nginx **serves the game tree directly**, add a rule *before* generic static handling so `.wasm` and `.wasm.br` are not treated as generic binary:
+
+```nginx
+location ~* ^/game/.*\.wasm(\.br)?$ {
+    default_type application/wasm;
+}
+```
+
+Keep any existing `Content-Encoding: br` handling you already use for `.wasm.br` files; this block only fixes the MIME type.
+
+If you **proxy** to `python -m Server.webgl` on port 3001, prefer passing through the upstream `Content-Type` unchanged (do not `default_type` override on that `location`).
+
+For `.js` / `.js.br`, `types { application/javascript js; }` in `http` or `server` is usually enough once `.br` is stripped for MIME guessing—or proxy to Python.
 
 Set environment on the **Python** host (recommended: one **`.env`** file at the repository root):
 

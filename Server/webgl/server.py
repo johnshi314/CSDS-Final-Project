@@ -117,12 +117,24 @@ def _content_type_and_encoding(file_path: Path) -> tuple[str, str | None]:
     """Guess Content-Type; handle precompressed .br / .gz Unity artifacts."""
     p = file_path
     encoding: str | None = None
-    if p.name.endswith(".br"):
+    # Strip outermost compression suffix first (Unity: Netflower.wasm.br, etc.)
+    while p.suffix.lower() == ".br":
         encoding = "br"
         p = p.with_suffix("")
-    elif p.name.endswith(".gz"):
+    if p.suffix.lower() == ".gz":
         encoding = "gzip"
         p = p.with_suffix("")
+
+    name_lower = p.name.lower()
+    # Browsers require application/wasm for streaming compile; do not rely on guess_type alone.
+    if name_lower.endswith(".wasm"):
+        return "application/wasm", encoding
+    if name_lower.endswith(".js"):
+        return "application/javascript", encoding
+    if name_lower.endswith(".json"):
+        return "application/json", encoding
+    if name_lower.endswith(".data") or name_lower.endswith(".unityweb"):
+        return "application/octet-stream", encoding
 
     ctype, _ = mimetypes.guess_type(str(p))
     if not ctype:
