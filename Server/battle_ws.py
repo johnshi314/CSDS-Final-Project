@@ -216,6 +216,9 @@ async def _handle_client_message(room: BattleRoom, player_id: int, text: str) ->
             if room.num_agents <= 0 or slot < 0 or slot >= room.num_agents:
                 await _send_err(room, player_id, "bad slot")
                 return
+            existing = room.slot_owner.get(slot)
+            if existing is not None and existing != player_id and existing != -1:
+                return
             # NPC slots use owner -1; only the match host may issue pass for them.
             room.slot_owner[slot] = -1 if is_npc else player_id
         ack_pid = -1 if is_npc else player_id

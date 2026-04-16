@@ -294,10 +294,13 @@ namespace NetFlower {
             for (int i = 0; i < n; i++) {
                 var agent = turnOrder[i];
                 var npc = agent != null ? agent.GetComponent<NPCBehavior>() : null;
-                if (npc != null && npc.IsNPC)
-                    await SendTextAsync($"claim|{i}|npc");
-                else
+                bool isNpc = npc != null && npc.IsNPC;
+                if (isNpc) {
+                    if (_myPlayerId == _hostPlayerId)
+                        await SendTextAsync($"claim|{i}|npc");
+                } else if (agent?.Player != null && agent.Player.Id == _myPlayerId) {
                     await SendTextAsync($"claim|{i}");
+                }
             }
         }
 
