@@ -208,6 +208,14 @@ async def _handle_client_message(room: BattleRoom, player_id: int, text: str) ->
             if room.num_agents == 0:
                 room.num_agents = n
                 room.turn_seconds = t
+            elif (
+                not room.slot_owner
+                and not room.battle_ready
+                and not room.awaiting_spawns
+            ):
+                # Clients can race on connect: unify on max agent count before any claims land.
+                room.num_agents = max(room.num_agents, n)
+                room.turn_seconds = t
         await _broadcast(room, f"ack|start|{room.num_agents}|{int(room.turn_seconds)}")
         return
 

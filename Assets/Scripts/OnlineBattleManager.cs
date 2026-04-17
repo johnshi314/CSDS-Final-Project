@@ -34,6 +34,9 @@ namespace NetFlower {
         bool _receivedYou;
         bool _handshakeSent;
         DateTime _turnEndsUtc;
+        /// <summary>Server <c>claims_complete</c> spawn host (lowest connected player id); -1 = none pending.</summary>
+        int _spawnHandshakeAuthorityPid = -1;
+        int _spawnHandshakeAttemptsRemaining;
 
         Match _match;
         /// <summary>True when we should use the battle WebSocket (lobby match + token). Otherwise behave like offline <see cref="BattleManager"/>.</summary>
@@ -82,6 +85,8 @@ namespace NetFlower {
             if (!_localFallback) {
                 while (_incoming.TryDequeue(out var line))
                     HandleServerLine(line);
+
+                TryProcessPendingSpawnHandshake();
 
                 if (_turnEndsUtc != default && State != BattleState.NotStarted) {
                     turnTimer = Mathf.Max(0f, (float)(_turnEndsUtc - DateTime.UtcNow).TotalSeconds);
@@ -249,6 +254,7 @@ namespace NetFlower {
                         _myPlayerId = pid;
                     _receivedYou = true;
                     Debug.Log($"[OnlineBattle] Authenticated as player {_myPlayerId}");
+                    TryProcessPendingSpawnHandshake();
                     break;
                 case "newTurn":
                     if (parts.Length >= 4
@@ -271,10 +277,10 @@ namespace NetFlower {
                     break;
                 case "claims_complete":
                     // Lowest connected battle WebSocket player id must send spawns|n|x|y|...
-                    if (parts.Length >= 2 && int.TryParse(parts[1], out var spawnHostPid)) {
+                    if (parts.Length >= 2 && int.TryParse(parts[1], out var spawnHostPid) && spawnHostPid > 0) {
                         Debug.Log($"[OnlineBattle] claims_complete; spawn host playerId={spawnHostPid}");
-                        if (_myPlayerId == spawnHostPid)
-                            _ = SendSpawnsHandshakeAsync();
+                        _spawnHandshakeAuthorityPid = spawnHostPid;
+                        _spawnHandshakeAttemptsRemaining = 300;
                     }
                     break;
                 case "spawnLayout":
@@ -331,15 +337,32 @@ namespace NetFlower {
             }
         }
 
+        bool IsLocalSpawnHostAuthority() {
+            if (_spawnHandshakeAuthorityPid <= 0) return false;
+            if (_myPlayerId == _spawnHandshakeAuthorityPid) return true;
+            return PlayerPrefs.GetInt("player_id", -1) == _spawnHandshakeAuthorityPid;
+        }
+
         /// <summary>
-        /// Sent only by the spawn host after <c>claims_complete</c>; server rebroadcasts <c>spawnLayout</c> to all clients.
+        /// Spawn host sends <c>spawns|...</c> after <c>claims_complete</c>, with retries and a deterministic fallback
+        /// so the battle does not stall if tile lookups are briefly inconsistent.
         /// </summary>
-        async Task SendSpawnsHandshakeAsync() {
-            if (!TryBuildTurnSlotSpawnHandshakeLine(out var line)) {
-                Debug.LogWarning("[OnlineBattle] Could not build spawns line (agents or map tiles missing).");
+        void TryProcessPendingSpawnHandshake() {
+            if (_spawnHandshakeAuthorityPid <= 0 || !IsLocalSpawnHostAuthority()) return;
+            if (_ws == null || _ws.State != WebSocketState.Open) return;
+
+            string line = null;
+            if (TryBuildTurnSlotSpawnHandshakeLine(out line) || TryBuildDeterministicTurnSlotSpawnHandshakeLine(out line)) {
+                _ = SendTextAsync(line);
+                _spawnHandshakeAuthorityPid = -1;
+                _spawnHandshakeAttemptsRemaining = 0;
                 return;
             }
-            await SendTextAsync(line);
+
+            if (--_spawnHandshakeAttemptsRemaining <= 0) {
+                Debug.LogError("[OnlineBattle] Could not build or send spawns after claims_complete; check roster placement and spawn lists.");
+                _spawnHandshakeAuthorityPid = -1;
+            }
         }
 
         static bool TryParseSpawnLayoutParts(string[] parts, out List<Vector2Int> positions) {
