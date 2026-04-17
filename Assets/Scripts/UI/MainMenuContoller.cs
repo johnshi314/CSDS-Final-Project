@@ -15,6 +15,17 @@ public class MainMenuController : MonoBehaviour {
         // Ensure correct default state
         mainButtonsPanel.SetActive(true);
         howToPlayPanel.SetActive(false);
+
+        ResetSessionPreferences();
+    }
+
+    void ResetSessionPreferences() {
+        var prefs = PersistentPlayerPreferences.instance;
+        if (prefs != null) {
+            prefs.isPlayingOnline = false;
+            prefs.characterName = null;
+            prefs.characterId = 0;
+        }
     }
 
     // -------------------------

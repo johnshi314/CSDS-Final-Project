@@ -146,7 +146,9 @@ namespace NetFlower {
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
                 request.SetRequestHeader("Accept", "application/json");
-                request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                authToken = PlayerPrefs.GetString("auth_token", authToken ?? "");
+                if (!string.IsNullOrEmpty(authToken))
+                    request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.timeout = 10;
                 yield return request.SendWebRequest();
                 if (request.result == UnityWebRequest.Result.Success) {

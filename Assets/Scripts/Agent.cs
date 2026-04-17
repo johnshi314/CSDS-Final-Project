@@ -42,11 +42,20 @@ namespace NetFlower {
             }
 
             if (Player == null) {
-                this.Player = new Player(
-                    Id: testPlayerId++,
-                    Name: "TestPlayer" + testPlayerId,
-                    IP: "127.0.0.1"
-                );
+                int savedId = PlayerPrefs.GetInt("player_id", -1);
+                if (savedId > 0) {
+                    this.Player = new Player(
+                        Id: savedId,
+                        Name: "Player" + savedId,
+                        IP: "127.0.0.1"
+                    );
+                } else {
+                    this.Player = new Player(
+                        Id: testPlayerId++,
+                        Name: "TestPlayer" + testPlayerId,
+                        IP: "127.0.0.1"
+                    );
+                }
             }
 
             authToken = PlayerPrefs.GetString("auth_token", "");
