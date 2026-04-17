@@ -299,7 +299,7 @@ MonoBehaviour:
   httpApiBaseUrl: https://litecoders.com/api
   AgentName: ElfCharacter
   maxHP: 20
-  maxRange: 3
+  maxRange: 5
   CanTunnel: 1
   Abilities:
   - {fileID: 11400000, guid: 738977980eb6f4cbdb77287370650196, type: 2}

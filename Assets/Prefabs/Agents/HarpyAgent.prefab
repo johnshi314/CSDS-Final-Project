@@ -299,7 +299,7 @@ MonoBehaviour:
   httpApiBaseUrl: https://litecoders.com/api
   AgentName: Delivery Harpy
   maxHP: 20
-  maxRange: 4
+  maxRange: 6
   CanTunnel: -1
   Abilities:
   - {fileID: 11400000, guid: 3355a9868f66f39488b7c0cbc96dfe35, type: 2}
