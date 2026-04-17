@@ -2597,7 +2597,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
   char_name: Ash
   internal_name: Delivery
-  char_desc: robert desc
+  char_desc: Ash desc
   char_id: 4
   char_icon: {fileID: 0}
   colors: {r: 0.92941177, g: 0.6666667, b: 0.34901962, a: 1}
@@ -2605,8 +2605,14 @@ MonoBehaviour:
   characterunlocked: 1
   ability_name: []
   ability_desc:
-  - ability 1
-  - rober ability 2
+  - 1 range, 1 target, 4 damage
+  - '2 range, 2 targets, 3 damage, for each target hit: gain 2 movement and gain
+    2 movement next turn'
+  - "Cooldown 2; Gain <b><color=lightblue>Shield</color></b> equal to remaining movement,
+    then lose all remaining movement\n\n<b><color=lightblue>Shield</color></b>: When
+    this unit takes damage, Shield is reduced instead of hp. Expires when this unit\u2019s
+    turn starts.\n"
+  - Cooldown 3; 8 range in a straight line, all targets in range, 7 damage
   ability_icons: []
 --- !u!1 &576421331
 GameObject:
@@ -5425,11 +5431,12 @@ MonoBehaviour:
 
 '
   - 2 range, all targets in range, 4 damage
-  - "Cooldown 2; 3 range, 1 target, inflict 2 Power down on target and heal 4 hp\r\n\nPower
-    down X: This unit\u2019s attacks deal X less damage. Expires at end of turn"
-  - "Cooldown 6; 5 range, self and all allies in range heal 6 hp and gain 2 Power
-    up next turn\r\n\tPower up X: This unit\u2019s attacks deal X more damage. Expires
-    at end of turn"
+  - "Cooldown 2; 3 range, 1 target, inflict 2 <b><color=blue>Power down</color></b>
+    on target and heal 4 hp\r\n\n<b><color=blue>Power down</color></b> X: This unit\u2019s
+    attacks deal X less damage. Expires at end of turn"
+  - "Cooldown 6; 5 range, self and all allies in range heal 6 hp and gain 2 <b><color=#ff8080>Power
+    up</color></b> next turn\r\n\n<b><color=#ff8080>Power up</color></b> X: This
+    unit\u2019s attacks deal X more damage. Expires at end of turn"
   ability_icons: []
 --- !u!212 &1188212507
 SpriteRenderer:
