@@ -152,6 +152,7 @@ namespace NetFlower {
                     };
 
                     agent.UseAbility(context);
+                    battleManager.TriggerAttackAnimation(agent);
                     hasUsedAbilityThisTurn = true;
                     Debug.Log($"NPCBehavior: {agent.Name} used {ability.DisplayName} on tile {targetTile.Position}");
                     return true;

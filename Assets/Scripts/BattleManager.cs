@@ -96,6 +96,7 @@ namespace NetFlower {
         // Movement tweening state
         [Header("Movement Animation")]
         [SerializeField] private float moveSpeed = 5f; // tiles per second
+        [SerializeField] private float attackAnimationHoldSeconds = 0.55f; // how long Attack1 stays true before resetting
         private List<Vector3> movePath;
         private int movePathIndex;
         private float moveLerpT;
@@ -470,12 +471,7 @@ namespace NetFlower {
             };
             agent.UseAbility(aux);
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
-            Animator animator = agent.GetComponentInChildren<Animator>();
-            if (animator != null ) {
-                animator.SetBool("Attack1", true);
-                StartCoroutine(ResetAttackBool(animator, 0.2f));
-                Debug.Log("Attack1 triggered");
-            }
+            TriggerAttackAnimation(agent);
 
             OnAfterLocalAbilityUsed(selectedAbility, targetTile);
 
@@ -488,6 +484,16 @@ namespace NetFlower {
             selectedAbility = null;
             selectedAbilityIndex = 0;
             // Do not advance turn automatically after using ability
+        }
+
+        public void TriggerAttackAnimation(Agent agent) {
+            if (agent == null) return;
+            Animator animator = agent.GetComponentInChildren<Animator>();
+            if (animator != null) {
+                animator.SetBool("Attack1", true);
+                StartCoroutine(ResetAttackBool(animator, attackAnimationHoldSeconds));
+                Debug.Log("Attack1 triggered");
+            }
         }
 
         private IEnumerator ResetAttackBool(Animator animator, float delaySeconds) {
