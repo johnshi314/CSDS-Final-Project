@@ -5,6 +5,8 @@
 # Faster when you only changed Python/API: ./reload.sh server
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=env-user-session.sh
+source "$DIR/env-user-session.sh"
 TARGET="${1:-all}"
 QUADLET_DIR="${HOME}/.config/containers/systemd"
 

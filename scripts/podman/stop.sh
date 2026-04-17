@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Stop both netflower systemd user services.
 set -euo pipefail
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+# shellcheck source=env-user-session.sh
+source "$(cd "$(dirname "$0")" && pwd)/env-user-session.sh"
 
 systemctl --user stop netflower-frontend.service 2>/dev/null && echo "Stopped frontend" || echo "Frontend was not running"
 systemctl --user stop netflower-webgl.service   2>/dev/null && echo "Stopped webgl"    || echo "WebGL was not running"

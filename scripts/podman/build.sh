@@ -2,6 +2,9 @@
 # Build API and/or frontend images, then prune dangling old images.
 # Usage: ./build.sh [all|server|frontend|webgl]   (default: all)
 set -euo pipefail
+_PODMAN_SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=env-user-session.sh
+source "$_PODMAN_SCRIPTS/env-user-session.sh"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
