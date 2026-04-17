@@ -194,25 +194,9 @@ namespace NetFlower.UI {
             this.redSpawnPoints = redSpawnPoints != null ? new List<Vector2Int>(redSpawnPoints) : new List<Vector2Int>();
             this.blueSpawnPoints = blueSpawnPoints != null ? new List<Vector2Int>(blueSpawnPoints) : new List<Vector2Int>();
 
-            // Consume spawn points in-order so each agent gets a distinct valid tile.
-            var redSpawnQueue = (redSpawnPoints ?? this.redSpawnPoints).GetEnumerator();
-            var blueSpawnQueue = (blueSpawnPoints ?? this.blueSpawnPoints).GetEnumerator();
-
-            foreach (Agent agent in this.redAgents) {
-                if (agent == null) continue;
-                if (!TryFindNextSpawn(redSpawnQueue, out var startingTile) || !mapManager.PlaceAgent(agent, startingTile)) {
-                    Debug.LogError($"GridMap: No available red spawn for {agent.name}. Check spawn list size/walkability/occupancy.");
-                    break;
-                }
-            }
-
-            foreach (Agent agent in this.blueAgents) {
-                if (agent == null) continue;
-                if (!TryFindNextSpawn(blueSpawnQueue, out var startingTile) || !mapManager.PlaceAgent(agent, startingTile)) {
-                    Debug.LogError($"GridMap: No available blue spawn for {agent.name}. Check spawn list size/walkability/occupancy.");
-                    break;
-                }
-            }
+            // MapManager constructor already registered every agent on ActiveMap (same spawn lists).
+            // Do not run a second placement pass here: all spawn cells would read as occupied and
+            // TryFindNextSpawn would fail (e.g. 3 reds / 3 spawns -> third agent "no spawn").
             PositionInitialAgents();
         }
 
@@ -222,25 +206,6 @@ namespace NetFlower.UI {
         public void RefreshAgentWorldPositionsFromMap() {
             if (!IsMapReady) return;
             PositionInitialAgents();
-        }
-
-        /// <summary>
-        /// Returns the next walkable, in-bounds, unoccupied spawn point from the provided sequence.
-        /// </summary>
-        private bool TryFindNextSpawn(IEnumerator<Vector2Int> spawnEnumerator, out Vector2Int spawn) {
-            while (spawnEnumerator != null && spawnEnumerator.MoveNext()) {
-                var candidate = spawnEnumerator.Current;
-                if (!mapManager.ActiveMap.InBounds(candidate))
-                    continue;
-                if (!mapManager.ActiveMap.IsWalkable(candidate))
-                    continue;
-                if (mapManager.ActiveMap.GetAgentAtPosition(candidate) != null)
-                    continue;
-                spawn = candidate;
-                return true;
-            }
-            spawn = default;
-            return false;
         }
 
         // Update is called once per frame

@@ -93,16 +93,32 @@ namespace NetFlower {
                     timerActive = true;
                 }
 
-                if (_receivedYou && !_handshakeSent && turnOrder.Count > 0 && State == BattleState.NotStarted
-                    && _ws != null && _ws.State == WebSocketState.Open) {
-                    _handshakeSent = true;
-                    BindAgentsToLobbyRoster();
-                    ComputeHostPlayerId();
-                    _ = SendHandshakeAsync();
-                }
+                TrySendBattleHandshakeIfReady();
             }
 
             base.Update();
+        }
+
+        /// <summary>
+        /// Sends <c>start|</c> + <c>claim|</c> once the roster exists. Called from Update and right after
+        /// <see cref="BattleManager.StartBattle"/> so execution order vs GameplayDemo cannot leave the
+        /// handshake unsent with a populated <c>turnOrder</c>.
+        /// </summary>
+        public void TrySendBattleHandshakeIfReady() {
+            if (_localFallback) return;
+            if (!_receivedYou || _handshakeSent || turnOrder.Count == 0 || State != BattleState.NotStarted
+                || _ws == null || _ws.State != WebSocketState.Open)
+                return;
+            _handshakeSent = true;
+            BindAgentsToLobbyRoster();
+            ComputeHostPlayerId();
+            _ = SendHandshakeAsync();
+        }
+
+        /// <summary>Same as <see cref="BattleManager.StartBattle"/> but immediately retries the WS handshake.</summary>
+        public new void StartBattle(bool deferFirstBeginTurn = false) {
+            base.StartBattle(deferFirstBeginTurn);
+            TrySendBattleHandshakeIfReady();
         }
 
         /// <summary>Host passes turns for NPC slots (server uses lowest connected player id).</summary>

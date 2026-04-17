@@ -137,14 +137,20 @@ namespace NetFlower {
                 return;
             }
 
-            DestroyDefaultTeamAgents();
-
             var redTeam = BuildOnlineTeamAgents(redTeamRoot, match.lobbyRedPlayerIds, match.lobbyRedCharacterIds, redSlots);
             var blueTeam = BuildOnlineTeamAgents(blueTeamRoot, match.lobbyBluePlayerIds, match.lobbyBlueCharacterIds, blueSlots);
             if (redTeam.Count < 1 || blueTeam.Count < 1) {
+                foreach (var a in redTeam) {
+                    if (a != null) Destroy(a.gameObject);
+                }
+                foreach (var a in blueTeam) {
+                    if (a != null) Destroy(a.gameObject);
+                }
                 Debug.LogError($"GameplayDemo (online): Failed to build teams from lobby roster (red={redTeam.Count}, blue={blueTeam.Count}). Check AllAgents prefabs and lobby character ids.");
                 return;
             }
+
+            DestroyDefaultTeamAgents();
 
             Debug.Log($"[GameplayDemo] Online lobby roster: redSlots={redSlots} blueSlots={blueSlots} -> spawned red={redTeam.Count} blue={blueTeam.Count}");
             gridMap.ReinitializeMapManager(redTeam, blueTeam, gridMap.RedSpawnPoints, gridMap.BlueSpawnPoints);
