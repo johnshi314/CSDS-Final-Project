@@ -199,7 +199,7 @@ namespace NetFlower {
         public List<Ability> GetAbilities() { return new List<Ability>(this.Abilities); } // John Shi: I added this to track the abilities of agents
         public Tunneling GetTunneling() { return this.CanTunnel; }
         public uint GetHP() {  return this.hp; }
-  
+
 
         /// <summary>
         /// Apply damage to the agent, reducing its HP.

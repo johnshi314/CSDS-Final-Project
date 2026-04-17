@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using NativeWebSocket;
 using UnityEngine;
 using NetFlower.UI;
@@ -118,20 +119,34 @@ namespace NetFlower {
         }
 
         void BindAgentsToLobbyRoster() {
-            if (_match == null) return;
+            if (_match == null || gridMap == null) return;
             var red = _match.lobbyRedPlayerIds;
             var blue = _match.lobbyBluePlayerIds;
+            // Turn order interleaves teams (see BattleManager.StartBattle) but sizes may differ (e.g. 1v5).
+            // Never infer team from turn-order index; map each agent by its index on RedAgents / BlueAgents.
             for (int i = 0; i < turnOrder.Count; i++) {
                 var agent = turnOrder[i];
                 if (agent == null) continue;
-                int pid;
-                if ((i % 2) == 0) {
-                    int idx = i / 2;
-                    pid = red != null && idx < red.Length ? red[idx] : agent.Player != null ? agent.Player.Id : _myPlayerId;
-                } else {
-                    int idx = i / 2;
-                    pid = blue != null && idx < blue.Length ? blue[idx] : agent.Player != null ? agent.Player.Id : _myPlayerId;
+                int pid = _myPlayerId;
+                bool bound = false;
+                var reds = gridMap.RedAgents;
+                for (int r = 0; r < reds.Count; r++) {
+                    if (reds[r] != agent) continue;
+                    pid = red != null && r < red.Length ? red[r] : agent.Player != null ? agent.Player.Id : _myPlayerId;
+                    bound = true;
+                    break;
                 }
+                if (!bound) {
+                    var blues = gridMap.BlueAgents;
+                    for (int b = 0; b < blues.Count; b++) {
+                        if (blues[b] != agent) continue;
+                        pid = blue != null && b < blue.Length ? blue[b] : agent.Player != null ? agent.Player.Id : _myPlayerId;
+                        bound = true;
+                        break;
+                    }
+                }
+                if (!bound)
+                    Debug.LogWarning($"[OnlineBattle] BindAgentsToLobbyRoster: agent {agent.Name} not found on red or blue team list.");
                 if (agent.Player == null)
                     agent.Player = new Player(pid, "Player " + pid, "0.0.0.0");
                 else
@@ -254,8 +269,20 @@ namespace NetFlower {
                         HandleRelay(fromPid, payload);
                     }
                     break;
+                case "claims_complete":
+                    // Lowest connected battle WebSocket player id must send spawns|n|x|y|...
+                    if (parts.Length >= 2 && int.TryParse(parts[1], out var spawnHostPid)) {
+                        Debug.Log($"[OnlineBattle] claims_complete; spawn host playerId={spawnHostPid}");
+                        if (_myPlayerId == spawnHostPid)
+                            _ = SendSpawnsHandshakeAsync();
+                    }
+                    break;
+                case "spawnLayout":
+                    if (TryParseSpawnLayoutParts(parts, out var layout))
+                        TryApplyServerSpawnLayoutByTurnSlot(layout);
+                    break;
                 case "battle_ready":
-                    Debug.Log("[OnlineBattle] Server locked roster - waiting for first turn.");
+                    Debug.Log("[OnlineBattle] Server locked spawn layout - waiting for first turn.");
                     break;
                 case "err":
                     if (parts.Length >= 2)
@@ -302,6 +329,32 @@ namespace NetFlower {
                     await SendTextAsync($"claim|{i}");
                 }
             }
+        }
+
+        /// <summary>
+        /// Sent only by the spawn host after <c>claims_complete</c>; server rebroadcasts <c>spawnLayout</c> to all clients.
+        /// </summary>
+        async Task SendSpawnsHandshakeAsync() {
+            if (!TryBuildTurnSlotSpawnHandshakeLine(out var line)) {
+                Debug.LogWarning("[OnlineBattle] Could not build spawns line (agents or map tiles missing).");
+                return;
+            }
+            await SendTextAsync(line);
+        }
+
+        static bool TryParseSpawnLayoutParts(string[] parts, out List<Vector2Int> positions) {
+            positions = null;
+            if (parts == null || parts.Length < 3) return false;
+            if (!int.TryParse(parts[1], out int n) || n < 1) return false;
+            if (parts.Length != 2 + 2 * n) return false;
+            var list = new List<Vector2Int>(n);
+            for (int i = 0; i < n; i++) {
+                if (!int.TryParse(parts[2 + 2 * i], out int x) || !int.TryParse(parts[3 + 2 * i], out int y))
+                    return false;
+                list.Add(new Vector2Int(x, y));
+            }
+            positions = list;
+            return true;
         }
 
         async Task SendPassAsync() {

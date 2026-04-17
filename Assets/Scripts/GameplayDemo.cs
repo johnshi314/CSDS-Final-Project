@@ -116,10 +116,11 @@ namespace NetFlower {
         }
 
         /// <summary>
-        /// Online PvP: same structural guarantees as <see cref="OfflineFillGridMap"/> - destroy scene default
-        /// agents, spawn prefabs under RedTeam/BlueTeam so each client builds the same network unit ids (r0, b0).
-        /// Local character comes from character select; other team uses a
-        /// shared placeholder prefab until the server sends opponent roster (harpy mirroring offline for now).
+        /// Online PvP: destroy scene default agents, then spawn one prefab per lobby slot on each team so every
+        /// client builds the same <see cref="BattleManager"/> turn order and stable network unit ids (r0, r1, … / b0, …).
+        /// Uses <see cref="Match.CommitFromLobby"/> roster (player ids + character ids). Human slots have no
+        /// <see cref="NPCBehavior"/>; slots with no human player id (&lt;= 0) get NPC for host-driven AI.
+        /// If lobby data is missing, falls back to the old two-prefab 1v1 bootstrap.
         /// </summary>
         void OnlineFillGridMap(PersistentPlayerPreferences prefs) {
             if (allAgents == null) {
@@ -127,6 +128,34 @@ namespace NetFlower {
             }
 
             var match = Match.GetInstance();
+            int redSlots = MaxRosterSlotCount(match?.lobbyRedPlayerIds, match?.lobbyRedCharacterIds);
+            int blueSlots = MaxRosterSlotCount(match?.lobbyBluePlayerIds, match?.lobbyBlueCharacterIds);
+
+            // Need both teams and committed lobby roster for multi-unit online battles.
+            if (match == null || redSlots < 1 || blueSlots < 1) {
+                OnlineFillGridMapTwoPlayerFallback(prefs, match);
+                return;
+            }
+
+            DestroyDefaultTeamAgents();
+
+            var redTeam = BuildOnlineTeamAgents(redTeamRoot, match.lobbyRedPlayerIds, match.lobbyRedCharacterIds, redSlots);
+            var blueTeam = BuildOnlineTeamAgents(blueTeamRoot, match.lobbyBluePlayerIds, match.lobbyBlueCharacterIds, blueSlots);
+            if (redTeam.Count < 1 || blueTeam.Count < 1) {
+                Debug.LogError($"GameplayDemo (online): Failed to build teams from lobby roster (red={redTeam.Count}, blue={blueTeam.Count}). Check AllAgents prefabs and lobby character ids.");
+                return;
+            }
+
+            Debug.Log($"[GameplayDemo] Online lobby roster: redSlots={redSlots} blueSlots={blueSlots} -> spawned red={redTeam.Count} blue={blueTeam.Count}");
+            gridMap.ReinitializeMapManager(redTeam, blueTeam, gridMap.RedSpawnPoints, gridMap.BlueSpawnPoints);
+        }
+
+        /// <summary>Legacy 1v1 when <see cref="Match"/> has no roster (e.g. launching battle scene without lobby).</summary>
+        void OnlineFillGridMapTwoPlayerFallback(PersistentPlayerPreferences prefs, Match match) {
+            if (allAgents == null) {
+                allAgents = Resources.Load<AllAgents>("Settings/AllAgents");
+            }
+
             bool localOnRed = match == null || match.selectedTeam == Match.TeamSelection.Red;
 
             int opponentCharId = -1;
@@ -137,18 +166,14 @@ namespace NetFlower {
             }
 
             GameObject localPrefab = allAgents != null ? allAgents.GetAgentPrefabById(prefs.characterId) : null;
-            GameObject opponentPrefab = opponentCharId >= 0 && allAgents != null
-                ? allAgents.GetAgentPrefabById(opponentCharId)
-                : null;
-            if (opponentPrefab == null && allAgents != null)
-                opponentPrefab = allAgents.harpyAgent;
+            GameObject opponentPrefab = ResolveCharacterPrefab(allAgents, opponentCharId);
 
             if (localPrefab == null) {
-                Debug.LogError($"GameplayDemo (online): Selected player prefab is null. characterId={prefs?.characterId} (AllAgents harpyId={allAgents?.harpyId}, elfId={allAgents?.elfId})");
+                Debug.LogError($"GameplayDemo (online fallback): Selected player prefab is null. characterId={prefs?.characterId}");
                 return;
             }
             if (opponentPrefab == null) {
-                Debug.LogError("GameplayDemo (online): Opponent prefab is null in AllAgents.");
+                Debug.LogError("GameplayDemo (online fallback): Opponent prefab is null in AllAgents.");
                 return;
             }
 
@@ -164,13 +189,13 @@ namespace NetFlower {
                 blueObject = Instantiate(localPrefab, blueTeamRoot);
             }
 
-            StripNpcBehaviorForOnlinePvP(redObject);
-            StripNpcBehaviorForOnlinePvP(blueObject);
+            ConfigureOnlineHumanSlot(redObject);
+            ConfigureOnlineHumanSlot(blueObject);
 
             Agent redAgent = redObject.GetComponent<Agent>();
             Agent blueAgent = blueObject.GetComponent<Agent>();
             if (redAgent == null || blueAgent == null) {
-                Debug.LogError("GameplayDemo (online): Agent prefab is missing Agent component.");
+                Debug.LogError("GameplayDemo (online fallback): Agent prefab is missing Agent component.");
                 return;
             }
 
@@ -179,7 +204,64 @@ namespace NetFlower {
             gridMap.ReinitializeMapManager(redTeam, blueTeam, gridMap.RedSpawnPoints, gridMap.BlueSpawnPoints);
         }
 
-        static void StripNpcBehaviorForOnlinePvP(GameObject agentObject) {
+        static int MaxRosterSlotCount(int[] playerIds, int[] characterIds) {
+            int n = 0;
+            if (playerIds != null && playerIds.Length > n) n = playerIds.Length;
+            if (characterIds != null && characterIds.Length > n) n = characterIds.Length;
+            return n;
+        }
+
+        static int SafeArrayGet(int[] arr, int index, int defaultValue) {
+            if (arr == null || index < 0 || index >= arr.Length) return defaultValue;
+            return arr[index];
+        }
+
+        /// <summary>Prefab for a lobby character id without spamming errors for unknown ids.</summary>
+        static GameObject ResolveCharacterPrefab(AllAgents all, int characterId) {
+            if (all == null) return null;
+            if (characterId == all.harpyId) return all.harpyAgent;
+            if (characterId == all.elfId) return all.elfAgent;
+            if (characterId < 0)
+                return all.harpyAgent != null ? all.harpyAgent : all.elfAgent;
+            Debug.LogWarning($"[GameplayDemo] Unknown characterId={characterId}; using harpy fallback. Extend AllAgents when you add more characters.");
+            return all.harpyAgent != null ? all.harpyAgent : all.elfAgent;
+        }
+
+        List<Agent> BuildOnlineTeamAgents(Transform teamRoot, int[] lobbyPlayerIds, int[] lobbyCharacterIds, int slotCount) {
+            var team = new List<Agent>(slotCount);
+            for (int i = 0; i < slotCount; i++) {
+                int charId = SafeArrayGet(lobbyCharacterIds, i, -1);
+                bool hasPlayerEntry = lobbyPlayerIds != null && i < lobbyPlayerIds.Length;
+                // Only treat as NPC when the lobby explicitly lists this slot with no human (id <= 0).
+                // If player-id array is shorter than character roster, assume human slots (do not default to 0 -> all bots).
+                bool isNpcSlot = hasPlayerEntry && lobbyPlayerIds[i] <= 0;
+                GameObject prefab = ResolveCharacterPrefab(allAgents, charId);
+                if (prefab == null) {
+                    Debug.LogError($"GameplayDemo (online): No prefab for roster index {i} (characterId={charId}).");
+                    continue;
+                }
+
+                var go = Instantiate(prefab, teamRoot);
+                // Unclaimed / bot slots: host runs NPCBehavior (see OnlineBattleManager.LocalMayControlCurrentAgent).
+                if (isNpcSlot) {
+                    if (go.GetComponent<NPCBehavior>() == null)
+                        go.AddComponent<NPCBehavior>();
+                } else {
+                    ConfigureOnlineHumanSlot(go);
+                }
+
+                var agent = go.GetComponent<Agent>();
+                if (agent == null) {
+                    Debug.LogError($"GameplayDemo (online): Prefab {prefab.name} has no Agent component.");
+                    Destroy(go);
+                    continue;
+                }
+                team.Add(agent);
+            }
+            return team;
+        }
+
+        static void ConfigureOnlineHumanSlot(GameObject agentObject) {
             if (agentObject == null) return;
             var npc = agentObject.GetComponent<NPCBehavior>();
             if (npc != null)

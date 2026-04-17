@@ -217,6 +217,14 @@ namespace NetFlower.UI {
         }
 
         /// <summary>
+        /// Re-syncs agent transforms to their current logical map tiles (after teleport / server spawn layout).
+        /// </summary>
+        public void RefreshAgentWorldPositionsFromMap() {
+            if (!IsMapReady) return;
+            PositionInitialAgents();
+        }
+
+        /// <summary>
         /// Returns the next walkable, in-bounds, unoccupied spawn point from the provided sequence.
         /// </summary>
         private bool TryFindNextSpawn(IEnumerator<Vector2Int> spawnEnumerator, out Vector2Int spawn) {

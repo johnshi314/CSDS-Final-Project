@@ -133,6 +133,19 @@ namespace NetFlower {
             paths[agent].Add(startTile);
         }
 
+        /// <summary>
+        /// Removes an agent from the map occupancy graph (e.g. before applying server-authoritative spawn layout).
+        /// </summary>
+        public void UnregisterAgent(Agent agent) {
+            if (agent == null) return;
+            if (currentTiles.TryGetValue(agent, out Tile tile)) {
+                agentsByPosition.Remove(tile.Position);
+                currentTiles.Remove(agent);
+            }
+            startTiles.Remove(agent);
+            paths.Remove(agent);
+        }
+
         // Move player to a new tile index
         // Map Manager will validate move
         public void MoveAgent(Agent agent, Vector2Int tilePos) {

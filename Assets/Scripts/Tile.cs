@@ -29,7 +29,7 @@ namespace NetFlower {
         public Agent Occupant {
             get {
                 if (Map == null) return null;
-                return Map.GetAgentAtTile(this);       
+                return Map.GetAgentAtTile(this);
             }
         }
 

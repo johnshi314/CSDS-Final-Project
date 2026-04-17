@@ -3,11 +3,11 @@
  * Author       : Mikey Maldonado
  * Date Created : 2026-02-05
  * Description  : Manages the flow of a turn-based battle, including turn order, player actions, and state transitions.
- *                TODO: Refactor to use TurnOrder and other classes 
+ *                TODO: Refactor to use TurnOrder and other classes
 
  * Last Modified: 2026-03-19
  * Last Modified By: John Shi
- * Note: I modified the BattleManager so it now supports NPC agents. 
+ * Note: I modified the BattleManager so it now supports NPC agents.
  **********************************************************************/
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -15,6 +15,7 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Text;
 using NetFlower.UI;
 
 
@@ -37,7 +38,7 @@ namespace NetFlower {
     /// Drives a turn-based battle demo. Owns the state machine that decides
     /// what mouse clicks do, cycles turns between agents, and draws IMGUI
     /// buttons for Move / End Turn / Cancel.
-    /// 
+    ///
     /// NOW SUPPORTS NPC AGENTS - Agents with NPCBehavior will move automatically.
     /// </summary>
     public class BattleManager : MonoBehaviour {
@@ -63,7 +64,7 @@ namespace NetFlower {
 
         // UI GUI switched added
         [Header("UI Options")]
-        [SerializeField] private bool useCanvasUI = true; 
+        [SerializeField] private bool useCanvasUI = true;
 
         private Match match; // Reference to the Match component for recording stats
 
@@ -73,7 +74,7 @@ namespace NetFlower {
         public int SelectedAbilityIndexForUI => selectedAbilityIndex;
         public Ability SelectedAbilityForUI => selectedAbility;
         public float TurnTimerForUI => turnTimer;
-        public Rect UiRectForIMGUI => uiRect; // for debugging 
+        public Rect UiRectForIMGUI => uiRect; // for debugging
         // --------------------------------------------
 
         // State
@@ -83,14 +84,14 @@ namespace NetFlower {
         private List<Tile> validMoveTiles = new List<Tile>();
         private readonly Dictionary<Agent, string> networkUnitIdsByAgent = new Dictionary<Agent, string>();
         private readonly Dictionary<string, Agent> agentsByNetworkUnitId = new Dictionary<string, Agent>(StringComparer.Ordinal);
-        
+
         // Ability selection state
         private List<Ability> availableAbilities = new List<Ability>();
         private int selectedAbilityIndex = 0;
         private Ability selectedAbility = null;  // The ability currently being targeted
         private List<Tile> validAbilityTargets = new List<Tile>();  // Valid target tiles for the selected ability
         private Tile lastHoveredAbilityTargetTile = null; // For AoE preview highlighting
-        
+
         // Movement tweening state
         [Header("Movement Animation")]
         [SerializeField] private float moveSpeed = 5f; // tiles per second
@@ -119,7 +120,7 @@ namespace NetFlower {
 
         public void Start() {
             // For Mach I need:
-            // - A ID 
+            // - A ID
             // - B ID
             // Winner char name
             // Match ID
@@ -156,7 +157,8 @@ namespace NetFlower {
                 return;
             }
 
-            // Interleave red/blue so turns alternate between teams
+            // Interleave red/blue so turns alternate when both sides have a unit at that wave index.
+            // Uneven rosters (e.g. 1v5) are supported: extra members of the larger team fill later slots.
             turnOrder.Clear();
             int max = Mathf.Max(gridMap.RedAgents.Count, gridMap.BlueAgents.Count);
             for (int i = 0; i < max; i++) {
@@ -164,7 +166,7 @@ namespace NetFlower {
                     turnOrder.Add(gridMap.RedAgents[i]);
 
                 if (i < gridMap.BlueAgents.Count && gridMap.BlueAgents[i] != null)
-                    turnOrder.Add(gridMap.BlueAgents[i]);             
+                    turnOrder.Add(gridMap.BlueAgents[i]);
             }
 
             if (turnOrder.Count == 0) {
@@ -191,6 +193,55 @@ namespace NetFlower {
             BeginTurn();
         }
 
+        /// <summary>
+        /// Online: build <c>spawns|n|x0|y0|...</c> from current <see cref="turnOrder"/> tile positions (must match server slot order).
+        /// </summary>
+        public bool TryBuildTurnSlotSpawnHandshakeLine(out string line) {
+            line = null;
+            if (turnOrder == null || turnOrder.Count == 0 || gridMap?.MapManager?.ActiveMap == null)
+                return false;
+            var map = gridMap.MapManager.ActiveMap;
+            var sb = new StringBuilder();
+            sb.Append("spawns|").Append(turnOrder.Count);
+            for (int i = 0; i < turnOrder.Count; i++) {
+                var agent = turnOrder[i];
+                if (agent == null) return false;
+                var tile = map.GetCurrentTile(agent);
+                if (tile == null) return false;
+                sb.Append('|').Append(tile.Position.x).Append('|').Append(tile.Position.y);
+            }
+            line = sb.ToString();
+            return true;
+        }
+
+        /// <summary>
+        /// Online: apply server-broadcast spawn positions for each turn-order slot (unregister then place).
+        /// </summary>
+        public bool TryApplyServerSpawnLayoutByTurnSlot(IReadOnlyList<Vector2Int> positionsByTurnSlot) {
+            if (gridMap?.MapManager?.ActiveMap == null || turnOrder == null || positionsByTurnSlot == null)
+                return false;
+            if (positionsByTurnSlot.Count != turnOrder.Count) {
+                Debug.LogError($"[BattleManager] Spawn layout length {positionsByTurnSlot.Count} != turn order {turnOrder.Count}.");
+                return false;
+            }
+            var map = gridMap.MapManager.ActiveMap;
+            foreach (var agent in turnOrder) {
+                if (agent != null)
+                    map.UnregisterAgent(agent);
+            }
+            for (int i = 0; i < turnOrder.Count; i++) {
+                var agent = turnOrder[i];
+                if (agent == null) continue;
+                var pos = positionsByTurnSlot[i];
+                if (!gridMap.MapManager.PlaceAgent(agent, pos)) {
+                    Debug.LogError($"[BattleManager] Server spawn failed for slot {i} {agent.Name} at {pos}.");
+                    return false;
+                }
+            }
+            gridMap.RefreshAgentWorldPositionsFromMap();
+            return true;
+        }
+
         /// <summary>True if this is offline battle or the local human may act on the current agent (online).</summary>
         public bool LocalPlayerMayControlTurn() {
             var online = GetComponent<OnlineBattleManager>();
@@ -208,7 +259,7 @@ namespace NetFlower {
             // For accessing agent's playerMatchStats object
             if (CurrentAgent.playerMatchStats.matchId == 0) {
                 CurrentAgent.playerMatchStats = CurrentAgent.RegisterPlayer(match.dbMatchId);
-            } 
+            }
 
             validMoveTiles = gridMap.MapManager.ActiveMap.GetMovableTiles(agent);
             if (validMoveTiles.Count == 0) {

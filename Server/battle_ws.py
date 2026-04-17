@@ -7,6 +7,7 @@ Client -> server
   start|<num_agents>|<turn_seconds>     - first message starts config (same from any client; first wins)
   claim|<slot>                           - authenticated player claims turn-order slot (0..n-1)
   claim|<slot>|npc                       - slot is AI; only match host may pass for that slot
+  spawns|<n>|<x0>|<y0>|...               - after all claims: lowest-connected player_id (see claims_complete) sends map positions for turn slots 0..n-1 (same order as Unity turnOrder: red0,blue0,red1,...)
   pass                                   - end current turn (must own current slot, or host for NPC slot)
   relay|move|<slot>|<tx>|<ty>            - announce move (legacy slot index; fragile if roster changes)
   relay|ability|<slot>|<ability_index>|<tx>|<ty>
@@ -21,7 +22,9 @@ Server -> client
   you|<player_id>                        - who you are (JWT)
   ack|start|<n>|<t>                      - battle config accepted
   ack|claim|<slot>|<player_id>           - slot assignment
-  battle_ready                           - all slots claimed; first turn imminent
+  claims_complete|<host_player_id>       - all slots claimed; host must send spawns|... next
+  spawnLayout|<n>|<x0>|<y0>|...          - authoritative start tiles (broadcast after valid spawns)
+  battle_ready                           - spawn layout locked; first turn imminent
   newTurn|<slot>|<sync_turn>|<ends_unix> - unix seconds when turn ends (UTC)
   tick|<slot>|<seconds_left_int>         - about 2 Hz while turn active
   relay|<from_player_id>|<payload>       - payload = rest after from_pid (same as client relay line)
@@ -61,6 +64,7 @@ class BattleRoom:
     current_slot: int = 0
     sync_turn: int = 0  # matches Unity BattleManager.currentTurn
     battle_ready: bool = False
+    awaiting_spawns: bool = False
     battle_loop_task: asyncio.Task | None = None
     turn_deadline_monotonic: float = 0.0
     pass_received: bool = False
@@ -186,7 +190,8 @@ def _try_start_battle_loop(room: BattleRoom) -> None:
 
 
 async def _handle_client_message(room: BattleRoom, player_id: int, text: str) -> None:
-    parts = text.split("|", 3)
+    # Full split (spawns|n|x|y|... needs unbounded segments; relay still uses raw text below).
+    parts = text.split("|")
     head = parts[0].strip().lower() if parts else ""
 
     if head == "start" and len(parts) >= 3:
@@ -226,6 +231,10 @@ async def _handle_client_message(room: BattleRoom, player_id: int, text: str) ->
         await _check_all_claimed(room)
         return
 
+    if head == "spawns" and len(parts) >= 3:
+        await _handle_spawns_line(room, player_id, parts)
+        return
+
     if head == "pass":
         if not room.battle_ready:
             return
@@ -253,16 +262,58 @@ async def _send_err(room: BattleRoom, player_id: int, msg: str) -> None:
 
 async def _check_all_claimed(room: BattleRoom) -> None:
     async with room.lock:
-        if room.battle_ready or room.num_agents <= 0:
+        if room.awaiting_spawns or room.battle_ready or room.num_agents <= 0:
             return
         if len(room.slot_owner) < room.num_agents:
             return
         for s in range(room.num_agents):
             if s not in room.slot_owner:
                 return
-        room.battle_ready = True
+        room.awaiting_spawns = True
         room.current_slot = 0
         room.sync_turn = 0
+    hp = _host_player_id(room) or 0
+    await _broadcast(room, f"claims_complete|{hp}")
+
+
+async def _handle_spawns_line(room: BattleRoom, player_id: int, parts: list[str]) -> None:
+    hp = _host_player_id(room)
+    if hp is None or player_id != hp:
+        await _send_err(room, player_id, "only spawn host may send spawns")
+        return
+    try:
+        n = int(parts[1])
+    except (ValueError, IndexError):
+        await _send_err(room, player_id, "bad spawns n")
+        return
+    if n < 1 or n > 32 or n != room.num_agents:
+        await _send_err(room, player_id, "spawn count mismatch")
+        return
+    if len(parts) != 2 + 2 * n:
+        await _send_err(room, player_id, "bad spawns arity")
+        return
+    coords: list[tuple[int, int]] = []
+    for i in range(n):
+        try:
+            x = int(parts[2 + 2 * i])
+            y = int(parts[3 + 2 * i])
+        except ValueError:
+            await _send_err(room, player_id, "bad spawn coordinate")
+            return
+        coords.append((x, y))
+    if len(set(coords)) != len(coords):
+        await _send_err(room, player_id, "spawn positions not unique")
+        return
+
+    async with room.lock:
+        if not room.awaiting_spawns or room.battle_ready:
+            await _send_err(room, player_id, "spawns not expected now")
+            return
+        room.awaiting_spawns = False
+        room.battle_ready = True
+
+    flat = [str(n)] + [str(v) for xy in coords for v in xy]
+    await _broadcast(room, "spawnLayout|" + "|".join(flat))
     await _broadcast(room, "battle_ready")
     _try_start_battle_loop(room)
 
