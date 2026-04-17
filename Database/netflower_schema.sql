@@ -75,6 +75,7 @@ CREATE TABLE `lobby_players` (
   `player_id` INT NOT NULL,
   `team` VARCHAR(16) NULL COMMENT 'red | blue',
   `ready` TINYINT(1) NOT NULL DEFAULT 0,
+  `character_id` INT DEFAULT NULL,
   `joined_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`match_id`, `player_id`),
   KEY `idx_lobby_match` (`match_id`),

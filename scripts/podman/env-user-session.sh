@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Normalize env for rootless Podman and systemctl --user after su/sudo/SSH quirks.
-# Stale XDG_RUNTIME_DIR (e.g. still /run/user/ADMIN after `su netflower`) causes:
-#   Failed to obtain podman configuration: mkdir /run/user/UID/libpod: permission denied
-# Stale HOME breaks Quadlet paths (~/.config/containers/systemd).
-
 PW_HOME="$(getent passwd "$(id -un)" | cut -d: -f6)"
 if [[ -n "$PW_HOME" && "${HOME:-}" != "$PW_HOME" ]]; then
   echo "podman: overriding HOME (${HOME:-<unset>} -> $PW_HOME) for $(id -un)" >&2

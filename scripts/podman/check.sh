@@ -10,8 +10,8 @@ PASS=0
 FAIL=0
 WARN=0
 
-ok()   { PASS=$((PASS+1)); printf '  \033[32m✓\033[0m %s\n' "$1"; }
-fail() { FAIL=$((FAIL+1)); printf '  \033[31m✗\033[0m %s\n' "$1"; }
+ok()   { PASS=$((PASS+1)); printf '  \033[32mP\033[0m %s\n' "$1"; }
+fail() { FAIL=$((FAIL+1)); printf '  \033[31mX\033[0m %s\n' "$1"; }
 warn() { WARN=$((WARN+1)); printf '  \033[33m!\033[0m %s\n' "$1"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
