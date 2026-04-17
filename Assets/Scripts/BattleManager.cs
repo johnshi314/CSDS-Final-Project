@@ -472,7 +472,8 @@ namespace NetFlower {
             Debug.Log($"BattleManager: {agent.Name} used {selectedAbility.DisplayName} on tile {targetTile.Position}.");
             Animator animator = agent.GetComponentInChildren<Animator>();
             if (animator != null ) {
-                animator.SetBool("Attack1",true);
+                animator.SetBool("Attack1", true);
+                StartCoroutine(ResetAttackBool(animator, 0.2f));
                 Debug.Log("Attack1 triggered");
             }
 
@@ -487,6 +488,12 @@ namespace NetFlower {
             selectedAbility = null;
             selectedAbilityIndex = 0;
             // Do not advance turn automatically after using ability
+        }
+
+        private IEnumerator ResetAttackBool(Animator animator, float delaySeconds) {
+            if (animator == null) yield break;
+            yield return new WaitForSeconds(delaySeconds);
+            if (animator != null) animator.SetBool("Attack1", false);
         }
 
         public void OnAbilityTargetCancelled() {
@@ -686,9 +693,9 @@ namespace NetFlower {
             while (idx < path.Count - 1) {
                 if (animator != null) {
                     animator.SetBool("IsWalking", true);
-                    Vector3 dir = (path[idx] - path[idx + 1]).normalized;
-                    animator.SetBool("IsLeft", dir.x >= 0);
-                    animator.SetBool("IsForward", dir.y >= 0);
+                    Vector3 dir = (path[idx + 1] - path[idx]).normalized;
+                    animator.SetBool("IsLeft", dir.x <= 0);
+                    animator.SetBool("IsForward", dir.y <= 0);
                 }
 
                 t += Time.deltaTime * moveSpeed;
@@ -1037,17 +1044,9 @@ namespace NetFlower {
            
             if (animator != null) {
                 animator.SetBool("IsWalking", true);
-                Vector3 dir = (movePath[movePathIndex] - movePath[movePathIndex + 1]).normalized;
-                if (dir.x < 0) {
-                    animator.SetBool("IsLeft", false);
-                } else {
-                    animator.SetBool("IsLeft", true);
-                }
-                if (dir.y < 0) {
-                    animator.SetBool("IsForward", false);
-                } else {
-                    animator.SetBool("IsForward", true);
-                }
+                Vector3 dir = (movePath[movePathIndex + 1] - movePath[movePathIndex]).normalized;
+                animator.SetBool("IsLeft", dir.x <= 0);
+                animator.SetBool("IsForward", dir.y <= 0);
                 //Debug.Log("IsLeft: " + animator.GetBool("IsLeft") + "\nIsForward: " + animator.GetBool("IsForward"));
             }
             movingAgent.transform.position = Vector3.Lerp(
