@@ -3765,7 +3765,8 @@ MonoBehaviour:
   abilityAoePreviewAlpha: 0.45
   useCanvasUI: 1
   moveSpeed: 5
+  attackAnimationHoldSeconds: 1.5
   scaleWidth: 0.5
   httpApiBaseUrl: https://litecoders.com/api
-  lobbyWebSocketBaseUrl: 
+  lobbyWebSocketBaseUrl: https://litecoders.com/ws
   serverTurnSeconds: 30
