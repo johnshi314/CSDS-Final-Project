@@ -3,8 +3,8 @@ using UnityEngine.UI;
 //using UnityEngine.UIElements;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.SceneManagement;
-using System.Security.Cryptography.X509Certificates;
 
 /*
 Sara Wang
@@ -38,10 +38,7 @@ public class CharDisplayManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if (chardisplay != null)
-        {
-            chardisplay[selectedIndex].SetActive(true);//enables the first char in array 
-        }
+        ShowActiveCharacter();
        
         UpdateCharDisplay();
 
@@ -77,11 +74,8 @@ public class CharDisplayManager : MonoBehaviour
     //functions for next and prev buttons
     public void NextChar()//displays the next character in the list. Loops at end
     {
-        //Debug.Log("Next Selected, Now disabling" + selectedIndex);
-        chardisplay[selectedIndex].SetActive(false);//disables prev char displayed
         selectedIndex = (selectedIndex+1)%chardisplay.Length;
-        //Debug.Log("Now enabling" + selectedIndex);
-        chardisplay[selectedIndex].SetActive(true);//enables new char for display
+        ShowActiveCharacter();
 
         UpdateCharDisplay();
 
@@ -89,15 +83,12 @@ public class CharDisplayManager : MonoBehaviour
 
     public void PrevChar()//displays the next character in the list. Loops at end
     {
-        //Debug.Log("Prev Selected, Now disabling" + selectedIndex);
-        chardisplay[selectedIndex].SetActive(false);//disables prev char displayed
         selectedIndex--;
         if (selectedIndex < 0)
         {
             selectedIndex += chardisplay.Length;
         }
-        //Debug.Log("ow enabling" + selectedIndex);
-        chardisplay[selectedIndex].SetActive(true);//enables new char for display
+        ShowActiveCharacter();
 
         UpdateCharDisplay();
     }    
@@ -154,7 +145,6 @@ public class CharDisplayManager : MonoBehaviour
 
     public void UpdateCharDisplay(int selection)
     {   
-        chardisplay[selectedIndex].SetActive(false);//disables prev char displayed
         selectedIndex = selection;
 
         //Error Trapping to loop round if there is an invalid index input
@@ -167,9 +157,7 @@ public class CharDisplayManager : MonoBehaviour
             selectedIndex = (selectedIndex+1)%chardisplay.Length;
         }
 
-        
-        
-        chardisplay[selectedIndex].SetActive(true);//enables new character image in carosel
+        ShowActiveCharacter();//enables selected and disables all others
         CharDisplayInfo charinfo = chardisplay[selectedIndex].GetComponent<CharDisplayInfo>();
         if (charinfo != null)
         {
@@ -238,6 +226,31 @@ public class CharDisplayManager : MonoBehaviour
             SceneManager.LoadScene("Lobby");
         } else {
             SceneManager.LoadScene("GameplayTest");
+        }
+    }
+
+    private void ShowActiveCharacter() {
+        if (chardisplay == null || chardisplay.Length == 0) return;
+
+        // Keep selectedIndex valid before applying active states.
+        if (selectedIndex < 0) selectedIndex = 0;
+        if (selectedIndex >= chardisplay.Length) selectedIndex = chardisplay.Length - 1;
+
+        // Disable all other displays
+        CharDisplayInfo[] allDisplays = FindObjectsByType<CharDisplayInfo>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var allowedRoots = new HashSet<GameObject>();
+        for (int i = 0; i < chardisplay.Length; i++) {
+            if (chardisplay[i] != null) allowedRoots.Add(chardisplay[i]);
+        }
+        foreach (var info in allDisplays) {
+            if (info != null && info.gameObject != null && allowedRoots.Contains(info.gameObject)) {
+                info.gameObject.SetActive(false);
+            }
+        }
+
+        // Enable only the selected display
+        if (chardisplay[selectedIndex] != null) {
+            chardisplay[selectedIndex].SetActive(true);
         }
     }
 }
