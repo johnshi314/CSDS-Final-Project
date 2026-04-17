@@ -8,7 +8,6 @@ public class MainMenuController : MonoBehaviour {
     [SerializeField] private GameObject playButtonsPanel;
 
     [Header("Scene Settings")]
-    [SerializeField] private string gameplaySceneName = "GameplayTest";
     [SerializeField] private string loginSceneName = "Login";
     [SerializeField] private string characterSelectSceneName = "CharacterSelect_1";
 

@@ -52,7 +52,7 @@ namespace NetFlower {
         public int currentTurn = 0; // Tracks the current turn number (starting from 0)
 
         [Header("References")]
-        [SerializeField] private GridMap gridMap;
+        [SerializeField] public GridMap gridMap;
 
         [Header("Tile Highlighting")]
         [SerializeField] private Color moveRangeColor = new Color(0.2f, 0.6f, 1f, 1f);

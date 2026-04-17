@@ -224,21 +224,14 @@ namespace NetFlower {
                 context.Ability.ShapeRangeMax);
         }
         public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Tile targetTile) {
-            return GetTargetsInShape(shape, targetTile.Map, targetTile.Position);
+            if (targetTile == null || targetTile.Map == null) return new List<Agent>();
+            // No Ability context: preserve legacy fixed-radius preview (0..1) used by older call sites.
+            return GetTargetsInShape(shape, targetTile.Map, targetTile.Position, 0, 1);
         }
 
         [Obsolete("Use GetTargetsInShape(AbilityUseContext) or the overload with shapeRangeMin/shapeRangeMax so ShapeRangeMin/Max (donut AoE) is respected.")]
         public static List<Agent> GetTargetsInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
-            var agents = new List<Agent>();
-            var tiles = GetTilesInShape(shape, map, targetPos);
-
-            foreach (var tile in tiles) {
-                var agent = tile.Map.GetAgentAtTile(tile);
-                if (agent != null) {
-                    agents.Add(agent);
-                }
-            }
-            return agents;
+            return GetTargetsInShape(shape, map, targetPos, 0, 1);
         }
 
         public static List<Agent> GetTargetsInShape(
@@ -277,73 +270,13 @@ namespace NetFlower {
         }
 
         public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Tile targetTile) {
-            return GetTilesInShape(shape, targetTile.Map, targetTile.Position);
+            if (targetTile == null || targetTile.Map == null) return new List<Tile>();
+            return GetTilesInShape(shape, targetTile.Map, targetTile.Position, 0, 1);
         }
         
         [Obsolete("Use GetTilesInShape(AbilityUseContext) or the overload with shapeRangeMin/shapeRangeMax so ShapeRangeMin/Max (donut AoE) is respected.")]
         public static List<Tile> GetTilesInShape(AbilityTargetShape shape, Map map, Vector2Int targetPos) {
-            var tiles = new List<Tile>();
-            Tile centerTile = map.GetTileAtPosition(targetPos);
-
-            switch (shape) {
-                case AbilityTargetShape.Single:
-                    tiles.Add(centerTile);
-                    break;
-                case AbilityTargetShape.Circle:
-                    //  _ x _
-                    //  x x x
-                    //  _ x _
-                    tiles.Add(centerTile);
-                    Tile up = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y - 1));
-                    if (up != null) tiles.Add(up);
-                    Tile down = map.GetTileAtPosition(new Vector2Int(targetPos.x, targetPos.y + 1));
-                    if (down != null) tiles.Add(down);
-                    Tile left = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y));
-                    if (left != null) tiles.Add(left);
-                    Tile right = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y));
-                    if (right != null) tiles.Add(right);
-                    break;
-                case AbilityTargetShape.Cross:
-                    //  x _ x
-                    //  _ x _
-                    //  x _ x
-                    tiles.Add(centerTile);
-                    Tile tl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y - 1));
-                    if (tl != null) tiles.Add(tl);
-                    Tile tr = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y - 1));
-                    if (tr != null) tiles.Add(tr);
-                    Tile bl = map.GetTileAtPosition(new Vector2Int(targetPos.x - 1, targetPos.y + 1));
-                    if (bl != null) tiles.Add(bl);
-                    Tile br = map.GetTileAtPosition(new Vector2Int(targetPos.x + 1, targetPos.y + 1));
-                    if (br != null) tiles.Add(br);
-                    break;
-                case AbilityTargetShape.Line:
-                    Debug.LogWarning("Line shape not yet implemented");
-                    tiles.Add(centerTile);
-                    break;
-                case AbilityTargetShape.Cone:
-                    Debug.LogWarning("Cone shape not yet implemented");
-                    tiles.Add(centerTile);
-                    break;
-                case AbilityTargetShape.Square:
-                    //  x x x
-                    //  x x x
-                    //  x x x
-                    for (int dx = -1; dx <= 1; dx++) {
-                        for (int dy = -1; dy <= 1; dy++) {
-                            int x = targetPos.x + dx;
-                            int y = targetPos.y + dy;
-                            Tile tile = map.GetTileAtPosition(new Vector2Int(x, y));
-                            if (tile != null) {
-                                tiles.Add(tile);
-                            }
-                        }
-                    }
-                    break;
-                case AbilityTargetShape.None:
-                    break;
-            }
-            return tiles;
+            return GetTilesInShape(shape, map, targetPos, 0, 1);
         }
 
         /// <summary>
@@ -420,8 +353,11 @@ namespace NetFlower {
                 }
                 case AbilityTargetShape.Line:
                 case AbilityTargetShape.Cone:
-                    // Not yet implemented; fall back to legacy behavior.
-                    return GetTilesInShape(shape, map, targetPos);
+                    // Not yet implemented: target cell only (avoid calling obsolete no-range overload).
+                    Debug.LogWarning("Line/Cone shape not yet implemented for ranged AoE; using target tile only.");
+                    if (centerTile != null && !tiles.Contains(centerTile))
+                        tiles.Add(centerTile);
+                    break;
                 case AbilityTargetShape.None:
                 default:
                     break;
