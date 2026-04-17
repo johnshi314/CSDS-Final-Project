@@ -2,19 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using NativeWebSocket;
+using NetFlower.Net;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using NetFlower;
 
 namespace NetFlower.Backend {
-    /// <summary>
-    /// Lobby phase only: lobby-control WebSocket actions + snapshot updates.
-    /// When everyone is ready, commits roster into <see cref="Match"/> for the battle scene.
-    /// Put this on your Lobby scene (not necessarily DontDestroyOnLoad).
-    /// </summary>
+
     public class Matchmaking : MonoBehaviour {
         [Serializable]
         class LobbyControlAction {
@@ -33,7 +28,6 @@ namespace NetFlower.Backend {
             public string detail;
         }
 
-        /// <summary>JsonUtility-friendly snapshot (arrays, not List).</summary>
         [Serializable]
         public class LobbyState {
             public bool everyoneReady;
@@ -68,10 +62,8 @@ namespace NetFlower.Backend {
         string _authToken;
         Match _match;
 
-        WebSocket _lobbySocket;
-        CancellationTokenSource _lobbyCts;
+        IWebSocket _lobbySocket;
         readonly ConcurrentQueue<string> _lobbyIncoming = new ConcurrentQueue<string>();
-        readonly SemaphoreSlim _lobbySendLock = new SemaphoreSlim(1, 1);
         bool _matchStartRequested;
 
         string EffectiveApiBase() => GameApiEndpoints.EffectiveApiBase(httpApiBaseUrl);
@@ -84,7 +76,6 @@ namespace NetFlower.Backend {
             }
 
             _authToken = PlayerPrefs.GetString("auth_token", "");
-            // _authToken = PersistentPlayerPreferences.instance.authToken;
             if (string.IsNullOrEmpty(_authToken)) {
                 Debug.LogError("[Matchmaking] No auth token found. Player must log in before entering the lobby.");
                 return;
@@ -96,10 +87,10 @@ namespace NetFlower.Backend {
         }
 
         void Update() {
+            _lobbySocket?.DispatchMessageQueue();
             DrainLobbyJsonQueue();
         }
 
-        /// <summary>Process messages from WebSocket on the main thread (safe for TMP/UI).</summary>
         void DrainLobbyJsonQueue() {
             while (_lobbyIncoming.TryDequeue(out var json)) {
                 if (string.IsNullOrWhiteSpace(json))
@@ -112,7 +103,6 @@ namespace NetFlower.Backend {
             DisconnectLobbyWebSocket();
         }
 
-        /// <summary>Leave the current lobby via websocket action.</summary>
         public void LeaveLobby() {
             if (_match != null && _match.dbMatchId > 0 && !_matchStartRequested)
                 _ = SendLobbyActionAsync("leaveLobby");
@@ -185,14 +175,13 @@ namespace NetFlower.Backend {
 
         void ConnectLobbyWebSocket() {
             DisconnectLobbyWebSocket();
-            _lobbyCts = new CancellationTokenSource();
             var wsBase = GameApiEndpoints.LobbyWebSocketBaseTrimmed(EffectiveApiBase(), lobbyWebSocketBaseUrl);
             var url = $"{wsBase}/lobby-control?authToken={Uri.EscapeDataString(_authToken)}";
-            var socket = new WebSocket(url);
+            var socket = WebSocketFactory.Create(url);
             _lobbySocket = socket;
 
             socket.OnOpen += () => {
-                Debug.Log($"[Matchmaking] Lobby control WebSocket connected {url}");
+                Debug.Log($"[Matchmaking] Lobby control WebSocket connected");
                 if (_match != null && _match.dbMatchId > 0)
                     _ = SendLobbyActionAsync("subscribeLobby", matchId: _match.dbMatchId);
                 else {
@@ -203,16 +192,14 @@ namespace NetFlower.Backend {
             };
 
             socket.OnMessage += bytes => {
-                if (bytes == null || bytes.Length == 0) return;
-                _lobbyIncoming.Enqueue(Encoding.UTF8.GetString(bytes));
+                if (bytes != null && bytes.Length > 0)
+                    _lobbyIncoming.Enqueue(Encoding.UTF8.GetString(bytes));
             };
 
-            socket.OnError += msg => {
-                Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {msg}");
-            };
+            socket.OnError += msg => Debug.LogWarning($"[Matchmaking] Lobby WebSocket error: {msg}");
 
             socket.OnClose += code => {
-                Debug.Log($"[Matchmaking] Lobby WebSocket closed: {code}");
+                Debug.Log($"[Matchmaking] Lobby WebSocket closed: code={code}");
                 if (ReferenceEquals(_lobbySocket, socket))
                     _lobbySocket = null;
             };
@@ -221,24 +208,17 @@ namespace NetFlower.Backend {
         }
 
         void DisconnectLobbyWebSocket() {
-            _lobbyCts?.Cancel();
             var ws = _lobbySocket;
             _lobbySocket = null;
-            _lobbyCts = null;
             if (ws == null) return;
-            try {
-                ws.CancelConnection();
-            } catch { /* ignore */ }
-            try {
-                _ = ws.Close();
-            } catch { /* ignore */ }
+            try { ws.CancelConnection(); } catch { }
+            try { _ = ws.CloseAsync(); } catch { }
         }
 
-        async Task RunLobbyConnectAsync(WebSocket socket) {
+        async Task RunLobbyConnectAsync(IWebSocket socket) {
             try {
-                await socket.Connect();
-            } catch (OperationCanceledException) { }
-            catch (Exception e) {
+                await socket.ConnectAsync();
+            } catch (Exception e) {
                 Debug.LogWarning($"[Matchmaking] Lobby WebSocket connect failed: {e.Message}");
                 if (ReferenceEquals(_lobbySocket, socket))
                     _lobbySocket = null;
@@ -257,7 +237,7 @@ namespace NetFlower.Backend {
                 if (lobbyState != null)
                     UpdateLobbyGui(lobbyState);
             } catch (Exception e) {
-                Debug.LogWarning($"[Matchmaking] Bad lobby JSON: {e.Message}\\n{json}");
+                Debug.LogWarning($"[Matchmaking] Bad lobby JSON: {e.Message}\n{json}");
             }
         }
 
@@ -301,7 +281,7 @@ namespace NetFlower.Backend {
             int maxPlayers = 0,
             int characterId = 0
         ) {
-            if (_lobbySocket == null || _lobbySocket.State != WebSocketState.Open) {
+            if (_lobbySocket == null || _lobbySocket.State != NetFlower.Net.WebSocketState.Open) {
                 Debug.LogWarning($"[Matchmaking] Cannot send lobby action '{action}' - socket not connected");
                 return false;
             }
@@ -316,15 +296,12 @@ namespace NetFlower.Backend {
 
             var json = JsonUtility.ToJson(payload);
 
-            await _lobbySendLock.WaitAsync();
             try {
-                await _lobbySocket.SendText(json);
+                await _lobbySocket.SendTextAsync(json);
                 return true;
             } catch (Exception e) {
                 Debug.LogWarning($"[Matchmaking] Failed to send lobby action '{action}': {e.Message}");
                 return false;
-            } finally {
-                _lobbySendLock.Release();
             }
         }
     }

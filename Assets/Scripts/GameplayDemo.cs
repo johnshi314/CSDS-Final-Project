@@ -6,8 +6,8 @@ namespace NetFlower {
     /// <summary>
     /// Bootstraps the battle demo. Waits for GridMap to finish initializing,
     /// then tells BattleManager to start.
-    /// When <see cref="PersistentPlayerPreferences.isPlayingOnline"/> is true, replaces <see cref="BattleManager"/>
-    /// with <see cref="OnlineBattleManager"/> (same settings) so the battle uses the server WebSocket.
+    /// When PersistentPlayerPreferences.isPlayingOnline is true, replaces BattleManager
+    /// with OnlineBattleManager (same settings) so the battle uses the server WebSocket.
     /// </summary>
     [DefaultExecutionOrder(-50)]
     public class GameplayDemo : MonoBehaviour {
@@ -117,9 +117,9 @@ namespace NetFlower {
 
         /// <summary>
         /// Online PvP: destroy scene default agents, then spawn one prefab per lobby slot on each team so every
-        /// client builds the same <see cref="BattleManager"/> turn order and stable network unit ids (r0, r1, … / b0, …).
-        /// Uses <see cref="Match.CommitFromLobby"/> roster (player ids + character ids). Human slots have no
-        /// <see cref="NPCBehavior"/>; slots with no human player id (&lt;= 0) get NPC for host-driven AI.
+        /// client builds the same BattleManager turn order and stable network unit ids (r0, r1, … / b0, …).
+        /// Uses Match.CommitFromLobby roster (player ids + character ids). Human slots have no
+        /// NPCBehavior; slots with no human player id (&lt;= 0) get NPC for host-driven AI.
         /// If lobby data is missing, falls back to the old two-prefab 1v1 bootstrap.
         /// </summary>
         void OnlineFillGridMap(PersistentPlayerPreferences prefs) {
@@ -156,7 +156,7 @@ namespace NetFlower {
             gridMap.ReinitializeMapManager(redTeam, blueTeam, gridMap.RedSpawnPoints, gridMap.BlueSpawnPoints);
         }
 
-        /// <summary>Legacy 1v1 when <see cref="Match"/> has no roster (e.g. launching battle scene without lobby).</summary>
+        /// <summary>Legacy 1v1 when Match has no roster (e.g. launching battle scene without lobby).</summary>
         void OnlineFillGridMapTwoPlayerFallback(PersistentPlayerPreferences prefs, Match match) {
             if (allAgents == null) {
                 allAgents = Resources.Load<AllAgents>("Settings/AllAgents");

@@ -16,7 +16,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Text;
-using System.Collections;
 using NetFlower.UI;
 
 
@@ -146,7 +145,7 @@ namespace NetFlower {
         // Public API (called by GameplayDemo or wired to Canvas buttons)
         // ------------------------------------------------------------------ //
 
-        /// <param name="deferFirstBeginTurn">If true, wait for server (see <see cref="OnlineBattleManager"/>) before the first BeginTurn.</param>
+        /// <param name="deferFirstBeginTurn">If true, wait for server (see OnlineBattleManager) before the first BeginTurn.</param>
         public void StartBattle(bool deferFirstBeginTurn = false) {
             if (gridMap == null) {
                 gridMap = GetComponent<GridMap>();
@@ -196,9 +195,9 @@ namespace NetFlower {
         }
 
         /// <summary>
-        /// Online: build <c>spawns|n|x0|y0|...</c> from current <see cref="turnOrder"/> tile positions (must match server slot order).
+        /// Online: build <c>spawns|n|x0|y0|...</c> from current turnOrder tile positions (must match server slot order).
         /// </summary>
-        public bool TryBuildTurnSlotSpawnHandshakeLine(out string line) {
+        public bool TryBuildTurnSlotSpawnLine(out string line) {
             line = null;
             if (turnOrder == null || turnOrder.Count == 0 || gridMap?.MapManager?.ActiveMap == null)
                 return false;
@@ -217,19 +216,19 @@ namespace NetFlower {
         }
 
         /// <summary>
-        /// Online fallback: same spawn ordering as <see cref="GridMap.ReinitializeMapManager"/> (red list then blue list),
+        /// Online fallback: same spawn ordering as GridMap.ReinitializeMapManager (red list then blue list),
         /// without requiring each agent's current tile (avoids deadlock if tile lookup races).
         /// </summary>
-        public bool TryBuildDeterministicTurnSlotSpawnHandshakeLine(out string line) {
+        public bool TryDetermineTurnSlotSpawnLine(out string line) {
             line = null;
             if (turnOrder == null || turnOrder.Count == 0 || gridMap?.MapManager?.ActiveMap == null)
                 return false;
             var map = gridMap.MapManager.ActiveMap;
             var used = new HashSet<Vector2Int>();
             var agentPos = new Dictionary<Agent, Vector2Int>();
-            if (!TryAssignTeamSpawnsDeterministic(gridMap.RedAgents, gridMap.RedSpawnPoints, map, used, agentPos))
+            if (!TryDetermineTeamSpawns(gridMap.RedAgents, gridMap.RedSpawnPoints, map, used, agentPos))
                 return false;
-            if (!TryAssignTeamSpawnsDeterministic(gridMap.BlueAgents, gridMap.BlueSpawnPoints, map, used, agentPos))
+            if (!TryDetermineTeamSpawns(gridMap.BlueAgents, gridMap.BlueSpawnPoints, map, used, agentPos))
                 return false;
             var sb = new StringBuilder();
             sb.Append("spawns|").Append(turnOrder.Count);
@@ -243,7 +242,7 @@ namespace NetFlower {
             return true;
         }
 
-        static bool TryAssignTeamSpawnsDeterministic(
+        static bool TryDetermineTeamSpawns(
             IReadOnlyList<Agent> teamAgents,
             IReadOnlyList<Vector2Int> spawnPoints,
             Map map,

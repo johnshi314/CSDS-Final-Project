@@ -195,7 +195,7 @@ namespace NetFlower.Backend {
             HideCanvasGroup(logoutCg);
         }
 
-        /// <summary>Credential form + tab tint. Does not call <see cref="SwitchTo"/> (avoids recursion with tab refresh).</summary>
+        /// <summary>Credential form + tab tint. Does not call SwitchTo (avoids recursion with tab refresh).</summary>
         void SetLoginRegisterMode(RequestType mode) {
             if (mode != RequestType.Password && mode != RequestType.Register)
                 return;

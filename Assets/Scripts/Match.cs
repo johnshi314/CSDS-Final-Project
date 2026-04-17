@@ -7,7 +7,7 @@ using UnityEngine.Networking;
 namespace NetFlower {
     /// <summary>
     /// Persisted match session data + battle HTTP (stats submit). DontDestroyOnLoad singleton.
-    /// Lobby networking lives on <see cref="Backend.Matchmaking"/> in the Lobby scene.
+    /// Lobby networking lives on Backend.Matchmaking in the Lobby scene.
     /// </summary>
     public class Match : MonoBehaviour {
 

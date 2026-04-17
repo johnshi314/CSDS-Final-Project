@@ -6,14 +6,14 @@ using UnityEngine;
 namespace NetFlower {
 
     /// <summary>
-    /// Swaps a scene <see cref="BattleManager"/> for <see cref="OnlineBattleManager"/> at runtime
-    /// while copying serialized-style fields (used when <see cref="PersistentPlayerPreferences.isPlayingOnline"/> is true).
+    /// Swaps a scene BattleManager for OnlineBattleManager at runtime
+    /// while copying serialized-style fields (used when PersistentPlayerPreferences.isPlayingOnline is true).
     /// </summary>
     public static class BattleRuntime {
 
         /// <summary>
-        /// If <paramref name="existing"/> is a concrete <see cref="BattleManager"/> (not online), replaces it with
-        /// <see cref="OnlineBattleManager"/> and copies inspector fields. Returns the component to use for battle.
+        /// If <paramref name="existing is a concrete BattleManager (not online), replaces it with
+        /// OnlineBattleManager and copies inspector fields. Returns the component to use for battle.
         /// </summary>
         public static BattleManager ReplaceWithOnlineBattleManagerIfNeeded(BattleManager existing) {
             if (existing == null || existing is OnlineBattleManager)
@@ -27,7 +27,7 @@ namespace NetFlower {
             return online;
         }
 
-        /// <summary>Offline / local-only: replace <see cref="OnlineBattleManager"/> with plain <see cref="BattleManager"/> (copies shared inspector fields).</summary>
+        /// <summary>Offline / local-only: replace OnlineBattleManager with plain BattleManager (copies shared inspector fields).</summary>
         public static BattleManager ReplaceWithPlainBattleManager(OnlineBattleManager existing) {
             if (existing == null)
                 return null;
