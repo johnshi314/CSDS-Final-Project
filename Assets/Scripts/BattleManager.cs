@@ -640,6 +640,7 @@ namespace NetFlower {
                 TurnNumber = currentTurn
             };
             agent.UseAbility(aux);
+            TriggerAttackAnimation(agent);
         }
 
         protected virtual void OnAfterLocalMoveCommitted(Vector2Int destinationMapIndex) { }
@@ -740,6 +741,7 @@ namespace NetFlower {
                 TurnNumber = currentTurn
             };
             agent.UseAbility(aux);
+            TriggerAttackAnimation(agent);
         }
 
         private void BuildNetworkUnitIdMap() {
