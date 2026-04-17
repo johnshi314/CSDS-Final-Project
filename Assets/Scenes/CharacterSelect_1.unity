@@ -1551,7 +1551,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
   char_name: Marigold
   internal_name: Goblin
-  char_desc: joe joe
+  char_desc: Marigold desc
   char_id: 7
   char_icon: {fileID: 0}
   colors: {r: 1, g: 1, b: 0, a: 1}
@@ -1559,9 +1559,24 @@ MonoBehaviour:
   characterunlocked: 0
   ability_name: []
   ability_desc:
-  - jo 1
-  - jo2
-  - jo3
+  - '5 range, 1 target, 1 damage, on hit: inflict Targeted. Remove Targeted from
+    all other agents. This ability does no damage to allies'
+  - 'Cooldown 1; 1 range, Create a turret agent.
+
+
+    Turret; 4 hp, 0 movement,
+    loses 1 hp on start of turn, will only attack agent with Targeted, can only be
+    healed by the unit that summoned them.
+
+    ability 1: 3 range, 1 target, 1
+    damage. This ability does no damage to allies, instead healing them for 1 hp
+
+'
+  - 3 range, 1 target, 4 damage. If this ability brought the target to 0 hp. Allies
+    within 1 range of target gain 3 hp, and enemies within 1 range of target lose
+    3 hp.
+  - "Cooldown 6; All turrets are restored to 4 hp and gain 1 Power up\n\r\nPower
+    up X: This unit\u2019s attacks deal X more damage. Expires at end of turn"
   ability_icons: []
 --- !u!212 &337604612
 SpriteRenderer:
@@ -1612,12 +1627,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 10
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
-  m_Color: {r: 1, g: 1, b: 0, a: 1}
+  m_Sprite: {fileID: 21300000, guid: facecbfa5d8483a4584b6e5be6d13ca1, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 0.5}
+  m_Size: {x: 2.8515625, y: 4.4296875}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -1928,12 +1943,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 10
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
-  m_Color: {r: 0.6094339, g: 0.9497227, b: 1, a: 1}
+  m_Sprite: {fileID: 21300000, guid: 0d5f56d8adcd59c48805bd1e7be6601c, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 0.5}
+  m_Size: {x: 2.3359375, y: 4.2851562}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -1967,17 +1982,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
   char_name: Laurel
   internal_name: CEO
-  char_desc: joe joe
+  char_desc: CEO desc
   char_id: 5
   char_icon: {fileID: 0}
   colors: {r: 0.60784316, g: 0.9490196, b: 1, a: 1}
-  movement: 5
+  movement: 4
   characterunlocked: 0
   ability_name: []
   ability_desc:
-  - jo 1
-  - jo2
-  - jo3
+  - 3 range, 1 target, 2 damage
+  - "5 range, 3x3 block area, On start of this unit\u2019s next turn: enemies on
+    affected tile take 5 damage"
+  - Cooldown 2; 2 range, all targets in range, all enemies lose 2 movement
+  - Cooldown 7; 4 range, 2 3x3 cross (+) area, affected tiles become unwalkable.
+    This lasts until this ability is cast again. Center tile can not be a tile with
+    an agent occupying it.
   ability_icons: []
 --- !u!1 &415635190
 GameObject:
@@ -2472,24 +2491,23 @@ MonoBehaviour:
   characterunlocked: 0
   ability_name: []
   ability_desc:
-  - '
+  - '1 range, 1 target, 4 damage, on hit: gain 1 <b><color=green>Will</color></b>
+    (max 10)
 
-    1 range, 1 target, 4 damage, on hit: gain 1 Will (max 10)
 
-
-    Will:
-    Used for certain abilities, does not expire.
+    <b><color=green>Will</color></b>: Used for certain abilities,
+    does not expire.
 
 '
   - "2 range, all targets in range, 2 damage, on 1 or more target hit: gain 2 movement
-    and 1 Will \r\n"
-  - "Cooldown 3; spend all Will, gain Shield equal to Will, gain movement equal to
-    Will/2 rounded down.\r\nShield: While this unit has >0 Shield, when this unit
-    takes damage, Shield is reduced instead of hp. Expires when this unit\u2019s
-    turn starts.\r\n"
-  - "Cooldown 3; 2 range, all targets in range, at start of next turn gain 2 Power
-    up for each enemy in range \r\n\tPower up X: This unit\u2019s attacks deal X
-    more damage. Expires at end of turn"
+    and 1 <b><color=green>Will</color></b> \r\n"
+  - "Cooldown 3; spend all <b><color=green>Will</color></b>, gain <b><color=lightblue>Shield</color></b>
+    equal to <b><color=green>Will</color></b>, gain movement equal to <b><color=green>Will</color></b>/2
+    rounded down.\n\r\n<b><color=lightblue>Shield</color></b>: When this unit takes
+    damage, Shield is reduced instead of hp. Expires when this unit\u2019s turn starts.\r\n"
+  - "Cooldown 3; 2 range, all targets in range, at start of next turn gain 2 <b><color=#ff8080>Power
+    up</color></b> for each enemy in range \r\n<b><color=#ff8080>Power up</color></b>:
+    This unit\u2019s attacks deal X more damage. Expires at end of turn"
   ability_icons: []
 --- !u!1 &576396480
 GameObject:
@@ -2681,12 +2699,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 10
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.98490566, g: 0.928122, b: 0.55563545, a: 1}
+  m_Sprite: {fileID: 21300000, guid: c1451e226fe18a34d946b1f767861e3a, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 2.96875, y: 5.6757812}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -2720,18 +2738,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
   char_name: Mocha
   internal_name: Coffee
-  char_desc: Jose char desc
+  char_desc: Mocha desc
   char_id: 2
   char_icon: {fileID: 0}
   colors: {r: 0.9843137, g: 0.92941177, b: 0.5568628, a: 1}
-  movement: 12
+  movement: 4
   characterunlocked: 0
   ability_name: []
   ability_desc:
-  - jose ability 1
-  - jose ability 2
-  - jose ability 3
-  - jose ability 4
+  - 3 range, 1 target, 2 damage
+  - 5 range, 3x3 cross(+) area, Agents on affected tiles take 2 damage and lose 2
+    movement.
+  - "Cooldown 3; gain 3 movement and 2 <b><color=#ff8080>Power up</color></b>\r\n\n<b><color=#ff8080>Power
+    up</color></b> X: This unit\u2019s attacks deal X more damage. Expires at end
+    of turn"
+  - Cooldown 6; 4 range, all tiles in range, tiles become frozen, enemies who enter
+    a frozen tile lose 2 hp and 1 movement. Tiles become unfrozen after 3 turns.
   ability_icons: []
 --- !u!1 &578651239
 GameObject:
@@ -3748,17 +3770,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharDisplayInfo
   char_name: Clover
   internal_name: BFF
-  char_desc: joe joe
+  char_desc: Clover desc
   char_id: 6
   char_icon: {fileID: 0}
   colors: {r: 1, g: 0, b: 0.9529412, a: 1}
-  movement: 5
+  movement: 3
   characterunlocked: 0
   ability_name: []
   ability_desc:
-  - jo 1
-  - jo2
-  - jo3
+  - '1 range, 1 target, 3 damage, on hit: gain 1 <b><color=#ff00ffff>Momentum</color></b>
+    (Max 10)
+
+
+    <b><color=#ff00ffff>Momentum</color></b>: Used for certain abilities,
+    does not expire.'
+  - 2 range, all targets in range, 3 damage
+  - "Spend 1 <b><color=#ff00ffff>Momentum</color></b> to gain 4 <b><color=lightblue>Shield</color></b>\r\n\n<b><color=lightblue>Shield</color></b>:
+    When this unit takes damage, Shield is reduced instead of hp. Expires when this
+    unit\u2019s turn starts.\r\n"
+  - 'Cooldown 3: 3 range, all targets in range, For each <b><color=#ff00ffff>Momentum</color></b>,
+    do a random effect'
   ability_icons: []
 --- !u!212 &864052472
 SpriteRenderer:
